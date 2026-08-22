@@ -52,58 +52,10 @@ public sealed class TaikoDiveInstallation
         return null;
     }
 
-    public static TaikoDiveInstallation? Discover()
+    public static TaikoDiveInstallation? FromApplicationDirectory()
     {
-        HashSet<string> candidates = new(StringComparer.OrdinalIgnoreCase)
-        {
-            Environment.CurrentDirectory,
-            AppContext.BaseDirectory,
-            Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
-                "GitHub",
-                "TaikoDive"),
-        };
-
-        AddAncestors(candidates, Environment.CurrentDirectory);
-        AddAncestors(candidates, AppContext.BaseDirectory);
-
-        foreach (string candidate in candidates)
-        {
-            foreach (string probe in new[]
-            {
-                candidate,
-                Path.Combine(candidate, "build"),
-                Path.Combine(candidate, "TaikoDive"),
-                Path.Combine(candidate, "TaikoDive", "build"),
-            })
-            {
-                TaikoDiveInstallation? installation = FromSelectedDirectory(probe);
-                if (installation is not null)
-                {
-                    return installation;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    private static void AddAncestors(ISet<string> candidates, string path)
-    {
-        DirectoryInfo? directory;
-        try
-        {
-            directory = new DirectoryInfo(path);
-        }
-        catch
-        {
-            return;
-        }
-
-        for (int depth = 0; directory is not null && depth < 6; depth++)
-        {
-            candidates.Add(directory.FullName);
-            directory = directory.Parent;
-        }
+        string? developmentDirectory = Environment.GetEnvironmentVariable("TAIKODIVE_LAUNCHER_DEV_DIRECTORY");
+        return FromSelectedDirectory(developmentDirectory)
+            ?? FromSelectedDirectory(AppContext.BaseDirectory);
     }
 }

@@ -3,8 +3,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
 
 namespace TaikoDiveLauncher.Pages;
 
@@ -19,23 +17,11 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += HomePage_Loaded;
-        Unloaded += HomePage_Unloaded;
     }
 
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged += Context_InstallationChanged;
         await RefreshAsync();
-    }
-
-    private void HomePage_Unloaded(object sender, RoutedEventArgs e)
-    {
-        AppInstance.Context.InstallationChanged -= Context_InstallationChanged;
-    }
-
-    private void Context_InstallationChanged(object? sender, EventArgs e)
-    {
-        DispatcherQueue.TryEnqueue(async () => await RefreshAsync());
     }
 
     private async Task RefreshAsync()
@@ -45,11 +31,11 @@ public sealed partial class HomePage : Page
 
         if (installation is null)
         {
-            InstallStateText.Text = "セットアップが必要です";
-            InstallPathText.Text = "TaikoDive.exe が入っている build フォルダー、またはその親フォルダーを選択してください。";
+            InstallStateText.Text = "配置を確認してください";
+            InstallPathText.Text = AppContext.BaseDirectory;
             PrimaryProfileText.Text = "—";
             GameSummaryText.Text = "—";
-            ShowStatus(InfoBarSeverity.Warning, "ゲームフォルダーが未設定です。");
+            ShowStatus(InfoBarSeverity.Warning, "このフォルダーに TaikoDive.exe がありません。ランチャーをゲーム本体の隣へ移動してください。");
             return;
         }
 
@@ -79,26 +65,10 @@ public sealed partial class HomePage : Page
         }
     }
 
-    private async void SelectFolderButton_Click(object sender, RoutedEventArgs e)
+    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        FolderPicker picker = new()
-        {
-            SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
-        };
-        picker.FileTypeFilter.Add("*");
-        InitializeWithWindow.Initialize(picker, App.MainWindow.GetWindowHandle());
-
-        Windows.Storage.StorageFolder? folder = await picker.PickSingleFolderAsync();
-        if (folder is null)
-        {
-            return;
-        }
-
-        OperationResult result = await AppInstance.Context.SetGameDirectoryAsync(folder.Path);
-        if (!result.Succeeded)
-        {
-            ShowStatus(InfoBarSeverity.Error, result.Message);
-        }
+        await AppInstance.Context.InitializeAsync();
+        await RefreshAsync();
     }
 
     private void OpenFolderButton_Click(object sender, RoutedEventArgs e)

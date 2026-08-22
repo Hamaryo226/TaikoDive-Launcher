@@ -97,6 +97,72 @@ public sealed class PersistenceTests
         Assert.AreEqual(temporary.Installation.BuildDirectory, fromBuild.BuildDirectory);
     }
 
+    [TestMethod]
+    public void CharacterPreviewUsesConfiguredNormalLoopAndCapsDecodedFrames()
+    {
+        using TemporaryInstallation temporary = new();
+        string characterRoot = Path.Combine(temporary.Installation.CharacterDirectory, "4");
+        string normalRoot = Path.Combine(characterRoot, "result_loop");
+        Directory.CreateDirectory(normalRoot);
+        File.WriteAllText(Path.Combine(temporary.Installation.BuildDirectory, "Info", "CharaPath.ini"),
+            "Chara_Root=Info\\Chara\\<Type>\nCommon_NormalLoop=result_loop|Common\\Normal_loop\n");
+        File.WriteAllText(Path.Combine(characterRoot, "Config.json"), "{ \"resultLoopTime\": 600 }");
+        for (int index = 0; index < 40; index++)
+        {
+            File.WriteAllBytes(Path.Combine(normalRoot, $"{index}.png"), [0]);
+        }
+
+        CharacterPreviewData? preview = CharacterPreviewService.Load(temporary.Installation, "4");
+
+        Assert.IsNotNull(preview);
+        Assert.HasCount(30, preview.Frames);
+        Assert.AreEqual(20, preview.FrameInterval.TotalMilliseconds);
+    }
+
+    [TestMethod]
+    public void Aup2AnimationLoadsSceneFramesAndAnimatedValues()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            File.WriteAllBytes(Path.Combine(root, "Plate.png"), [0]);
+            string path = Path.Combine(root, "Anime.aup2");
+            File.WriteAllText(path, """
+                [scene.0]
+                video.width=380
+                video.height=100
+                video.rate=60
+                [0]
+                layer=2
+                frame=0,29
+                [0.0]
+                effect.name=画像ファイル
+                ファイル=\Plate.png
+                [0.1]
+                effect.name=標準描画
+                X=-100.00,100.00,直線移動,0
+                Y=0.00
+                拡大率=100.00
+                透明度=0.00,100.00,直線移動,0
+                """);
+
+            Aup2Animation? animation = Aup2Animation.Load(path);
+
+            Assert.IsNotNull(animation);
+            Assert.AreEqual(380, animation.Width);
+            Assert.AreEqual(100, animation.Height);
+            Assert.AreEqual(30, animation.TotalFrames);
+            Assert.HasCount(1, animation.Visuals);
+            Assert.AreEqual(0, animation.Visuals[0].X.At(0.5), 0.001);
+            Assert.AreEqual(50, animation.Visuals[0].Transparency.At(0.5), 0.001);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private sealed class TemporaryInstallation : IDisposable
     {
         public TemporaryInstallation()

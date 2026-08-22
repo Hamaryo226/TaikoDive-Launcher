@@ -13,25 +13,35 @@ public sealed partial class MainPage : Page
     {
         InitializeComponent();
         Loaded += MainPage_Loaded;
-        Unloaded += MainPage_Unloaded;
     }
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged += Context_InstallationChanged;
+        UpdateThemeToggle();
         ShellNavigation.SelectedItem = HomeItem;
         Navigate("home");
         UpdateInstallStatus();
     }
 
-    private void MainPage_Unloaded(object sender, RoutedEventArgs e)
+    private async void ThemeButton_Click(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged -= Context_InstallationChanged;
+        bool isDark = !string.Equals(
+            AppInstance.Context.Preferences.Theme,
+            "Light",
+            StringComparison.OrdinalIgnoreCase);
+        AppInstance.Context.Preferences.Theme = isDark ? "Light" : "Dark";
+        App.MainWindow.ApplyTheme(AppInstance.Context.Preferences.Theme);
+        UpdateThemeToggle();
+        await AppInstance.Context.SavePreferencesAsync();
     }
 
-    private void Context_InstallationChanged(object? sender, EventArgs e)
+    private void UpdateThemeToggle()
     {
-        DispatcherQueue.TryEnqueue(UpdateInstallStatus);
+        bool isDark = !string.Equals(
+            AppInstance.Context.Preferences.Theme,
+            "Light",
+            StringComparison.OrdinalIgnoreCase);
+        ThemeButton.Label = isDark ? "ダーク" : "ホワイト";
     }
 
     private void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -83,6 +93,6 @@ public sealed partial class MainPage : Page
     {
         InstallStatusText.Text = AppInstance.Context.Installation is { } installation
             ? installation.BuildDirectory
-            : "ゲームフォルダーが未設定です";
+            : "TaikoDive.exe と同じフォルダーへ配置してください";
     }
 }

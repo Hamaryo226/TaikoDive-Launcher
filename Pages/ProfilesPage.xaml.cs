@@ -10,6 +10,7 @@ public sealed partial class ProfilesPage : Page
     private readonly UserProfileStore _profileStore = new();
     private IReadOnlyList<UserProfile> _profiles = [];
     private CancellationTokenSource? _statisticsCancellation;
+    private bool _updatingEditor;
 
     private App AppInstance => (App)Application.Current;
 
@@ -22,20 +23,13 @@ public sealed partial class ProfilesPage : Page
 
     private async void ProfilesPage_Loaded(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged += Context_InstallationChanged;
         await ReloadAsync();
     }
 
     private void ProfilesPage_Unloaded(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged -= Context_InstallationChanged;
         _statisticsCancellation?.Cancel();
         _statisticsCancellation?.Dispose();
-    }
-
-    private void Context_InstallationChanged(object? sender, EventArgs e)
-    {
-        DispatcherQueue.TryEnqueue(async () => await ReloadAsync());
     }
 
     private async Task ReloadAsync(int selectedSlot = 1)
@@ -45,7 +39,7 @@ public sealed partial class ProfilesPage : Page
         {
             ProfileList.ItemsSource = null;
             SetEditorEnabled(false);
-            ShowStatus(InfoBarSeverity.Warning, "ホームでゲームフォルダーを選択してください。");
+            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 
@@ -80,10 +74,14 @@ public sealed partial class ProfilesPage : Page
         NameBox.Text = profile.Name;
         TitleBox.Text = profile.Title;
 
+        _updatingEditor = true;
         CharacterBox.ItemsSource = _profileStore.GetCharacterOptions(installation, profile.CharaType);
         CharacterBox.SelectedValue = profile.CharaType;
         NamePlateBox.ItemsSource = _profileStore.GetNamePlateOptions(installation, profile.NamePlateType);
         NamePlateBox.SelectedValue = profile.NamePlateType;
+        _updatingEditor = false;
+        CharacterPreview.ShowCharacter(installation, profile.CharaType);
+        await NamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
 
         _statisticsCancellation?.Cancel();
         _statisticsCancellation?.Dispose();
@@ -110,6 +108,32 @@ public sealed partial class ProfilesPage : Page
             ScoreCountText.Text = "—";
             ReplayCountText.Text = "—";
             DataFolderText.Text = ex.Message;
+        }
+    }
+
+    private void CharacterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingEditor)
+        {
+            return;
+        }
+
+        if (CharacterBox.SelectedValue is string characterType && AppInstance.Context.Installation is { } installation)
+        {
+            CharacterPreview.ShowCharacter(installation, characterType);
+        }
+    }
+
+    private async void NamePlateBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingEditor)
+        {
+            return;
+        }
+
+        if (NamePlateBox.SelectedValue is int plateType && AppInstance.Context.Installation is { } installation)
+        {
+            await NamePlatePreview.ShowNamePlateAsync(installation, plateType);
         }
     }
 

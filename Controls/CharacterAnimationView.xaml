@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="TaikoDiveLauncher.Controls.CharacterAnimationView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid MinHeight="220">
+        <Image
+            x:Name="PreviewImage"
+            MaxHeight="280"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Stretch="Uniform" />
+        <TextBlock
+            x:Name="EmptyMessage"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+            Text="normal アニメが見つかりません"
+            TextAlignment="Center"
+            TextWrapping="Wrap"
+            Visibility="Collapsed" />
+    </Grid>
+</UserControl>

@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="32,20,32,40" RowSpacing="16">
+    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -26,12 +26,12 @@
                     Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="再読み込み">
+                <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Refresh" />
                     </AppBarButton.Icon>
                 </AppBarButton>
-                <AppBarButton Click="SaveButton_Click" Label="保存">
+                <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
@@ -48,8 +48,8 @@
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <Grid x:Name="SettingsGrid" ColumnSpacing="16" RowSpacing="16">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition x:Name="SettingsPrimaryColumn" Width="*" />
+                    <ColumnDefinition x:Name="SettingsSecondaryColumn" Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -139,6 +139,9 @@
                                 <AdaptiveTrigger MinWindowWidth="0" />
                             </VisualState.StateTriggers>
                             <VisualState.Setters>
+                                <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
+                                <Setter Target="SettingsPrimaryColumn.Width" Value="*" />
+                                <Setter Target="SettingsSecondaryColumn.Width" Value="0" />
                                 <Setter Target="AudioSurface.(Grid.Column)" Value="0" />
                                 <Setter Target="AudioSurface.(Grid.Row)" Value="1" />
                                 <Setter Target="PerformanceSurface.(Grid.Row)" Value="2" />

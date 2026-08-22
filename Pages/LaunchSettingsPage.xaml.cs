@@ -27,24 +27,12 @@ public sealed partial class LaunchSettingsPage : Page
     {
         InitializeComponent();
         Loaded += LaunchSettingsPage_Loaded;
-        Unloaded += LaunchSettingsPage_Unloaded;
     }
 
     private async void LaunchSettingsPage_Loaded(object sender, RoutedEventArgs e)
     {
-        AppInstance.Context.InstallationChanged += Context_InstallationChanged;
         SoundTypeBox.ItemsSource = SoundTypes;
         await ReloadAsync();
-    }
-
-    private void LaunchSettingsPage_Unloaded(object sender, RoutedEventArgs e)
-    {
-        AppInstance.Context.InstallationChanged -= Context_InstallationChanged;
-    }
-
-    private void Context_InstallationChanged(object? sender, EventArgs e)
-    {
-        DispatcherQueue.TryEnqueue(async () => await ReloadAsync());
     }
 
     private async Task ReloadAsync()
@@ -53,7 +41,7 @@ public sealed partial class LaunchSettingsPage : Page
         if (installation is null)
         {
             SetSettingsEnabled(false);
-            ShowStatus(InfoBarSeverity.Warning, "ホームでゲームフォルダーを選択してください。");
+            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 
@@ -104,7 +92,7 @@ public sealed partial class LaunchSettingsPage : Page
     {
         if (AppInstance.Context.Installation is not { } installation)
         {
-            ShowStatus(InfoBarSeverity.Warning, "ホームでゲームフォルダーを選択してください。");
+            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 

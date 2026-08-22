@@ -41,10 +41,23 @@
             </Grid.RowDefinitions>
 
             <CommandBar
+                x:Name="ShellCommandBar"
                 Background="Transparent"
                 DefaultLabelPosition="Right"
                 IsDynamicOverflowEnabled="True">
-                <AppBarButton Click="LaunchButton_Click" Label="TaikoDive を起動">
+                <AppBarButton
+                    x:Name="ThemeButton"
+                    Click="ThemeButton_Click"
+                    Label="ダーク"
+                    Style="{StaticResource VisibleAppBarButtonStyle}">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE706;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton
+                    Click="LaunchButton_Click"
+                    Label="TaikoDive を起動"
+                    Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Play" />
                     </AppBarButton.Icon>
@@ -61,6 +74,25 @@
             </CommandBar>
 
             <Frame x:Name="ContentFrame" Grid.Row="1" />
+
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="ShellWideState">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="760" />
+                        </VisualState.StateTriggers>
+                    </VisualState>
+                    <VisualState x:Name="ShellNarrowState">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="InstallStatusText.Visibility" Value="Collapsed" />
+                            <Setter Target="ShellCommandBar.DefaultLabelPosition" Value="Collapsed" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
         </Grid>
     </NavigationView>
 </Page>
