@@ -9,12 +9,24 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class InputSettingsPage : Page
 {
+    private enum CaptureInputKind
+    {
+        None,
+        Keyboard,
+        Controller,
+    }
+
+    private sealed record BindingRemovalChoice(
+        string Label,
+        int? KeyCode = null,
+        ControllerInputBinding? Controller = null);
+
     private static readonly string[] ActionLabels = ["カッ（左）", "ドン（左）", "ドン（右）", "カッ（右）"];
     private readonly InputBindingsStore _store = new();
     private readonly ControllerInputMonitor _controllerMonitor = new();
     private readonly DispatcherTimer _captureTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private InputBindings _bindings = new();
-    private InputBindingRow? _captureRow;
+    private CaptureInputKind _captureInputKind;
     private int? _capturedKey;
     private ControllerInputBinding? _capturedController;
 
@@ -107,20 +119,43 @@ public sealed partial class InputSettingsPage : Page
         RefreshControllerStatus();
     }
 
-    private async void AddBindingButton_Click(object sender, RoutedEventArgs e)
+    private async void AddKeyboardBindingButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: InputBindingRow row })
         {
             return;
         }
 
-        _captureRow = row;
+        await CaptureBindingAsync(row, CaptureInputKind.Keyboard);
+    }
+
+    private async void AddControllerBindingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: InputBindingRow row })
+        {
+            return;
+        }
+
+        await CaptureBindingAsync(row, CaptureInputKind.Controller);
+    }
+
+    private async Task CaptureBindingAsync(InputBindingRow row, CaptureInputKind inputKind)
+    {
+        _captureInputKind = inputKind;
         _capturedKey = null;
         _capturedController = null;
-        CaptureTargetText.Text = $"{row.Player}P {row.Label} に追加";
+        bool capturesKeyboard = inputKind == CaptureInputKind.Keyboard;
+        CaptureDialog.Title = capturesKeyboard ? "キーボードのキーを追加" : "外部コントローラー入力を追加";
+        CaptureTargetText.Text = $"{row.Player}P {row.Label}";
+        CaptureInstructionText.Text = capturesKeyboard
+            ? "割り当てるキーボードのキーを押してください。コントローラー入力はこの画面では検出しません。"
+            : "割り当てるコントローラーのボタン、または十字キー方向を押してください。キーボード入力はこの画面では登録しません。";
         CaptureDialog.XamlRoot = XamlRoot;
-        _controllerMonitor.ResetEdges();
-        _captureTimer.Start();
+        if (!capturesKeyboard)
+        {
+            _controllerMonitor.ResetEdges();
+            _captureTimer.Start();
+        }
         try
         {
             await CaptureDialog.ShowAsync();
@@ -128,6 +163,7 @@ public sealed partial class InputSettingsPage : Page
         finally
         {
             _captureTimer.Stop();
+            _captureInputKind = CaptureInputKind.None;
         }
 
         if (_capturedKey is int key)
@@ -138,21 +174,89 @@ public sealed partial class InputSettingsPage : Page
         {
             AddControllerBinding(row, _capturedController);
         }
-        _captureRow = null;
     }
 
-    private void ClearBindingButton_Click(object sender, RoutedEventArgs e)
+    private async void RemoveKeyboardBindingButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: InputBindingRow row })
         {
             return;
         }
 
+        await RemoveBindingAsync(row, CaptureInputKind.Keyboard);
+    }
+
+    private async void RemoveControllerBindingButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: InputBindingRow row })
+        {
+            return;
+        }
+
+        await RemoveBindingAsync(row, CaptureInputKind.Controller);
+    }
+
+    private async Task RemoveBindingAsync(InputBindingRow row, CaptureInputKind inputKind)
+    {
         PlayerInputBindings player = GetPlayer(row.Player);
-        player.SetKeys(row.Slot, []);
-        player.SetControllers(row.Slot, []);
+        bool removesKeyboard = inputKind == CaptureInputKind.Keyboard;
+        IReadOnlyList<BindingRemovalChoice> choices = removesKeyboard
+            ? player.GetKeys(row.Slot)
+                .Select(key => new BindingRemovalChoice(InputLabelService.KeyLabel(key), KeyCode: key))
+                .ToArray()
+            : player.GetControllers(row.Slot)
+                .Select(controller => new BindingRemovalChoice(
+                    InputLabelService.ControllerLabel(controller),
+                    Controller: controller))
+                .ToArray();
+        if (choices.Count == 0)
+        {
+            return;
+        }
+
+        ComboBox picker = new()
+        {
+            Header = "削除する割り当て",
+            ItemsSource = choices,
+            DisplayMemberPath = nameof(BindingRemovalChoice.Label),
+            MinWidth = 320,
+            SelectedIndex = 0,
+        };
+        StackPanel content = new() { Spacing = 10 };
+        content.Children.Add(new TextBlock
+        {
+            Text = $"{row.Player}P {row.Label} の{(removesKeyboard ? "キーボード" : "外部コントローラー")}割り当てから1件だけ削除します。",
+            TextWrapping = TextWrapping.Wrap,
+        });
+        content.Children.Add(picker);
+        ContentDialog dialog = new()
+        {
+            Title = "割り当てを1件削除",
+            Content = content,
+            PrimaryButtonText = "削除",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary
+            || picker.SelectedItem is not BindingRemovalChoice selected)
+        {
+            return;
+        }
+
+        bool removed = removesKeyboard && selected.KeyCode is int keyCode
+            ? InputBindingsEditor.RemoveKeyboard(player, row.Slot, keyCode)
+            : selected.Controller is not null
+                && InputBindingsEditor.RemoveController(player, row.Slot, selected.Controller);
+        if (!removed)
+        {
+            return;
+        }
+
         RefreshRows();
-        ShowStatus(InfoBarSeverity.Informational, $"{row.Player}P {row.Label} の割り当てを消しました。保存すると反映されます。");
+        ShowStatus(
+            InfoBarSeverity.Informational,
+            $"{selected.Label} を1件削除しました。ほかの割り当ては保持しています。保存すると反映されます。");
     }
 
     private void CaptureDialog_Opened(ContentDialog sender, ContentDialogOpenedEventArgs args)
@@ -162,7 +266,7 @@ public sealed partial class InputSettingsPage : Page
 
     private void CaptureDialog_KeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Escape)
+        if (_captureInputKind != CaptureInputKind.Keyboard || e.Key == VirtualKey.Escape)
         {
             return;
         }
@@ -180,7 +284,9 @@ public sealed partial class InputSettingsPage : Page
 
     private void CaptureTimer_Tick(object? sender, object e)
     {
-        if (_controllerMonitor.TryGetPressed(out ControllerInputBinding? input) && input is not null)
+        if (_captureInputKind == CaptureInputKind.Controller
+            && _controllerMonitor.TryGetPressed(out ControllerInputBinding? input)
+            && input is not null)
         {
             _capturedController = input;
             CaptureDialog.Hide();
@@ -196,7 +302,7 @@ public sealed partial class InputSettingsPage : Page
         }
 
         PlayerInputBindings player = GetPlayer(row.Player);
-        player.SetKeys(row.Slot, player.GetKeys(row.Slot).Append(keyCode).Distinct().ToArray());
+        InputBindingsEditor.AddKeyboard(player, row.Slot, keyCode);
         RefreshRows();
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.KeyLabel(keyCode)} を追加しました。保存すると反映されます。");
     }
@@ -210,10 +316,7 @@ public sealed partial class InputSettingsPage : Page
         }
 
         PlayerInputBindings player = GetPlayer(row.Player);
-        if (!player.GetControllers(row.Slot).Any(existing => ControllerBindingsEqual(existing, input)))
-        {
-            player.SetControllers(row.Slot, [.. player.GetControllers(row.Slot), input]);
-        }
+        InputBindingsEditor.AddController(player, row.Slot, input);
         RefreshRows();
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.ControllerLabel(input)} を追加しました。保存すると反映されます。");
     }
@@ -225,17 +328,8 @@ public sealed partial class InputSettingsPage : Page
 
     private bool IsControllerUsedElsewhere(InputBindingRow target, ControllerInputBinding input)
     {
-        return AllRows().Any(row => row != target && GetPlayer(row.Player).GetControllers(row.Slot).Any(existing => ControllerBindingsEqual(existing, input)));
-    }
-
-    private static bool ControllerBindingsEqual(ControllerInputBinding left, ControllerInputBinding right)
-    {
-        return left.VendorId == right.VendorId
-            && left.ProductId == right.ProductId
-            && left.DeviceOrdinal == right.DeviceOrdinal
-            && left.InputType == right.InputType
-            && left.InputIndex == right.InputIndex
-            && left.InputValue == right.InputValue;
+        return AllRows().Any(row => row != target && GetPlayer(row.Player).GetControllers(row.Slot)
+            .Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input)));
     }
 
     private void RefreshRows()
@@ -243,9 +337,16 @@ public sealed partial class InputSettingsPage : Page
         foreach (InputBindingRow row in AllRows())
         {
             PlayerInputBindings player = GetPlayer(row.Player);
-            List<string> labels = player.GetKeys(row.Slot).Select(InputLabelService.KeyLabel).ToList();
-            labels.AddRange(player.GetControllers(row.Slot).Select(InputLabelService.ControllerLabel));
-            row.Value = labels.Count == 0 ? "未設定" : string.Join("  /  ", labels);
+            int[] keys = player.GetKeys(row.Slot);
+            ControllerInputBinding[] controllers = player.GetControllers(row.Slot);
+            row.KeyboardValue = keys.Length == 0
+                ? "未設定"
+                : string.Join("  /  ", keys.Select(InputLabelService.KeyLabel));
+            row.ControllerValue = controllers.Length == 0
+                ? "未設定"
+                : string.Join("  /  ", controllers.Select(InputLabelService.ControllerLabel));
+            row.HasKeyboardBindings = keys.Length > 0;
+            row.HasControllerBindings = controllers.Length > 0;
         }
     }
 

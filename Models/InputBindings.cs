@@ -91,23 +91,68 @@ public sealed class InputBindings
 
 public sealed class InputBindingRow : INotifyPropertyChanged
 {
-    private string _value = "未設定";
+    private string _keyboardValue = "未設定";
+    private string _controllerValue = "未設定";
+    private bool _hasKeyboardBindings;
+    private bool _hasControllerBindings;
 
     public required int Player { get; init; }
     public required int Slot { get; init; }
     public required string Label { get; init; }
 
-    public string Value
+    public string KeyboardValue
     {
-        get => _value;
+        get => _keyboardValue;
         set
         {
-            if (_value == value)
+            if (_keyboardValue == value)
             {
                 return;
             }
-            _value = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Value)));
+            _keyboardValue = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(KeyboardValue)));
+        }
+    }
+
+    public string ControllerValue
+    {
+        get => _controllerValue;
+        set
+        {
+            if (_controllerValue == value)
+            {
+                return;
+            }
+            _controllerValue = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ControllerValue)));
+        }
+    }
+
+    public bool HasKeyboardBindings
+    {
+        get => _hasKeyboardBindings;
+        set
+        {
+            if (_hasKeyboardBindings == value)
+            {
+                return;
+            }
+            _hasKeyboardBindings = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasKeyboardBindings)));
+        }
+    }
+
+    public bool HasControllerBindings
+    {
+        get => _hasControllerBindings;
+        set
+        {
+            if (_hasControllerBindings == value)
+            {
+                return;
+            }
+            _hasControllerBindings = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(HasControllerBindings)));
         }
     }
 

@@ -12,10 +12,13 @@ TaikoDive のユーザーデータと起動構成を管理する、Windows ネ�
 - `build/Setting.json` の画面、音量、サウンド、メモリ関連設定の編集
 - 1P／2Pのキーボードキー、USBコントローラーのボタン／方向入力の割り当て
 - `build/Songs` のジャンル自動読込と楽曲ZIPのドラッグ＆ドロップ追加
+- 任意のSongsフォルダーへの切替、TaikoNauts自動検索、TaikoDive標準Songsへの復元
 - `build` を作業ディレクトリにした正しい TaikoDive 起動
 - ゲーム起動後にランチャーを終了して常駐RAMを削減
 
 保存時は未知の設定項目や `User.ini` のコメントを残し、直前のファイルを `*.launcher.bak` にバックアップします。TaikoDive の実行中は競合を避けるため保存しません。
+
+Songsの切替はTaikoDive側へディレクトリリンクを作成し、元のSongsを `build/Info/TaikoDiveLauncher/Songs.original` に保持します。切替先には選曲画面に必要な `box.def`、`CenterText.apt`、`Image` 内の不足ファイルだけを補完し、既存ファイルや楽曲は上書きしません。TaikoNauts検索はデスクトップ、ドキュメント、ダウンロード、Program Filesを対象にし、複数見つかった場合は使用先を選択できます。
 
 ## 技術構成
 

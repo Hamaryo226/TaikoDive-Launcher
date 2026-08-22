@@ -8,6 +8,82 @@
     xmlns:models="using:TaikoDiveLauncher.Models"
     mc:Ignorable="d">
 
+    <Page.Resources>
+        <DataTemplate x:Key="InputBindingRowTemplate" x:DataType="models:InputBindingRow">
+            <Grid
+                MinHeight="132"
+                Padding="0,10"
+                RowSpacing="8"
+                AutomationProperties.Name="{x:Bind Label}">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" />
+                <Grid Grid.Row="1" ColumnSpacing="14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Spacing="5">
+                        <TextBlock
+                            Text="キーボード"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock
+                            MinHeight="34"
+                            Text="{x:Bind KeyboardValue, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button
+                                Content="キーを追加"
+                                Tag="{x:Bind}"
+                                Click="AddKeyboardBindingButton_Click"
+                                AutomationProperties.Name="キーボードのキーを追加" />
+                            <Button
+                                Tag="{x:Bind}"
+                                Click="RemoveKeyboardBindingButton_Click"
+                                IsEnabled="{x:Bind HasKeyboardBindings, Mode=OneWay}"
+                                AutomationProperties.Name="キーボード割り当てを1件削除">
+                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Spacing="5">
+                        <TextBlock
+                            Text="外部コントローラー"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock
+                            MinHeight="34"
+                            Text="{x:Bind ControllerValue, Mode=OneWay}"
+                            TextWrapping="Wrap"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button
+                                Content="入力を追加"
+                                Tag="{x:Bind}"
+                                Click="AddControllerBindingButton_Click"
+                                AutomationProperties.Name="外部コントローラー入力を追加" />
+                            <Button
+                                Tag="{x:Bind}"
+                                Click="RemoveControllerBindingButton_Click"
+                                IsEnabled="{x:Bind HasControllerBindings, Mode=OneWay}"
+                                AutomationProperties.Name="外部コントローラー割り当てを1件削除">
+                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </DataTemplate>
+    </Page.Resources>
+
     <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -73,54 +149,22 @@
                     <Border x:Name="PlayerOneSurface" Style="{StaticResource QuietSurfaceStyle}">
                         <StackPanel Spacing="12">
                             <TextBlock Text="1P" Style="{StaticResource SectionTitleStyle}" />
-                            <ListView ItemsSource="{x:Bind PlayerOneRows}" SelectionMode="None" IsItemClickEnabled="False">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:InputBindingRow">
-                                        <Grid MinHeight="64" Padding="0,8" ColumnSpacing="10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel VerticalAlignment="Center" Spacing="3">
-                                                <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{x:Bind Value, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource PageSubtitleStyle}" />
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="追加" Tag="{x:Bind}" Click="AddBindingButton_Click" VerticalAlignment="Center" />
-                                            <Button Grid.Column="2" Tag="{x:Bind}" Click="ClearBindingButton_Click" VerticalAlignment="Center" AutomationProperties.Name="割り当てを消す">
-                                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
-                                            </Button>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
+                            <ListView
+                                ItemsSource="{x:Bind PlayerOneRows}"
+                                ItemTemplate="{StaticResource InputBindingRowTemplate}"
+                                SelectionMode="None"
+                                IsItemClickEnabled="False" />
                         </StackPanel>
                     </Border>
 
                     <Border x:Name="PlayerTwoSurface" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
                         <StackPanel Spacing="12">
                             <TextBlock Text="2P" Style="{StaticResource SectionTitleStyle}" />
-                            <ListView ItemsSource="{x:Bind PlayerTwoRows}" SelectionMode="None" IsItemClickEnabled="False">
-                                <ListView.ItemTemplate>
-                                    <DataTemplate x:DataType="models:InputBindingRow">
-                                        <Grid MinHeight="64" Padding="0,8" ColumnSpacing="10">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
-                                            </Grid.ColumnDefinitions>
-                                            <StackPanel VerticalAlignment="Center" Spacing="3">
-                                                <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" />
-                                                <TextBlock Text="{x:Bind Value, Mode=OneWay}" TextWrapping="Wrap" Style="{StaticResource PageSubtitleStyle}" />
-                                            </StackPanel>
-                                            <Button Grid.Column="1" Content="追加" Tag="{x:Bind}" Click="AddBindingButton_Click" VerticalAlignment="Center" />
-                                            <Button Grid.Column="2" Tag="{x:Bind}" Click="ClearBindingButton_Click" VerticalAlignment="Center" AutomationProperties.Name="割り当てを消す">
-                                                <FontIcon Glyph="&#xE74D;" FontSize="14" />
-                                            </Button>
-                                        </Grid>
-                                    </DataTemplate>
-                                </ListView.ItemTemplate>
-                            </ListView>
+                            <ListView
+                                ItemsSource="{x:Bind PlayerTwoRows}"
+                                ItemTemplate="{StaticResource InputBindingRowTemplate}"
+                                SelectionMode="None"
+                                IsItemClickEnabled="False" />
                         </StackPanel>
                     </Border>
 
@@ -147,7 +191,7 @@
                 </Grid>
 
                 <TextBlock
-                    Text="複数入力を追加できます。割り当ては保存後、次回のTaikoDive起動から反映されます。"
+                    Text="キーボードと外部コントローラーは別々に追加・削除できます。変更は保存後、次回のTaikoDive起動から反映されます。"
                     Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
         </ScrollViewer>
@@ -156,13 +200,12 @@
 
         <ContentDialog
             x:Name="CaptureDialog"
-            Title="入力を追加"
             CloseButtonText="キャンセル"
             KeyDown="CaptureDialog_KeyDown">
             <Border x:Name="CaptureFocusSurface" IsTabStop="True" Padding="4">
                 <StackPanel Spacing="12">
                     <TextBlock x:Name="CaptureTargetText" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <TextBlock Text="キーボードのキー、コントローラーのボタン、または十字キー方向を押してください。" TextWrapping="Wrap" />
+                    <TextBlock x:Name="CaptureInstructionText" TextWrapping="Wrap" />
                     <ProgressRing Width="24" Height="24" IsActive="True" HorizontalAlignment="Left" />
                     <TextBlock Text="Escでキャンセル" Style="{StaticResource PageSubtitleStyle}" />
                 </StackPanel>

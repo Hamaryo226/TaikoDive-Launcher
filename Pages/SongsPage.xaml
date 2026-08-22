@@ -8,6 +8,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -22,7 +23,7 @@
             </Grid.RowDefinitions>
             <StackPanel Spacing="6">
                 <TextBlock Text="楽曲" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="楽曲ZIPを選択したジャンルへ安全に追加します。" Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock Text="Songsの保存場所を管理し、楽曲ZIPを選択したジャンルへ安全に追加します。" Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
             <CommandBar
                 x:Name="SongCommandBar"
@@ -38,7 +39,58 @@
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
-        <Grid x:Name="ContentGrid" Grid.Row="2" ColumnSpacing="16" RowSpacing="16">
+        <Border
+            x:Name="PathSurface"
+            Grid.Row="2"
+            Style="{StaticResource QuietSurfaceStyle}">
+            <Grid x:Name="PathGrid" ColumnSpacing="16" RowSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel Spacing="4">
+                    <TextBlock Text="現在のSongsフォルダー" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock
+                        x:Name="CurrentSongsPathText"
+                        AutomationProperties.Name="現在使用中のSongsフォルダー"
+                        IsTextSelectionEnabled="True"
+                        TextTrimming="CharacterEllipsis"
+                        TextWrapping="Wrap" />
+                    <TextBlock
+                        x:Name="SongsPathModeText"
+                        Style="{StaticResource PageSubtitleStyle}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+                <CommandBar
+                    x:Name="PathCommandBar"
+                    Grid.Column="1"
+                    HorizontalAlignment="Right"
+                    Background="Transparent"
+                    DefaultLabelPosition="Right">
+                    <AppBarButton Click="SelectSongsFolderButton_Click" Label="Songsを選択" Style="{StaticResource VisibleAppBarButtonStyle}">
+                        <AppBarButton.Icon><SymbolIcon Symbol="Folder" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton Click="FindTaikoNautsButton_Click" Label="TaikoNautsを検索" Style="{StaticResource VisibleAppBarButtonStyle}">
+                        <AppBarButton.Icon><SymbolIcon Symbol="Find" /></AppBarButton.Icon>
+                    </AppBarButton>
+                    <AppBarButton
+                        x:Name="RestoreSongsButton"
+                        Click="RestoreSongsButton_Click"
+                        Label="標準に戻す"
+                        Style="{StaticResource VisibleAppBarButtonStyle}"
+                        Visibility="Collapsed">
+                        <AppBarButton.Icon><SymbolIcon Symbol="Undo" /></AppBarButton.Icon>
+                    </AppBarButton>
+                </CommandBar>
+            </Grid>
+        </Border>
+
+        <Grid x:Name="ContentGrid" Grid.Row="3" ColumnSpacing="16" RowSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="DropColumn" Width="2*" />
                 <ColumnDefinition x:Name="GenreColumn" Width="*" />
@@ -137,6 +189,9 @@
                             <Setter Target="SongCommandBar.(Grid.Column)" Value="0" />
                             <Setter Target="SongCommandBar.(Grid.Row)" Value="1" />
                             <Setter Target="SongCommandBar.HorizontalAlignment" Value="Left" />
+                            <Setter Target="PathCommandBar.(Grid.Column)" Value="0" />
+                            <Setter Target="PathCommandBar.(Grid.Row)" Value="2" />
+                            <Setter Target="PathCommandBar.HorizontalAlignment" Value="Left" />
                             <Setter Target="DropColumn.Width" Value="*" />
                             <Setter Target="GenreColumn.Width" Value="0" />
                             <Setter Target="DropRow.Height" Value="Auto" />
@@ -152,7 +207,7 @@
 
         <ProgressRing
             x:Name="BusyRing"
-            Grid.Row="2"
+            Grid.Row="3"
             Width="36"
             Height="36"
             HorizontalAlignment="Center"

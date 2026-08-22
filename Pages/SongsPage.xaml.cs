@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
@@ -49,12 +50,216 @@ public sealed partial class SongsPage : Page
             ? "TaikoDive.exeの配置を確認してください。"
             : $"{installation.SongsDirectory} から {_genres.Count} 件を読み込みました。";
         EmptyGenresText.Visibility = _genres.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        UpdateSongsPathStatus();
+    }
+
+    private void UpdateSongsPathStatus()
+    {
+        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
+        if (installation is null)
+        {
+            CurrentSongsPathText.Text = "TaikoDive.exeが見つかりません";
+            SongsPathModeText.Text = "ランチャーをTaikoDive.exeと同じフォルダーへ配置してください。";
+            RestoreSongsButton.Visibility = Visibility.Collapsed;
+            PathCommandBar.IsEnabled = false;
+            return;
+        }
+
+        SongsPathState state = SongsPathService.GetState(installation);
+        CurrentSongsPathText.Text = state.EffectivePath;
+        SongsPathModeText.Text = state.IsRedirected
+            ? "外部Songsを使用中です。TaikoDive用のジャンル画像などは切替時に不足分だけ補完しています。"
+            : "TaikoDive標準のSongsフォルダーを使用中です。";
+        RestoreSongsButton.Visibility = state.CanRestore ? Visibility.Visible : Visibility.Collapsed;
+        PathCommandBar.IsEnabled = !_isBusy;
     }
 
     private void ReloadButton_Click(object sender, RoutedEventArgs e)
     {
         ReloadGenres();
         ShowStatus(InfoBarSeverity.Informational, $"ジャンルを再読み込みしました（{_genres.Count}件）。");
+    }
+
+    private async void SelectSongsFolderButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        try
+        {
+            FolderPicker picker = new()
+            {
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary,
+                ViewMode = PickerViewMode.List,
+            };
+            picker.FileTypeFilter.Add("*");
+            InitializeWithWindow.Initialize(picker, App.MainWindow.GetWindowHandle());
+            StorageFolder? folder = await picker.PickSingleFolderAsync();
+            if (folder is not null)
+            {
+                await ConfirmAndChangeSongsPathAsync(folder.Path, "選択したフォルダー");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowStatus(InfoBarSeverity.Error, $"Songsフォルダーを選択できませんでした: {ex.Message}");
+        }
+    }
+
+    private async void FindTaikoNautsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        SetBusy(true);
+        IReadOnlyList<TaikoNautsInstallation> installations;
+        try
+        {
+            installations = await TaikoNautsDiscoveryService.FindInstallationsAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowStatus(InfoBarSeverity.Error, $"TaikoNautsを検索できませんでした: {ex.Message}");
+            return;
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+
+        if (installations.Count == 0)
+        {
+            ShowStatus(
+                InfoBarSeverity.Warning,
+                "デスクトップ、ドキュメント、ダウンロード、Program FilesからTaikoNauts.exeを見つけられませんでした。「Songsを選択」から指定してください。");
+            return;
+        }
+
+        TaikoNautsInstallation? selectedInstallation = installations.Count == 1
+            ? installations[0]
+            : await SelectTaikoNautsInstallationAsync(installations);
+        if (selectedInstallation is not null)
+        {
+            await ConfirmAndChangeSongsPathAsync(selectedInstallation.SongsDirectory, "TaikoNautsのSongs");
+        }
+    }
+
+    private async Task<TaikoNautsInstallation?> SelectTaikoNautsInstallationAsync(
+        IReadOnlyList<TaikoNautsInstallation> installations)
+    {
+        ComboBox picker = new()
+        {
+            Header = "使用するTaikoNauts",
+            ItemsSource = installations,
+            DisplayMemberPath = nameof(TaikoNautsInstallation.ExecutablePath),
+            MinWidth = 420,
+            SelectedIndex = 0,
+        };
+        ContentDialog dialog = new()
+        {
+            Title = $"TaikoNautsが{installations.Count}件見つかりました",
+            Content = picker,
+            PrimaryButtonText = "選択",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary
+            ? picker.SelectedItem as TaikoNautsInstallation
+            : null;
+    }
+
+    private async Task ConfirmAndChangeSongsPathAsync(string targetPath, string sourceLabel)
+    {
+        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
+        if (installation is null)
+        {
+            ShowStatus(InfoBarSeverity.Warning, "TaikoDive.Launcher.exeをTaikoDive.exeと同じフォルダーへ配置してください。");
+            return;
+        }
+
+        StackPanel content = new() { Spacing = 10 };
+        content.Children.Add(new TextBlock
+        {
+            Text = targetPath,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            IsTextSelectionEnabled = true,
+            TextWrapping = TextWrapping.Wrap,
+        });
+        content.Children.Add(new TextBlock
+        {
+            Text = "元のTaikoDive Songsはバックアップとして残します。切替先には、選曲画面に必要なbox.def、CenterText.apt、Image内の不足ファイルだけをコピーし、既存ファイルや楽曲は上書きしません。",
+            Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            TextWrapping = TextWrapping.Wrap,
+        });
+        ContentDialog dialog = new()
+        {
+            Title = $"{sourceLabel}へ変更しますか？",
+            Content = content,
+            PrimaryButtonText = "変更",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            OperationResult result = await SongsPathService.ChangeAsync(installation, targetPath);
+            ShowStatus(result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error, result.Message);
+            ReloadGenres();
+        }
+        catch (OperationCanceledException)
+        {
+            ShowStatus(InfoBarSeverity.Warning, "Songsフォルダーの変更をキャンセルしました。");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void RestoreSongsButton_Click(object sender, RoutedEventArgs e)
+    {
+        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
+        if (_isBusy || installation is null)
+        {
+            return;
+        }
+
+        ContentDialog dialog = new()
+        {
+            Title = "TaikoDive標準のSongsへ戻しますか？",
+            Content = "切替先の外部Songsや、そこへ補完したアセットは削除しません。",
+            PrimaryButtonText = "元に戻す",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            OperationResult result = await SongsPathService.RestoreAsync(installation);
+            ShowStatus(result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error, result.Message);
+            ReloadGenres();
+        }
+        finally
+        {
+            SetBusy(false);
+        }
     }
 
     private void DropZone_DragOver(object sender, DragEventArgs e)
@@ -206,6 +411,7 @@ public sealed partial class SongsPage : Page
         BusyRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         DropZone.IsHitTestVisible = !busy;
         SongCommandBar.IsEnabled = !busy;
+        PathCommandBar.IsEnabled = !busy && AppInstance.Context.Installation is not null;
     }
 
     private void ResetDropZone() => DropZone.BorderThickness = new Thickness(1);

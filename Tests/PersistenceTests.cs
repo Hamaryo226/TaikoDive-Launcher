@@ -128,6 +128,53 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public void InputBindingsEditorRemovesOnlyTheSelectedBindingTypeAndItem()
+    {
+        ControllerInputBinding firstController = new()
+        {
+            VendorId = 0x1234,
+            ProductId = 0x5678,
+            DeviceOrdinal = 0,
+            DeviceName = "Taiko Controller",
+            InputType = ControllerInputType.Button,
+            InputIndex = 1,
+        };
+        ControllerInputBinding secondController = new()
+        {
+            VendorId = 0x1234,
+            ProductId = 0x5678,
+            DeviceOrdinal = 0,
+            DeviceName = "Taiko Controller",
+            InputType = ControllerInputType.Button,
+            InputIndex = 2,
+        };
+        ControllerInputBinding duplicateFirstController = new()
+        {
+            VendorId = firstController.VendorId,
+            ProductId = firstController.ProductId,
+            DeviceOrdinal = firstController.DeviceOrdinal,
+            DeviceName = firstController.DeviceName,
+            InputType = firstController.InputType,
+            InputIndex = firstController.InputIndex,
+        };
+        PlayerInputBindings player = new()
+        {
+            DonLeft = [32, 32, 33],
+            DonLeftControllers = [firstController, duplicateFirstController, secondController],
+        };
+
+        Assert.IsTrue(InputBindingsEditor.RemoveKeyboard(player, 1, 32));
+        CollectionAssert.AreEqual(new[] { 32, 33 }, player.DonLeft);
+        Assert.HasCount(3, player.DonLeftControllers);
+
+        Assert.IsTrue(InputBindingsEditor.RemoveController(player, 1, firstController));
+        CollectionAssert.AreEqual(new[] { 32, 33 }, player.DonLeft);
+        Assert.HasCount(2, player.DonLeftControllers);
+        Assert.AreEqual(1, player.DonLeftControllers[0].InputIndex);
+        Assert.AreEqual(2, player.DonLeftControllers[1].InputIndex);
+    }
+
+    [TestMethod]
     public void InstallationAcceptsRepositoryRootOrBuildDirectory()
     {
         using TemporaryInstallation temporary = new();
@@ -303,6 +350,83 @@ public sealed class PersistenceTests
 
         Assert.IsFalse(result.Succeeded);
         StringAssert.Contains(result.Message, "上書きしません");
+    }
+
+    [TestMethod]
+    public async Task SongsPathChangePreservesOriginalAndCopiesOnlyMissingAssets()
+    {
+        using TemporaryInstallation temporary = new();
+        string originalGenre = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(Path.Combine(originalGenre, "Image"));
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "box.def"), "original-box");
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "CenterText.apt"), "center-asset");
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "Image", "Bar.png"), "bar-asset");
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "original.tja"), "TITLE:Original");
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "preview.ogg"), "song-audio");
+
+        string externalSongs = Path.Combine(temporary.RootDirectory, "ExternalSongs");
+        string externalGenre = Path.Combine(externalSongs, "00 ポップス");
+        Directory.CreateDirectory(externalGenre);
+        await File.WriteAllTextAsync(Path.Combine(externalGenre, "box.def"), "external-box");
+        await File.WriteAllTextAsync(Path.Combine(externalGenre, "external.tja"), "TITLE:External");
+
+        OperationResult changed = await SongsPathService.ChangeWithoutProcessCheckAsync(temporary.Installation, externalSongs);
+
+        Assert.IsTrue(changed.Succeeded, changed.Message);
+        SongsPathState state = SongsPathService.GetState(temporary.Installation);
+        Assert.IsTrue(state.IsRedirected);
+        Assert.IsTrue(state.CanRestore);
+        Assert.AreEqual(Path.GetFullPath(externalSongs), state.EffectivePath);
+        Assert.AreEqual("external-box", await File.ReadAllTextAsync(Path.Combine(externalGenre, "box.def")));
+        Assert.AreEqual("center-asset", await File.ReadAllTextAsync(Path.Combine(externalGenre, "CenterText.apt")));
+        Assert.AreEqual("bar-asset", await File.ReadAllTextAsync(Path.Combine(externalGenre, "Image", "Bar.png")));
+        Assert.IsFalse(File.Exists(Path.Combine(externalGenre, "original.tja")));
+        Assert.IsFalse(File.Exists(Path.Combine(externalGenre, "preview.ogg")));
+        Assert.IsTrue(File.Exists(Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス", "external.tja")));
+        Assert.IsFalse(Directory.Exists(Path.Combine(temporary.Installation.BuildDirectory, "Songs.taikodive-launcher-original")));
+        Assert.IsTrue(Directory.Exists(Path.Combine(
+            temporary.Installation.BuildDirectory,
+            "Info",
+            "TaikoDiveLauncher",
+            "Songs.original")));
+
+        OperationResult restored = await SongsPathService.RestoreWithoutProcessCheckAsync(temporary.Installation);
+
+        Assert.IsTrue(restored.Succeeded, restored.Message);
+        SongsPathState restoredState = SongsPathService.GetState(temporary.Installation);
+        Assert.IsFalse(restoredState.IsRedirected);
+        Assert.IsFalse(restoredState.CanRestore);
+        Assert.IsTrue(File.Exists(Path.Combine(originalGenre, "original.tja")));
+        Assert.IsTrue(File.Exists(Path.Combine(externalGenre, "external.tja")));
+    }
+
+    [TestMethod]
+    public void TaikoNautsDiscoveryReturnsOnlyInstallationsWithSongsDirectory()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string validDirectory = Path.Combine(root, "Portable", "TaikoNauts");
+        string invalidDirectory = Path.Combine(root, "Old");
+        Directory.CreateDirectory(Path.Combine(validDirectory, "Songs"));
+        Directory.CreateDirectory(invalidDirectory);
+        File.WriteAllBytes(Path.Combine(validDirectory, "TaikoNauts.exe"), [0]);
+        File.WriteAllBytes(Path.Combine(invalidDirectory, "TaikoNauts.exe"), [0]);
+        try
+        {
+            IReadOnlyList<TaikoNautsInstallation> installations =
+                TaikoNautsDiscoveryService.FindInstallations([root]);
+
+            Assert.HasCount(1, installations);
+            Assert.AreEqual(
+                Path.GetFullPath(Path.Combine(validDirectory, "TaikoNauts.exe")),
+                installations[0].ExecutablePath);
+            Assert.AreEqual(
+                Path.GetFullPath(Path.Combine(validDirectory, "Songs")),
+                installations[0].SongsDirectory);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 
     private static void CreateZip(string path, params (string Path, string Content)[] files)
