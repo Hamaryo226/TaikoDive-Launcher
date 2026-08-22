@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Services;
 using Windows.Foundation;
+using Windows.Graphics.Imaging;
+using Windows.Storage;
 
 namespace TaikoDiveLauncher.Controls;
 
@@ -50,7 +53,7 @@ public sealed partial class NamePlateAnimationView : UserControl
 
             if (animation is not null)
             {
-                ShowAnimation(animation);
+                await ShowAnimationAsync(animation, loadVersion);
                 return;
             }
         }
@@ -65,33 +68,67 @@ public sealed partial class NamePlateAnimationView : UserControl
         EmptyMessage.Visibility = Visibility.Visible;
     }
 
-    private void ShowAnimation(Aup2Animation animation)
+    private async Task ShowAnimationAsync(Aup2Animation animation, int loadVersion)
     {
-        _animation = animation;
         SetStageSize(animation.Width, animation.Height);
+        Dictionary<(string Path, bool RemoveBlack), DecodedImage> imageCache = [];
         foreach (Aup2Visual source in animation.Visuals)
         {
-            BitmapImage bitmap = new(new Uri(source.ImagePath));
+            bool removeBlack = source.BlendMode == Aup2BlendMode.Additive;
+            (string Path, bool RemoveBlack) cacheKey = (source.ImagePath, removeBlack);
+            if (!imageCache.TryGetValue(cacheKey, out DecodedImage? decoded))
+            {
+                decoded = await DecodeImageAsync(source.ImagePath, removeBlack);
+                if (loadVersion != _loadVersion)
+                {
+                    return;
+                }
+
+                imageCache.Add(cacheKey, decoded);
+            }
+
             Image image = new()
             {
+                Source = decoded.Source,
+                Width = decoded.Width,
+                Height = decoded.Height,
                 RenderTransformOrigin = new Point(0.5, 0.5),
             };
             CompositeTransform transform = new();
             image.RenderTransform = transform;
             Canvas.SetZIndex(image, source.Layer);
             AnimationStage.Children.Add(image);
-            VisualElement element = new(source, bitmap, image, transform);
+            VisualElement element = new(source, image, transform);
             _visuals.Add(element);
-            image.ImageOpened += (_, _) =>
-            {
-                image.Width = bitmap.PixelWidth;
-                image.Height = bitmap.PixelHeight;
-                UpdateFrame(0);
-            };
-            image.Source = bitmap;
         }
 
+        _animation = animation;
+        UpdateFrame(0);
         Start();
+    }
+
+    private static async Task<DecodedImage> DecodeImageAsync(string path, bool removeBlackBackground)
+    {
+        StorageFile file = await StorageFile.GetFileFromPathAsync(path);
+        using var sourceStream = await file.OpenReadAsync();
+        BitmapDecoder decoder = await BitmapDecoder.CreateAsync(sourceStream);
+        PixelDataProvider pixelProvider = await decoder.GetPixelDataAsync(
+            BitmapPixelFormat.Bgra8,
+            BitmapAlphaMode.Straight,
+            new BitmapTransform(),
+            ExifOrientationMode.IgnoreExifOrientation,
+            ColorManagementMode.DoNotColorManage);
+        byte[] pixels = pixelProvider.DetachPixelData();
+        await Task.Run(() => Aup2ImageProcessor.ConvertToPremultipliedBgra(pixels, removeBlackBackground));
+
+        WriteableBitmap bitmap = new((int)decoder.PixelWidth, (int)decoder.PixelHeight);
+        using (Stream target = bitmap.PixelBuffer.AsStream())
+        {
+            await target.WriteAsync(pixels);
+        }
+
+        bitmap.Invalidate();
+        return new DecodedImage(bitmap, decoder.PixelWidth, decoder.PixelHeight);
     }
 
     private void ShowStaticImage(string path)
@@ -184,7 +221,8 @@ public sealed partial class NamePlateAnimationView : UserControl
 
     private sealed record VisualElement(
         Aup2Visual Source,
-        BitmapImage Bitmap,
         Image Image,
         CompositeTransform Transform);
+
+    private sealed record DecodedImage(ImageSource Source, double Width, double Height);
 }

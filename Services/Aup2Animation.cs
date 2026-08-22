@@ -157,6 +157,7 @@ public sealed class Aup2Animation
             case "中心Y": visual.CenterY = Aup2Value.Parse(value, 0); break;
             case "Z軸回転": visual.Rotation = Aup2Value.Parse(value, 0); break;
             case "透明度": visual.Transparency = Aup2Value.Parse(value, 0); break;
+            case "合成モード": visual.BlendMode = Aup2BlendModeExtensions.Parse(value); break;
         }
     }
 
@@ -188,6 +189,7 @@ public sealed class Aup2Visual
     public Aup2Value EffectScale = Aup2Value.Constant(100);
     public Aup2Value EffectScaleX = Aup2Value.Constant(100);
     public Aup2Value EffectScaleY = Aup2Value.Constant(100);
+    public Aup2BlendMode BlendMode;
 
     public double Progress(double frame)
     {
@@ -258,4 +260,50 @@ public enum Aup2Interpolation
     Linear,
     Step,
     Ease,
+}
+
+public enum Aup2BlendMode
+{
+    Normal,
+    Additive,
+    Subtractive,
+    Multiply,
+}
+
+internal static class Aup2BlendModeExtensions
+{
+    public static Aup2BlendMode Parse(string value) => value.Trim() switch
+    {
+        "加算" => Aup2BlendMode.Additive,
+        "減算" => Aup2BlendMode.Subtractive,
+        "乗算" => Aup2BlendMode.Multiply,
+        _ => Aup2BlendMode.Normal,
+    };
+}
+
+public static class Aup2ImageProcessor
+{
+    public static void ConvertToPremultipliedBgra(byte[] pixels, bool removeBlackBackground)
+    {
+        ArgumentNullException.ThrowIfNull(pixels);
+        if (pixels.Length % 4 != 0)
+        {
+            throw new ArgumentException("BGRA pixel data must contain four bytes per pixel.", nameof(pixels));
+        }
+
+        for (int index = 0; index < pixels.Length; index += 4)
+        {
+            int blue = pixels[index];
+            int green = pixels[index + 1];
+            int red = pixels[index + 2];
+            int sourceAlpha = pixels[index + 3];
+
+            pixels[index] = (byte)((blue * sourceAlpha + 127) / 255);
+            pixels[index + 1] = (byte)((green * sourceAlpha + 127) / 255);
+            pixels[index + 2] = (byte)((red * sourceAlpha + 127) / 255);
+            pixels[index + 3] = removeBlackBackground
+                ? (byte)((Math.Max(red, Math.Max(green, blue)) * sourceAlpha + 127) / 255)
+                : (byte)sourceAlpha;
+        }
+    }
 }

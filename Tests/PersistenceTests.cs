@@ -145,6 +145,7 @@ public sealed class PersistenceTests
                 Y=0.00
                 拡大率=100.00
                 透明度=0.00,100.00,直線移動,0
+                合成モード=加算
                 """);
 
             Aup2Animation? animation = Aup2Animation.Load(path);
@@ -156,11 +157,34 @@ public sealed class PersistenceTests
             Assert.HasCount(1, animation.Visuals);
             Assert.AreEqual(0, animation.Visuals[0].X.At(0.5), 0.001);
             Assert.AreEqual(50, animation.Visuals[0].Transparency.At(0.5), 0.001);
+            Assert.AreEqual(Aup2BlendMode.Additive, animation.Visuals[0].BlendMode);
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [TestMethod]
+    public void AdditiveImageConversionMakesBlackTransparentAndPreservesGlowIntensity()
+    {
+        byte[] pixels =
+        [
+            0, 0, 0, 255,
+            32, 64, 128, 255,
+            100, 50, 200, 128,
+        ];
+
+        Aup2ImageProcessor.ConvertToPremultipliedBgra(pixels, removeBlackBackground: true);
+
+        CollectionAssert.AreEqual(
+            new byte[]
+            {
+                0, 0, 0, 0,
+                32, 64, 128, 128,
+                50, 25, 100, 100,
+            },
+            pixels);
     }
 
     private sealed class TemporaryInstallation : IDisposable
