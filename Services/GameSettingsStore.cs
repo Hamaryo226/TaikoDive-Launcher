@@ -7,10 +7,21 @@ namespace TaikoDiveLauncher.Services;
 
 public sealed class GameSettingsStore
 {
+    private readonly Func<bool> _isGameRunning;
+
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
         WriteIndented = true,
     };
+
+    public GameSettingsStore() : this(GameProcessService.IsRunning)
+    {
+    }
+
+    internal GameSettingsStore(Func<bool> isGameRunning)
+    {
+        _isGameRunning = isGameRunning;
+    }
 
     public async Task<GameSettings> LoadAsync(TaikoDiveInstallation installation)
     {
@@ -38,7 +49,7 @@ public sealed class GameSettingsStore
 
     public async Task SaveAsync(TaikoDiveInstallation installation, GameSettings settings)
     {
-        if (GameProcessService.IsRunning())
+        if (_isGameRunning())
         {
             throw new InvalidOperationException("TaikoDive の実行中は設定を保存できません。ゲームを終了してから再試行してください。");
         }

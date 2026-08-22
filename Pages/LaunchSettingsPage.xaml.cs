@@ -73,7 +73,6 @@ public sealed partial class LaunchSettingsPage : Page
             Texture16BitSwitch.IsOn = settings.ReduceTextureColorTo16bit;
             CharaTexture16BitSwitch.IsOn = settings.ReduceCharaTextureColorTo16bit;
             CharaFrameSkipBox.Value = settings.CharaAnimationFrameSkip;
-            CloseAfterLaunchSwitch.IsOn = AppInstance.Context.Preferences.CloseAfterLaunch;
             SetSettingsEnabled(true);
             StatusBar.IsOpen = false;
         }
@@ -121,8 +120,6 @@ public sealed partial class LaunchSettingsPage : Page
         try
         {
             await _settingsStore.SaveAsync(installation, settings);
-            AppInstance.Context.Preferences.CloseAfterLaunch = CloseAfterLaunchSwitch.IsOn;
-            await AppInstance.Context.SavePreferencesAsync();
             ShowStatus(InfoBarSeverity.Success, "起動構成を保存しました。変更は次回のゲーム起動から反映されます。");
         }
         catch (Exception ex)

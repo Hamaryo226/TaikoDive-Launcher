@@ -24,7 +24,7 @@ public sealed class PersistenceTests
             "1P_User_CharaType=1\r\n";
         await File.WriteAllTextAsync(temporary.Installation.UserProfilePath, original, shiftJis);
 
-        UserProfileStore store = new();
+        UserProfileStore store = new(() => false);
         IReadOnlyList<UserProfile> loaded = await store.LoadAsync(temporary.Installation);
         Assert.AreEqual("old", loaded[0].Name);
 
@@ -68,7 +68,7 @@ public sealed class PersistenceTests
             """;
         await File.WriteAllTextAsync(temporary.Installation.GameSettingsPath, original);
 
-        GameSettingsStore store = new();
+        GameSettingsStore store = new(() => false);
         GameSettings settings = await store.LoadAsync(temporary.Installation);
         settings.GuestMode = false;
         settings.ScreenWidth = 1920;

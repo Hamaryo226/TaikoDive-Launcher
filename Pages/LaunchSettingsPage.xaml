@@ -22,7 +22,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="起動構成" Style="{StaticResource PageTitleStyle}" />
                 <TextBlock
-                    Text="Setting.json とランチャーの起動動作をまとめて設定します。"
+                    Text="TaikoDiveの画面・サウンド・読み込み設定を編集します。"
                     Style="{StaticResource PageSubtitleStyle}" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
@@ -52,7 +52,6 @@
                     <ColumnDefinition x:Name="SettingsSecondaryColumn" Width="*" />
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
@@ -92,7 +91,7 @@
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="PerformanceSurface" Grid.Row="1" Style="{StaticResource QuietSurfaceStyle}">
+                <Border x:Name="PerformanceSurface" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="16">
                         <TextBlock Text="メモリ / 読み込み" Style="{StaticResource SectionTitleStyle}" />
                         <ToggleSwitch x:Name="CompressedSoundSwitch" Header="楽曲音声を圧縮したまま保持" />
@@ -107,22 +106,6 @@
                             SpinButtonPlacementMode="Compact" />
                         <TextBlock
                             Text="16bit化はRAMを節約しますが、グラデーションや白いキャラの色に差が出る場合があります。"
-                            Style="{StaticResource PageSubtitleStyle}" />
-                    </StackPanel>
-                </Border>
-
-                <Border x:Name="LauncherSurface" Grid.Row="1" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="ランチャー" Style="{StaticResource SectionTitleStyle}" />
-                        <ToggleSwitch
-                            x:Name="CloseAfterLaunchSwitch"
-                            Header="ゲーム起動後にランチャーを終了"
-                            IsOn="True" />
-                        <TextBlock
-                            Text="有効にすると、ゲーム中にランチャーが常駐せずRAMを消費しません。"
-                            Style="{StaticResource PageSubtitleStyle}" />
-                        <TextBlock
-                            Text="保存時は Setting.json.launcher.bak に直前の設定を残します。"
                             Style="{StaticResource PageSubtitleStyle}" />
                     </StackPanel>
                 </Border>
@@ -145,8 +128,6 @@
                                 <Setter Target="AudioSurface.(Grid.Column)" Value="0" />
                                 <Setter Target="AudioSurface.(Grid.Row)" Value="1" />
                                 <Setter Target="PerformanceSurface.(Grid.Row)" Value="2" />
-                                <Setter Target="LauncherSurface.(Grid.Column)" Value="0" />
-                                <Setter Target="LauncherSurface.(Grid.Row)" Value="3" />
                             </VisualState.Setters>
                         </VisualState>
                     </VisualStateGroup>

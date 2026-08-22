@@ -28,6 +28,7 @@ public sealed partial class HomePage : Page
     {
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         OpenFolderButton.IsEnabled = installation is not null;
+        LaunchButton.IsEnabled = installation is not null;
 
         if (installation is null)
         {
@@ -85,6 +86,28 @@ public sealed partial class HomePage : Page
         catch (Exception ex)
         {
             ShowStatus(InfoBarSeverity.Error, $"フォルダーを開けませんでした: {ex.Message}");
+        }
+    }
+
+    private async void LaunchButton_Click(object sender, RoutedEventArgs e)
+    {
+        OperationResult result = AppInstance.Context.LaunchGame();
+        if (!result.Succeeded)
+        {
+            ContentDialog dialog = new()
+            {
+                Title = "起動できませんでした",
+                Content = result.Message,
+                CloseButtonText = "閉じる",
+                XamlRoot = XamlRoot,
+            };
+            await dialog.ShowAsync();
+            return;
+        }
+
+        if (AppInstance.Context.Preferences.CloseAfterLaunch)
+        {
+            AppInstance.Exit();
         }
     }
 

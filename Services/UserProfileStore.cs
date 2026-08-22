@@ -7,10 +7,20 @@ namespace TaikoDiveLauncher.Services;
 public sealed class UserProfileStore
 {
     private const int MaximumProfiles = 9;
+    private readonly Func<bool> _isGameRunning;
 
     static UserProfileStore()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+    }
+
+    public UserProfileStore() : this(GameProcessService.IsRunning)
+    {
+    }
+
+    internal UserProfileStore(Func<bool> isGameRunning)
+    {
+        _isGameRunning = isGameRunning;
     }
 
     public async Task<IReadOnlyList<UserProfile>> LoadAsync(TaikoDiveInstallation installation)
@@ -70,7 +80,7 @@ public sealed class UserProfileStore
 
     public async Task SaveAsync(TaikoDiveInstallation installation, UserProfile profile)
     {
-        if (GameProcessService.IsRunning())
+        if (_isGameRunning())
         {
             throw new InvalidOperationException("TaikoDive の実行中はプロフィールを保存できません。ゲームを終了してから再試行してください。");
         }
