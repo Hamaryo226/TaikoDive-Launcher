@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
 using TaikoDiveLauncher.Models;
@@ -429,6 +430,71 @@ public sealed class PersistenceTests
         }
     }
 
+    [TestMethod]
+    public void WindowPlacementIsClampedIntoTheNearestWorkArea()
+    {
+        WindowPlacementPreferences placement = new()
+        {
+            X = 5000,
+            Y = -2000,
+            Width = 1800,
+            Height = 1200,
+        };
+
+        WindowBounds result = WindowPlacementBounds.ClampToWorkArea(
+            placement,
+            new WindowBounds(0, 0, 1920, 1080));
+
+        Assert.AreEqual(new WindowBounds(120, 0, 1800, 1080), result);
+    }
+
+    [TestMethod]
+    public async Task UpdateCheckerDetectsDifferentMainRevisionWithoutAuthentication()
+    {
+        string currentRevision = new('a', 40);
+        string latestRevision = new('b', 40);
+        string manifest = $$"""
+            {
+              "revision": "{{latestRevision}}",
+              "sha256": "{{new string('C', 64)}}",
+              "size": 172552040,
+              "publishedAt": "2026-08-22T00:00:00Z"
+            }
+            """;
+        using HttpClient client = new(new StaticResponseHandler(manifest));
+        LauncherUpdateService service = new(
+            client,
+            currentRevision,
+            new Uri("https://example.test/update-manifest.json"),
+            new Uri("https://example.test/TaikoDive.Launcher.exe"),
+            () => "C:\\TaikoDive\\TaikoDive.Launcher.exe");
+
+        await service.CheckAsync();
+
+        Assert.AreEqual(LauncherUpdateState.Available, service.State);
+        Assert.IsNotNull(service.AvailableUpdate);
+        Assert.AreEqual(latestRevision, service.AvailableUpdate.Revision);
+    }
+
+    [TestMethod]
+    public void UpdateApplyCommandRejectsInvalidHashAndAcceptsVerifiedShape()
+    {
+        string[] validArgs =
+        [
+            "TaikoDive.Launcher.exe",
+            "--apply-update",
+            "--target", "C:\\Games\\TaikoDive\\TaikoDive.Launcher.exe",
+            "--parent", "1234",
+            "--working-directory", "C:\\Games\\TaikoDive",
+            "--sha256", new string('A', 64),
+        ];
+        string[] invalidArgs = [.. validArgs[..^1], "not-a-hash"];
+
+        Assert.IsTrue(LauncherUpdateService.TryParseApplyCommand(validArgs, out PendingUpdateCommand? command));
+        Assert.IsNotNull(command);
+        Assert.IsFalse(LauncherUpdateService.TryParseApplyCommand(invalidArgs, out _));
+    }
+
     private static void CreateZip(string path, params (string Path, string Content)[] files)
     {
         using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
@@ -437,6 +503,19 @@ public sealed class PersistenceTests
             ZipArchiveEntry entry = archive.CreateEntry(entryPath);
             using StreamWriter writer = new(entry.Open());
             writer.Write(content);
+        }
+    }
+
+    private sealed class StaticResponseHandler(string content) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(content, Encoding.UTF8, "application/json"),
+            });
         }
     }
 

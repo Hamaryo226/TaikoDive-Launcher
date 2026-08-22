@@ -5,10 +5,13 @@ namespace TaikoDiveLauncher.Services;
 public sealed class LauncherContext
 {
     private readonly LauncherPreferencesStore _preferencesStore = new();
+    private readonly SemaphoreSlim _preferencesSaveLock = new(1, 1);
 
     public LauncherPreferences Preferences { get; private set; } = new();
 
     public TaikoDiveInstallation? Installation { get; private set; }
+
+    public LauncherUpdateService Updates { get; } = new();
 
     public async Task InitializeAsync()
     {
@@ -18,7 +21,18 @@ public sealed class LauncherContext
 
     public void RefreshInstallation() => Installation = TaikoDiveInstallation.FromApplicationDirectory();
 
-    public Task SavePreferencesAsync() => _preferencesStore.SaveAsync(Preferences);
+    public async Task SavePreferencesAsync()
+    {
+        await _preferencesSaveLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await _preferencesStore.SaveAsync(Preferences).ConfigureAwait(false);
+        }
+        finally
+        {
+            _preferencesSaveLock.Release();
+        }
+    }
 
     public OperationResult LaunchGame()
     {

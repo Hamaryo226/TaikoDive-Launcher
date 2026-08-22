@@ -59,6 +59,39 @@
                             Style="{StaticResource PageSubtitleStyle}" />
                     </StackPanel>
                 </Border>
+
+                <Border Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="アップデート" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock
+                            Text="起動時にバックグラウンドでmainブランチの最新版を確認します。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                        <TextBlock x:Name="CurrentVersionText" Style="{StaticResource FieldLabelStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <ProgressRing
+                                x:Name="UpdateProgressRing"
+                                Width="20"
+                                Height="20"
+                                IsActive="False" />
+                            <TextBlock
+                                x:Name="UpdateStatusText"
+                                VerticalAlignment="Center"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="CheckUpdateButton"
+                                Click="CheckUpdateButton_Click"
+                                Content="今すぐ確認" />
+                            <Button
+                                x:Name="InstallUpdateButton"
+                                Click="InstallUpdateButton_Click"
+                                Content="アップデート"
+                                IsEnabled="False"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
 

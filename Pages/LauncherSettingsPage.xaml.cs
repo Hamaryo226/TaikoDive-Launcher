@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using TaikoDiveLauncher.Models;
+using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
@@ -14,6 +16,7 @@ public sealed partial class LauncherSettingsPage : Page
     {
         InitializeComponent();
         Loaded += LauncherSettingsPage_Loaded;
+        Unloaded += LauncherSettingsPage_Unloaded;
     }
 
     private void LauncherSettingsPage_Loaded(object sender, RoutedEventArgs e)
@@ -21,7 +24,15 @@ public sealed partial class LauncherSettingsPage : Page
         _isLoading = true;
         CloseAfterLaunchSwitch.IsOn = AppInstance.Context.Preferences.CloseAfterLaunch;
         UpdateThemeButton();
+        AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
+        AppInstance.Context.Updates.StateChanged += Updates_StateChanged;
+        UpdateUpdateControls();
         _isLoading = false;
+    }
+
+    private void LauncherSettingsPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
     }
 
     private async void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
@@ -82,6 +93,56 @@ public sealed partial class LauncherSettingsPage : Page
             : "ダークモード。ホワイトモードへ切り替え";
         AutomationProperties.SetName(ThemeToggleButton, accessibleName);
         ToolTipService.SetToolTip(ThemeToggleButton, accessibleName);
+    }
+
+    private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        await AppInstance.Context.Updates.CheckAsync();
+    }
+
+    private async void InstallUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        ContentDialog confirmation = new()
+        {
+            Title = "ランチャーをアップデートしますか？",
+            Content = "更新を検証して適用した後、TaikoDive Launcherを自動的に再起動します。",
+            PrimaryButtonText = "アップデート",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        OperationResult result = await AppInstance.Context.Updates.DownloadAndStartInstallerAsync();
+        if (result.Succeeded)
+        {
+            AppInstance.Exit();
+            return;
+        }
+
+        ShowStatus(InfoBarSeverity.Error, $"アップデートできませんでした: {result.Message}");
+    }
+
+    private void Updates_StateChanged(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(UpdateUpdateControls);
+    }
+
+    private void UpdateUpdateControls()
+    {
+        LauncherUpdateService updates = AppInstance.Context.Updates;
+        CurrentVersionText.Text = $"現在のバージョン: {updates.CurrentVersionText}";
+        UpdateStatusText.Text = updates.StatusMessage;
+        bool isBusy = updates.State is
+            LauncherUpdateState.Checking or
+            LauncherUpdateState.Downloading or
+            LauncherUpdateState.StartingInstaller;
+        UpdateProgressRing.IsActive = isBusy;
+        CheckUpdateButton.IsEnabled = !isBusy;
+        InstallUpdateButton.IsEnabled = updates.State == LauncherUpdateState.Available;
     }
 
     private void ShowStatus(InfoBarSeverity severity, string message)
