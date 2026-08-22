@@ -1,0 +1,86 @@
+name: Publish main launcher update
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: launcher-main-update
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run tests
+        run: dotnet test Tests\TaikoDiveLauncher.Tests.csproj -c Debug -p:Platform=x64
+
+      - name: Build single-file launcher
+        run: dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64
+
+      - name: Create update manifest
+        shell: pwsh
+        run: |
+          $publishDirectory = Join-Path $env:GITHUB_WORKSPACE 'bin\x64\Release\net10.0-windows10.0.26100.0\win-x64'
+          $executable = Join-Path $publishDirectory 'TaikoDive.Launcher.exe'
+          if (-not (Test-Path -LiteralPath $executable)) {
+            throw "Release executable was not generated: $executable"
+          }
+
+          $file = Get-Item -LiteralPath $executable
+          $manifest = [ordered]@{
+            revision = ($env:GITHUB_SHA).ToLowerInvariant()
+            sha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
+            size = $file.Length
+            publishedAt = [DateTimeOffset]::UtcNow.ToString('O')
+          }
+          $manifestPath = Join-Path $publishDirectory 'update-manifest.json'
+          $json = $manifest | ConvertTo-Json
+          [System.IO.File]::WriteAllText(
+            $manifestPath,
+            $json + [Environment]::NewLine,
+            [System.Text.UTF8Encoding]::new($false))
+
+      - name: Publish main update channel
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'launcher-main'
+          $publishDirectory = Join-Path $env:GITHUB_WORKSPACE 'bin\x64\Release\net10.0-windows10.0.26100.0\win-x64'
+          $executable = Join-Path $publishDirectory 'TaikoDive.Launcher.exe'
+          $manifest = Join-Path $publishDirectory 'update-manifest.json'
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag --force $tag $env:GITHUB_SHA
+          git push origin "refs/tags/$tag" --force
+
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo $env:GITHUB_REPOSITORY `
+              --title 'TaikoDive Launcher - main' `
+              --notes 'mainブランチから自動生成されるランチャー更新チャネルです。' `
+              --prerelease `
+              --target $env:GITHUB_SHA
+          }
+
+          gh release upload $tag $executable --clobber --repo $env:GITHUB_REPOSITORY
+          gh release upload $tag $manifest --clobber --repo $env:GITHUB_REPOSITORY
