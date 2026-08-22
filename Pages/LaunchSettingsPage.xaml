@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="TaikoDiveLauncher.Pages.LaunchSettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="32,20,32,40" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Spacing="6">
+                <TextBlock Text="起動構成" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock
+                    Text="Setting.json とランチャーの起動動作をまとめて設定します。"
+                    Style="{StaticResource PageSubtitleStyle}" />
+            </StackPanel>
+            <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
+                <AppBarButton Click="ReloadButton_Click" Label="再読み込み">
+                    <AppBarButton.Icon>
+                        <SymbolIcon Symbol="Refresh" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton Click="SaveButton_Click" Label="保存">
+                    <AppBarButton.Icon>
+                        <SymbolIcon Symbol="Save" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+            </CommandBar>
+        </Grid>
+
+        <InfoBar
+            x:Name="StatusBar"
+            Grid.Row="1"
+            IsClosable="True"
+            IsOpen="False" />
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid x:Name="SettingsGrid" ColumnSpacing="16" RowSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border x:Name="WindowSurface" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="画面" Style="{StaticResource SectionTitleStyle}" />
+                        <ComboBox
+                            x:Name="ResolutionBox"
+                            Header="ウィンドウ解像度"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Width" />
+                        <ToggleSwitch x:Name="FullScreenSwitch" Header="フルスクリーン" />
+                        <ToggleSwitch x:Name="BorderlessSwitch" Header="ボーダーレスウィンドウ" />
+                        <ToggleSwitch x:Name="VerticalSyncSwitch" Header="垂直同期" />
+                        <ToggleSwitch x:Name="GuestModeSwitch" Header="ゲストモード" />
+                        <ToggleSwitch x:Name="TwoPlayerModeSwitch" Header="2人プレイ" />
+                        <ToggleSwitch x:Name="SaveReplaySwitch" Header="ベストリプレイを保存" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="AudioSurface" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="サウンド" Style="{StaticResource SectionTitleStyle}" />
+                        <Slider x:Name="MasterVolumeSlider" Header="マスター音量" Minimum="0" Maximum="100" StepFrequency="1" />
+                        <Slider x:Name="MusicVolumeSlider" Header="楽曲音量" Minimum="0" Maximum="100" StepFrequency="1" />
+                        <Slider x:Name="SoundEffectVolumeSlider" Header="効果音音量" Minimum="0" Maximum="100" StepFrequency="1" />
+                        <ComboBox x:Name="SoundTypeBox" Header="出力方式" />
+                        <NumberBox
+                            x:Name="SoundBufferBox"
+                            Header="バッファサンプル数（0 = 自動）"
+                            Minimum="0"
+                            Maximum="8192"
+                            SmallChange="32"
+                            SpinButtonPlacementMode="Compact" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="PerformanceSurface" Grid.Row="1" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="メモリ / 読み込み" Style="{StaticResource SectionTitleStyle}" />
+                        <ToggleSwitch x:Name="CompressedSoundSwitch" Header="楽曲音声を圧縮したまま保持" />
+                        <ToggleSwitch x:Name="Texture16BitSwitch" Header="一般テクスチャを16bit化" />
+                        <ToggleSwitch x:Name="CharaTexture16BitSwitch" Header="キャラテクスチャを16bit化" />
+                        <NumberBox
+                            x:Name="CharaFrameSkipBox"
+                            Header="キャラアニメの読み込み間隔（1〜4）"
+                            Minimum="1"
+                            Maximum="4"
+                            SmallChange="1"
+                            SpinButtonPlacementMode="Compact" />
+                        <TextBlock
+                            Text="16bit化はRAMを節約しますが、グラデーションや白いキャラの色に差が出る場合があります。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="LauncherSurface" Grid.Row="1" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="ランチャー" Style="{StaticResource SectionTitleStyle}" />
+                        <ToggleSwitch
+                            x:Name="CloseAfterLaunchSwitch"
+                            Header="ゲーム起動後にランチャーを終了"
+                            IsOn="True" />
+                        <TextBlock
+                            Text="有効にすると、ゲーム中にランチャーが常駐せずRAMを消費しません。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                        <TextBlock
+                            Text="保存時は Setting.json.launcher.bak に直前の設定を残します。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                    </StackPanel>
+                </Border>
+
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState x:Name="WideState">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="900" />
+                            </VisualState.StateTriggers>
+                        </VisualState>
+                        <VisualState x:Name="NarrowState">
+                            <VisualState.StateTriggers>
+                                <AdaptiveTrigger MinWindowWidth="0" />
+                            </VisualState.StateTriggers>
+                            <VisualState.Setters>
+                                <Setter Target="AudioSurface.(Grid.Column)" Value="0" />
+                                <Setter Target="AudioSurface.(Grid.Row)" Value="1" />
+                                <Setter Target="PerformanceSurface.(Grid.Row)" Value="2" />
+                                <Setter Target="LauncherSurface.(Grid.Column)" Value="0" />
+                                <Setter Target="LauncherSurface.(Grid.Row)" Value="3" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+            </Grid>
+        </ScrollViewer>
+
+        <ProgressRing
+            x:Name="BusyRing"
+            Grid.Row="2"
+            Width="32"
+            Height="32"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsActive="False"
+            Visibility="Collapsed" />
+    </Grid>
+</Page>

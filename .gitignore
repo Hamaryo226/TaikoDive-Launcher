@@ -1,0 +1,17 @@
+bin/
+obj/
+.vs/
+.idea/
+AppPackages/
+BundleArtifacts/
+Generated Files/
+*.user
+*.suo
+*.pfx
+*.cer
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
+*.appinstaller
+TestResults/
