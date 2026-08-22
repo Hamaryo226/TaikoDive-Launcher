@@ -5,10 +5,19 @@ namespace TaikoDiveLauncher.Services;
 
 public sealed class LauncherPreferencesStore
 {
-    public string FilePath { get; } = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "TaikoDiveLauncher",
-        "launcher.json");
+    public LauncherPreferencesStore()
+    {
+        string? developmentDirectory = Environment.GetEnvironmentVariable(
+            "TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY");
+        FilePath = string.IsNullOrWhiteSpace(developmentDirectory)
+            ? Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "TaikoDiveLauncher",
+                "launcher.json")
+            : Path.Combine(Path.GetFullPath(developmentDirectory), "launcher.json");
+    }
+
+    public string FilePath { get; }
 
     public async Task<LauncherPreferences> LoadAsync()
     {

@@ -6,4 +6,5 @@ namespace TaikoDiveLauncher.Models;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = true)]
 [JsonSerializable(typeof(LauncherPreferences))]
+[JsonSerializable(typeof(LauncherUpdateManifest))]
 internal partial class LauncherJsonContext : JsonSerializerContext;

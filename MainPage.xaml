@@ -44,13 +44,30 @@
             </NavigationViewItem>
         </NavigationView.MenuItems>
         <NavigationView.FooterMenuItems>
-            <NavigationViewItem Content="ランチャー設定" Tag="launcher-settings">
+            <NavigationViewItem x:Name="LauncherSettingsItem" Content="ランチャー設定" Tag="launcher-settings">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
-        <Frame x:Name="ContentFrame" />
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <InfoBar
+                x:Name="UpdateBanner"
+                Margin="12,8,12,0"
+                IsClosable="True"
+                IsOpen="False"
+                Severity="Informational"
+                Title="ランチャーのアップデート">
+                <InfoBar.ActionButton>
+                    <Button Click="OpenUpdateSettingsButton_Click" Content="設定を開く" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <Frame x:Name="ContentFrame" Grid.Row="1" />
+        </Grid>
     </NavigationView>
 </Page>
