@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="TaikoDiveLauncher.Pages.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid x:Name="LayoutRoot" Padding="32,28,32,40" RowSpacing="28">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid x:Name="HeaderGrid" ColumnSpacing="16" RowSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <StackPanel MaxWidth="760" HorizontalAlignment="Left" Spacing="8">
+                    <TextBlock Text="TaikoDive" Style="{StaticResource PageTitleStyle}" />
+                    <TextBlock
+                        Text="プロフィールと起動構成を、ゲームを開く前に静かに整える。"
+                        Style="{StaticResource PageSubtitleStyle}" />
+                </StackPanel>
+                <Button
+                    x:Name="LaunchButton"
+                    Grid.Column="1"
+                    MinWidth="112"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Click="LaunchButton_Click"
+                    Content="起動"
+                    Style="{StaticResource PrimaryButtonStyle}" />
+            </Grid>
+
+            <InfoBar
+                x:Name="StatusBar"
+                Grid.Row="1"
+                IsClosable="False"
+                IsOpen="False" />
+
+            <Grid x:Name="SummaryGrid" Grid.Row="2" ColumnSpacing="16" RowSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition x:Name="SummaryPrimaryColumn" Width="*" />
+                    <ColumnDefinition x:Name="SummarySecondaryColumn" Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Border x:Name="InstallSurface" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="ゲーム" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock
+                            x:Name="InstallStateText"
+                            FontWeight="SemiBold"
+                            Text="未設定" />
+                        <TextBlock
+                            x:Name="InstallPathText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            Text="ランチャーは TaikoDive.exe と同じフォルダーに置いて使用します。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Name="RefreshButton"
+                                Click="RefreshButton_Click"
+                                Content="再確認"
+                                Style="{StaticResource PrimaryButtonStyle}" />
+                            <Button x:Name="OpenFolderButton" Click="OpenFolderButton_Click" Content="フォルダーを開く" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="DataSurface" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="現在のデータ" Style="{StaticResource SectionTitleStyle}" />
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="1P プロフィール" Style="{StaticResource FieldLabelStyle}" />
+                            <TextBlock x:Name="PrimaryProfileText" Text="—" />
+                        </StackPanel>
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="画面 / サウンド" Style="{StaticResource FieldLabelStyle}" />
+                            <TextBlock x:Name="GameSummaryText" Text="—" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <TextBlock
+                            Text="編集時は元ファイルの .launcher.bak を自動作成します。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="WideState">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="820" />
+                        </VisualState.StateTriggers>
+                    </VisualState>
+                    <VisualState x:Name="NarrowState">
+                        <VisualState.StateTriggers>
+                            <AdaptiveTrigger MinWindowWidth="0" />
+                        </VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="LayoutRoot.Padding" Value="16,20,16,32" />
+                            <Setter Target="LaunchButton.(Grid.Column)" Value="0" />
+                            <Setter Target="LaunchButton.(Grid.Row)" Value="1" />
+                            <Setter Target="LaunchButton.HorizontalAlignment" Value="Left" />
+                            <Setter Target="SummaryPrimaryColumn.Width" Value="*" />
+                            <Setter Target="SummarySecondaryColumn.Width" Value="0" />
+                            <Setter Target="DataSurface.(Grid.Column)" Value="0" />
+                            <Setter Target="DataSurface.(Grid.Row)" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+        </Grid>
+    </ScrollViewer>
+</Page>

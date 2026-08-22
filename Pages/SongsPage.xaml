@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="TaikoDiveLauncher.Pages.SongsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="HeaderGrid" RowSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <StackPanel Spacing="6">
+                <TextBlock Text="楽曲" Style="{StaticResource PageTitleStyle}" />
+                <TextBlock Text="楽曲ZIPを選択したジャンルへ安全に追加します。" Style="{StaticResource PageSubtitleStyle}" />
+            </StackPanel>
+            <CommandBar
+                x:Name="SongCommandBar"
+                Grid.Column="1"
+                HorizontalAlignment="Right"
+                Background="Transparent"
+                DefaultLabelPosition="Right">
+                <AppBarButton Click="ReloadButton_Click" Label="ジャンルを再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
+                    <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
+                </AppBarButton>
+            </CommandBar>
+        </Grid>
+
+        <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
+
+        <Grid x:Name="ContentGrid" Grid.Row="2" ColumnSpacing="16" RowSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="DropColumn" Width="2*" />
+                <ColumnDefinition x:Name="GenreColumn" Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition x:Name="DropRow" Height="*" />
+                <RowDefinition x:Name="GenreRow" Height="0" />
+            </Grid.RowDefinitions>
+
+            <Border
+                x:Name="DropZone"
+                MinHeight="280"
+                AllowDrop="True"
+                AutomationProperties.Name="楽曲ZIPのドロップ領域"
+                DragLeave="DropZone_DragLeave"
+                DragOver="DropZone_DragOver"
+                Drop="DropZone_Drop"
+                Style="{StaticResource QuietSurfaceStyle}">
+                <StackPanel
+                    MaxWidth="520"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Spacing="14">
+                    <FontIcon
+                        HorizontalAlignment="Center"
+                        FontSize="52"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Glyph="&#xE898;" />
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        FontSize="22"
+                        FontWeight="SemiBold"
+                        Text="楽曲ZIPをここへドロップ"
+                        TextAlignment="Center" />
+                    <TextBlock
+                        Text="ドロップ後に保存先ジャンルを選択します。ZIP内の楽曲フォルダーを展開し、既存データは上書きしません。"
+                        Style="{StaticResource PageSubtitleStyle}"
+                        TextAlignment="Center" />
+                    <Button
+                        HorizontalAlignment="Center"
+                        Click="SelectZipButton_Click"
+                        Content="ZIPを選択"
+                        Style="{StaticResource PrimaryButtonStyle}" />
+                </StackPanel>
+            </Border>
+
+            <Border
+                x:Name="GenreSurface"
+                Grid.Column="1"
+                Style="{StaticResource QuietSurfaceStyle}">
+                <Grid RowSpacing="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="保存先ジャンル" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock
+                        x:Name="GenreSummaryText"
+                        Grid.Row="1"
+                        Style="{StaticResource PageSubtitleStyle}" />
+                    <Grid Grid.Row="2">
+                        <ListView
+                            x:Name="GenreList"
+                            MinHeight="180"
+                            AutomationProperties.Name="Songsフォルダーのジャンル一覧"
+                            SelectionMode="Single">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Padding="8,6" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+                        <TextBlock
+                            x:Name="EmptyGenresText"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Text="ジャンルフォルダーがありません"
+                            TextAlignment="Center"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+                    </Grid>
+                </Grid>
+            </Border>
+
+            <VisualStateManager.VisualStateGroups>
+                <VisualStateGroup>
+                    <VisualState x:Name="WideState">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="820" /></VisualState.StateTriggers>
+                    </VisualState>
+                    <VisualState x:Name="NarrowState">
+                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
+                        <VisualState.Setters>
+                            <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
+                            <Setter Target="SongCommandBar.(Grid.Column)" Value="0" />
+                            <Setter Target="SongCommandBar.(Grid.Row)" Value="1" />
+                            <Setter Target="SongCommandBar.HorizontalAlignment" Value="Left" />
+                            <Setter Target="DropColumn.Width" Value="*" />
+                            <Setter Target="GenreColumn.Width" Value="0" />
+                            <Setter Target="DropRow.Height" Value="Auto" />
+                            <Setter Target="GenreRow.Height" Value="*" />
+                            <Setter Target="DropZone.MinHeight" Value="240" />
+                            <Setter Target="GenreSurface.(Grid.Column)" Value="0" />
+                            <Setter Target="GenreSurface.(Grid.Row)" Value="1" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateManager.VisualStateGroups>
+        </Grid>
+
+        <ProgressRing
+            x:Name="BusyRing"
+            Grid.Row="2"
+            Width="36"
+            Height="36"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            IsActive="False"
+            Visibility="Collapsed" />
+    </Grid>
+</Page>

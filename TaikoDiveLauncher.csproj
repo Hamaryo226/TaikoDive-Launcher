@@ -1,16 +1,90 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
-    <UseWPF>true</UseWPF>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
     <RootNamespace>TaikoDiveLauncher</RootNamespace>
-    <AssemblyName>TaikoDiveLauncher</AssemblyName>
-    <ApplicationIcon></ApplicationIcon>
+    <AssemblyName>TaikoDive.Launcher</AssemblyName>
+    <NeutralLanguage>ja-JP</NeutralLanguage>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+    <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
+    <UseWinUI>true</UseWinUI>
+    <WinUISDKReferences>false</WinUISDKReferences>
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <SelfContained>false</SelfContained>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;bin\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!-- Keep the expanded Release build graph out of the distribution directory. -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <BaseOutputPath>$(MSBuildProjectDirectory)\obj\release-bin\</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 
+  <!--
+    Defining the "Msix" ProjectCapability here allows the Single-project MSIX Packaging
+    Tools extension to be activated for this project even if the Windows App SDK Nuget
+    package has not yet been restored.
+  -->
+  <ItemGroup Condition="'$(DisableMsixProjectCapabilityAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <ProjectCapability Include="Msix" />
+  </ItemGroup>
+
+  <!--
+    Microsoft.Windows.SDK.BuildTools.WinApp adds first-class support for
+    `dotnet run` on packaged WinUI apps: it hooks the .NET CLI Run target to
+    register a debug identity via the winapp CLI and launch the app with
+    package identity (AUMID).
+    Set <EnableWinAppRunSupport>false</EnableWinAppRunSupport> in a
+    <PropertyGroup> above to opt out.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2526" />
+    <!-- Windows App SDK 2.4.0 metapackage pins these component versions. Reference only the
+         components this launcher uses so unused AI, ML, Search, and Widgets stay out of output. -->
+    <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.6" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.6" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />
+  </ItemGroup>
+
+  <!--
+    Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
+    Explorer "Package and Publish" context menu entry to be enabled for this project even if
+    the Windows App SDK Nuget package has not yet been restored.
+  -->
+  <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
+    <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
+  </PropertyGroup>
+
+  <!-- Publish Properties -->
+  <PropertyGroup>
+    <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
+    <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">False</PublishReadyToRun>
+    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
+  </PropertyGroup>
+
+  <!-- A normal Release build also creates the ready-to-distribute single EXE. -->
+  <Target Name="PublishReleaseBundleAfterBuild"
+          AfterTargets="Build"
+          Condition="'$(Configuration)' == 'Release'
+                     and '$(DesignTimeBuild)' != 'true'
+                     and '$(_IsPublishing)' != 'true'
+                     and '$(SkipReleaseBundle)' != 'true'">
+    <MSBuild Projects="$(MSBuildProjectFullPath)"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);Platform=$(Platform);RuntimeIdentifier=$(RuntimeIdentifier);SkipReleaseBundle=true" />
+  </Target>
 </Project>

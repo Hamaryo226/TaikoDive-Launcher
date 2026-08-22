@@ -1,52 +1,36 @@
-using Newtonsoft.Json;
+namespace TaikoDiveLauncher.Models;
 
-namespace TaikoDiveLauncher.Models
+public sealed class GameSettings
 {
-    public class GameSettings
-    {
-        [JsonProperty("guestMode")]
-        public bool GuestMode { get; set; }
+    public bool GuestMode { get; set; } = true;
 
-        [JsonProperty("b2PMode")]
-        public bool B2PMode { get; set; }
+    public bool TwoPlayerMode { get; set; }
 
-        [JsonProperty("fullScreen")]
-        public bool FullScreen { get; set; }
+    public bool FullScreen { get; set; }
 
-        [JsonProperty("borderlessWindow")]
-        public bool BorderlessWindow { get; set; }
+    public bool BorderlessWindow { get; set; }
 
-        [JsonProperty("fullHD")]
-        public bool FullHD { get; set; }
+    public int ScreenWidth { get; set; } = 1920;
 
-        [JsonProperty("verticalSync")]
-        public bool VerticalSync { get; set; }
+    public bool VerticalSync { get; set; } = true;
 
-        [JsonProperty("titleShow")]
-        public bool TitleShow { get; set; }
+    public bool SaveBestReplay { get; set; } = true;
 
-        [JsonProperty("collaboBack")]
-        public bool CollaboBack { get; set; }
+    public int MasterVolume { get; set; } = 100;
 
-        [JsonProperty("soundType")]
-        public string SoundType { get; set; } = "Wasapi";
+    public int MusicVolume { get; set; } = 100;
 
-        [JsonProperty("fontOedo")]
-        public string FontOedo { get; set; } = "";
+    public int SoundEffectVolume { get; set; } = 100;
 
-        [JsonProperty("fontDFGothic")]
-        public string FontDFGothic { get; set; } = "";
+    public string SoundType { get; set; } = "DirectSound";
 
-        [JsonProperty("fontSeurat")]
-        public string FontSeurat { get; set; } = "";
+    public int SoundBufferSamples { get; set; }
 
-        [JsonProperty("fontDomCasual")]
-        public string FontDomCasual { get; set; } = "";
+    public bool ReduceTextureColorTo16bit { get; set; }
 
-        [JsonProperty("fontFallback")]
-        public string FontFallback { get; set; } = "";
+    public int CharaAnimationFrameSkip { get; set; } = 3;
 
-        [JsonProperty("keybinds")]
-        public string Keybinds { get; set; } = "d,f,j,k";
-    }
+    public bool ReduceCharaTextureColorTo16bit { get; set; }
+
+    public bool UseCompressedSongSound { get; set; } = true;
 }
