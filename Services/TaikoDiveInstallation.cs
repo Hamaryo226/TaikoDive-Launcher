@@ -21,6 +21,8 @@ public sealed class TaikoDiveInstallation
 
     public string ScoreDirectory => Path.Combine(BuildDirectory, "Info", "ScoreData");
 
+    public string SongsDirectory => Path.Combine(BuildDirectory, "Songs");
+
     public bool IsValid => File.Exists(ExecutablePath);
 
     public static TaikoDiveInstallation? FromSelectedDirectory(string? selectedDirectory)

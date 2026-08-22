@@ -27,6 +27,11 @@
                     <SymbolIcon Symbol="Contact" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="楽曲" Tag="songs">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE8D6;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
             <NavigationViewItem Content="起動構成" Tag="settings">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting" />

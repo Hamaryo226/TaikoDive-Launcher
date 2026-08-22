@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Nodes;
 using TaikoDiveLauncher.Models;
@@ -185,6 +186,76 @@ public sealed class PersistenceTests
                 50, 25, 100, 100,
             },
             pixels);
+    }
+
+    [TestMethod]
+    public async Task SongImportLoadsGenresAndExtractsSingleSongFolder()
+    {
+        using TemporaryInstallation temporary = new();
+        string popGenre = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        string animeGenre = Path.Combine(temporary.Installation.SongsDirectory, "01 アニメ");
+        Directory.CreateDirectory(popGenre);
+        Directory.CreateDirectory(animeGenre);
+        string zipPath = Path.Combine(temporary.RootDirectory, "Song.zip");
+        CreateZip(zipPath,
+            ("My Song/chart.tja", "TITLE:My Song"),
+            ("My Song/song.ogg", "audio"));
+
+        IReadOnlyList<SongGenre> genres = SongImportService.LoadGenres(temporary.Installation);
+        SongImportResult result = await SongImportService.ImportAsync(temporary.Installation, zipPath, genres[0]);
+
+        Assert.HasCount(2, genres);
+        Assert.IsTrue(result.Succeeded, result.Message);
+        Assert.IsNotNull(result.DestinationPath);
+        Assert.AreEqual("My Song", Path.GetFileName(result.DestinationPath));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, "chart.tja")));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, "song.ogg")));
+    }
+
+    [TestMethod]
+    public async Task SongImportRejectsPathTraversalAndCleansTemporaryFiles()
+    {
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(genrePath);
+        string zipPath = Path.Combine(temporary.RootDirectory, "Unsafe.zip");
+        CreateZip(zipPath,
+            ("../outside.tja", "TITLE:Unsafe"),
+            ("song.ogg", "audio"));
+        SongGenre genre = SongImportService.LoadGenres(temporary.Installation).Single();
+
+        SongImportResult result = await SongImportService.ImportAsync(temporary.Installation, zipPath, genre);
+
+        Assert.IsFalse(result.Succeeded);
+        Assert.IsFalse(File.Exists(Path.Combine(temporary.RootDirectory, "outside.tja")));
+        Assert.IsEmpty(Directory.EnumerateDirectories(genrePath, ".launcher-import-*"));
+    }
+
+    [TestMethod]
+    public async Task SongImportDoesNotOverwriteExistingSongFolder()
+    {
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(Path.Combine(genrePath, "Existing"));
+        string zipPath = Path.Combine(temporary.RootDirectory, "Existing.zip");
+        CreateZip(zipPath, ("chart.tja", "TITLE:Existing"));
+        SongGenre genre = SongImportService.LoadGenres(temporary.Installation).Single();
+
+        SongImportResult result = await SongImportService.ImportAsync(temporary.Installation, zipPath, genre);
+
+        Assert.IsFalse(result.Succeeded);
+        StringAssert.Contains(result.Message, "上書きしません");
+    }
+
+    private static void CreateZip(string path, params (string Path, string Content)[] files)
+    {
+        using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        foreach ((string entryPath, string content) in files)
+        {
+            ZipArchiveEntry entry = archive.CreateEntry(entryPath);
+            using StreamWriter writer = new(entry.Open());
+            writer.Write(content);
+        }
     }
 
     private sealed class TemporaryInstallation : IDisposable
