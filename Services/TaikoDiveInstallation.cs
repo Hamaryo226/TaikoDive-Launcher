@@ -25,6 +25,10 @@ public sealed class TaikoDiveInstallation
 
     public bool IsValid => File.Exists(ExecutablePath);
 
+    public static string ApplicationDirectory => ResolveApplicationDirectory(
+        Environment.ProcessPath,
+        AppContext.BaseDirectory);
+
     public static TaikoDiveInstallation? FromSelectedDirectory(string? selectedDirectory)
     {
         if (string.IsNullOrWhiteSpace(selectedDirectory))
@@ -58,6 +62,29 @@ public sealed class TaikoDiveInstallation
     {
         string? developmentDirectory = Environment.GetEnvironmentVariable("TAIKODIVE_LAUNCHER_DEV_DIRECTORY");
         return FromSelectedDirectory(developmentDirectory)
+            ?? FromSelectedDirectory(ApplicationDirectory)
             ?? FromSelectedDirectory(AppContext.BaseDirectory);
+    }
+
+    internal static string ResolveApplicationDirectory(string? processPath, string fallbackDirectory)
+    {
+        if (!string.IsNullOrWhiteSpace(processPath)
+            && !string.Equals(Path.GetFileName(processPath), "dotnet.exe", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                string? processDirectory = Path.GetDirectoryName(Path.GetFullPath(processPath));
+                if (!string.IsNullOrWhiteSpace(processDirectory))
+                {
+                    return processDirectory;
+                }
+            }
+            catch
+            {
+                // Fall back to AppContext for unusual hosts or malformed process paths.
+            }
+        }
+
+        return Path.GetFullPath(fallbackDirectory);
     }
 }

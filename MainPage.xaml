@@ -32,6 +32,11 @@
                     <FontIcon Glyph="&#xE8D6;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="入力設定" Tag="input-settings">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE765;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
             <NavigationViewItem Content="起動構成" Tag="settings">
                 <NavigationViewItem.Icon>
                     <SymbolIcon Symbol="Setting" />

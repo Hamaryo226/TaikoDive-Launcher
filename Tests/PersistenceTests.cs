@@ -85,6 +85,49 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task InputBindingsSavePreservesUnknownPropertiesAndRoundTripsControllerInput()
+    {
+        using TemporaryInstallation temporary = new();
+        string original = """
+            {
+              "futureSetting": true,
+              "p1Keys": {
+                "kaLeft": [32],
+                "futureBinding": "keep"
+              }
+            }
+            """;
+        await File.WriteAllTextAsync(temporary.Installation.GameSettingsPath, original);
+
+        InputBindingsStore store = new(() => false);
+        InputBindings bindings = await store.LoadAsync(temporary.Installation);
+        bindings.Player1.DonLeftControllers =
+        [
+            new ControllerInputBinding
+            {
+                VendorId = 0x1234,
+                ProductId = 0x5678,
+                DeviceIndex = 1,
+                DeviceOrdinal = 0,
+                DeviceName = "Taiko Controller",
+                InputType = ControllerInputType.Button,
+                InputIndex = 7,
+            },
+        ];
+        await store.SaveAsync(temporary.Installation, bindings);
+
+        JsonObject saved = JsonNode.Parse(await File.ReadAllTextAsync(temporary.Installation.GameSettingsPath))!.AsObject();
+        Assert.IsTrue(saved["futureSetting"]!.GetValue<bool>());
+        Assert.AreEqual("keep", saved["p1Keys"]!["futureBinding"]!.GetValue<string>());
+        Assert.AreEqual(7, saved["p1Keys"]!["donLeftControllers"]![0]!["inputIndex"]!.GetValue<int>());
+
+        InputBindings reloaded = await store.LoadAsync(temporary.Installation);
+        Assert.HasCount(1, reloaded.Player1.DonLeftControllers);
+        Assert.AreEqual((ushort)0x1234, reloaded.Player1.DonLeftControllers[0].VendorId);
+        Assert.AreEqual("Taiko Controller", reloaded.Player1.DonLeftControllers[0].DeviceName);
+    }
+
+    [TestMethod]
     public void InstallationAcceptsRepositoryRootOrBuildDirectory()
     {
         using TemporaryInstallation temporary = new();
@@ -96,6 +139,21 @@ public sealed class PersistenceTests
         Assert.IsNotNull(fromBuild);
         Assert.AreEqual(temporary.Installation.BuildDirectory, fromRoot.BuildDirectory);
         Assert.AreEqual(temporary.Installation.BuildDirectory, fromBuild.BuildDirectory);
+    }
+
+    [TestMethod]
+    public void InstallationUsesLauncherExecutableDirectoryForSingleFileBuilds()
+    {
+        using TemporaryInstallation temporary = new();
+        string launcherPath = Path.Combine(temporary.Installation.BuildDirectory, "TaikoDive.Launcher.exe");
+        string fallbackDirectory = Path.Combine(temporary.RootDirectory, "extracted-runtime");
+
+        string resolvedDirectory = TaikoDiveInstallation.ResolveApplicationDirectory(launcherPath, fallbackDirectory);
+        TaikoDiveInstallation? installation = TaikoDiveInstallation.FromSelectedDirectory(resolvedDirectory);
+
+        Assert.AreEqual(temporary.Installation.BuildDirectory, resolvedDirectory);
+        Assert.IsNotNull(installation);
+        Assert.AreEqual(temporary.Installation.ExecutablePath, installation.ExecutablePath);
     }
 
     [TestMethod]

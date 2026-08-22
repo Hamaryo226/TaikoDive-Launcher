@@ -24,7 +24,7 @@ public sealed partial class HomePage : Page
         await RefreshAsync();
     }
 
-    private async Task RefreshAsync()
+    private async Task RefreshAsync(bool showConfirmation = false)
     {
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         OpenFolderButton.IsEnabled = installation is not null;
@@ -33,7 +33,7 @@ public sealed partial class HomePage : Page
         if (installation is null)
         {
             InstallStateText.Text = "配置を確認してください";
-            InstallPathText.Text = AppContext.BaseDirectory;
+            InstallPathText.Text = TaikoDiveInstallation.ApplicationDirectory;
             PrimaryProfileText.Text = "—";
             GameSummaryText.Text = "—";
             ShowStatus(InfoBarSeverity.Warning, "このフォルダーに TaikoDive.exe がありません。ランチャーをゲーム本体の隣へ移動してください。");
@@ -56,7 +56,14 @@ public sealed partial class HomePage : Page
                 ? "フルスクリーン"
                 : settings.BorderlessWindow ? "ボーダーレス" : "ウィンドウ";
             GameSummaryText.Text = $"{windowMode} · {settings.ScreenWidth} px · Master {settings.MasterVolume}% · {settings.SoundType}";
-            StatusBar.IsOpen = false;
+            if (showConfirmation)
+            {
+                ShowStatus(InfoBarSeverity.Success, "TaikoDive.exe を確認しました。");
+            }
+            else
+            {
+                StatusBar.IsOpen = false;
+            }
         }
         catch (Exception ex)
         {
@@ -68,8 +75,18 @@ public sealed partial class HomePage : Page
 
     private async void RefreshButton_Click(object sender, RoutedEventArgs e)
     {
-        await AppInstance.Context.InitializeAsync();
-        await RefreshAsync();
+        RefreshButton.IsEnabled = false;
+        ShowStatus(InfoBarSeverity.Informational, "配置を再確認しています…");
+
+        try
+        {
+            AppInstance.Context.RefreshInstallation();
+            await RefreshAsync(showConfirmation: true);
+        }
+        finally
+        {
+            RefreshButton.IsEnabled = true;
+        }
     }
 
     private void OpenFolderButton_Click(object sender, RoutedEventArgs e)

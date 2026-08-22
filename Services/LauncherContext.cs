@@ -13,8 +13,10 @@ public sealed class LauncherContext
     public async Task InitializeAsync()
     {
         Preferences = await _preferencesStore.LoadAsync().ConfigureAwait(false);
-        Installation = TaikoDiveInstallation.FromApplicationDirectory();
+        RefreshInstallation();
     }
+
+    public void RefreshInstallation() => Installation = TaikoDiveInstallation.FromApplicationDirectory();
 
     public Task SavePreferencesAsync() => _preferencesStore.SaveAsync(Preferences);
 

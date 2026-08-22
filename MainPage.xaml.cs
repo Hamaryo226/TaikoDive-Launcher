@@ -32,6 +32,7 @@ public sealed partial class MainPage : Page
         {
             "profiles" => typeof(ProfilesPage),
             "songs" => typeof(SongsPage),
+            "input-settings" => typeof(InputSettingsPage),
             "settings" => typeof(LaunchSettingsPage),
             "launcher-settings" => typeof(LauncherSettingsPage),
             _ => typeof(HomePage),
