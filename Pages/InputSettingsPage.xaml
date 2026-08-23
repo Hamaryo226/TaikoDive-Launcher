@@ -84,7 +84,11 @@
         </DataTemplate>
     </Page.Resources>
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
+    <Grid
+        x:Name="PageRoot"
+        Padding="32,20,32,40"
+        RowSpacing="16"
+        SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -167,27 +171,6 @@
                                 IsItemClickEnabled="False" />
                         </StackPanel>
                     </Border>
-
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroup>
-                            <VisualState x:Name="WideState">
-                                <VisualState.StateTriggers>
-                                    <AdaptiveTrigger MinWindowWidth="900" />
-                                </VisualState.StateTriggers>
-                            </VisualState>
-                            <VisualState x:Name="NarrowState">
-                                <VisualState.StateTriggers>
-                                    <AdaptiveTrigger MinWindowWidth="0" />
-                                </VisualState.StateTriggers>
-                                <VisualState.Setters>
-                                    <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
-                                    <Setter Target="PlayerTwoColumn.Width" Value="0" />
-                                    <Setter Target="PlayerTwoSurface.(Grid.Column)" Value="0" />
-                                    <Setter Target="PlayerTwoSurface.(Grid.Row)" Value="1" />
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
                 </Grid>
 
                 <TextBlock
@@ -201,8 +184,8 @@
         <ContentDialog
             x:Name="CaptureDialog"
             CloseButtonText="キャンセル"
-            KeyDown="CaptureDialog_KeyDown">
-            <Border x:Name="CaptureFocusSurface" IsTabStop="True" Padding="4">
+            PreviewKeyDown="CaptureDialog_KeyDown">
+            <Border Padding="4">
                 <StackPanel Spacing="12">
                     <TextBlock x:Name="CaptureTargetText" FontWeight="SemiBold" TextWrapping="Wrap" />
                     <TextBlock x:Name="CaptureInstructionText" TextWrapping="Wrap" />

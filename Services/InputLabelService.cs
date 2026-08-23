@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using TaikoDiveLauncher.Models;
 using Windows.System;
 
@@ -5,6 +6,8 @@ namespace TaikoDiveLauncher.Services;
 
 internal static class InputLabelService
 {
+    private const uint MapVirtualKeyToScanCodeExtended = 4;
+
     private static readonly IReadOnlyDictionary<int, string> KeyLabels = new Dictionary<int, string>
     {
         [1] = "Esc",
@@ -34,7 +37,15 @@ internal static class InputLabelService
 
         if (scanCode == 0)
         {
-            return null;
+            uint mappedScanCode = MapVirtualKey((uint)key, MapVirtualKeyToScanCodeExtended);
+            scanCode = mappedScanCode & 0xff;
+            isExtendedKey = isExtendedKey
+                || (mappedScanCode & 0xff00) != 0
+                || IsExtendedVirtualKey(key);
+            if (scanCode == 0)
+            {
+                return null;
+            }
         }
 
         int result = (int)(scanCode & 0xff);
@@ -59,4 +70,19 @@ internal static class InputLabelService
     {
         1 => "↑", 2 => "↗", 3 => "→", 4 => "↘", 5 => "↓", 6 => "↙", 7 => "←", 8 => "↖", _ => value.ToString(),
     };
+
+    private static bool IsExtendedVirtualKey(VirtualKey key) => key is
+        VirtualKey.Home or
+        VirtualKey.End or
+        VirtualKey.PageUp or
+        VirtualKey.PageDown or
+        VirtualKey.Left or
+        VirtualKey.Up or
+        VirtualKey.Right or
+        VirtualKey.Down or
+        VirtualKey.Insert or
+        VirtualKey.Delete;
+
+    [DllImport("user32.dll")]
+    private static extern uint MapVirtualKey(uint code, uint mapType);
 }

@@ -2,8 +2,10 @@ using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
+using Windows.System;
 
 namespace TaikoDiveLauncher.Tests;
 
@@ -51,6 +53,55 @@ public sealed class PersistenceTests
         Assert.AreEqual(original, await File.ReadAllTextAsync(
             temporary.Installation.UserProfilePath + ".launcher.bak",
             shiftJis));
+    }
+
+    [TestMethod]
+    public async Task UserProfileTitleCanBeEnteredAfterSavingItEmpty()
+    {
+        using TemporaryInstallation temporary = new();
+        const string original =
+            "; keep this comment\r\n" +
+            "1P_User_Name=どんちゃん\r\n" +
+            "1P_User_Title=古い称号\r\n" +
+            "Unknown_Key=keep-me\r\n" +
+            "1P_User_Title=重複した古い称号\r\n" +
+            "1P_User_NamePlateType=0\r\n" +
+            "1P_User_CharaType=0\r\n";
+        await File.WriteAllTextAsync(temporary.Installation.UserProfilePath, original, Encoding.UTF8);
+        UserProfileStore store = new(() => false);
+
+        await store.SaveAsync(temporary.Installation, new UserProfile
+        {
+            Slot = 1,
+            Name = "どんちゃん",
+            Title = string.Empty,
+            NamePlateType = 0,
+            CharaType = "0",
+            IsConfigured = true,
+        });
+        await store.SaveAsync(temporary.Installation, new UserProfile
+        {
+            Slot = 1,
+            Name = "どんちゃん",
+            Title = "戻した称号",
+            NamePlateType = 0,
+            CharaType = "0",
+            IsConfigured = true,
+        });
+
+        string saved = await File.ReadAllTextAsync(temporary.Installation.UserProfilePath, Encoding.UTF8);
+        IReadOnlyList<UserProfile> loaded = await store.LoadAsync(temporary.Installation);
+        Assert.AreEqual("戻した称号", loaded[0].Title);
+        Assert.HasCount(1, Regex.Matches(saved, "^1P_User_Title=", RegexOptions.Multiline).Cast<Match>());
+        StringAssert.Contains(saved, "; keep this comment\r\n");
+        StringAssert.Contains(saved, "Unknown_Key=keep-me\r\n");
+    }
+
+    [TestMethod]
+    public void KeyboardKeyConversionFallsBackWhenWinUiOmitsTheScanCode()
+    {
+        Assert.AreEqual(30, InputLabelService.ToDxLibKeyCode(VirtualKey.A, 0, isExtendedKey: false));
+        Assert.AreEqual(200, InputLabelService.ToDxLibKeyCode(VirtualKey.Up, 0, isExtendedKey: false));
     }
 
     [TestMethod]

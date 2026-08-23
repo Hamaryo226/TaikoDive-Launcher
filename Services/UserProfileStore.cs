@@ -207,12 +207,22 @@ public sealed class UserProfileStore
     private static string SetValue(string content, string key, string value, string newline)
     {
         Regex pattern = new(
-            $"^(?<prefix>\\s*{Regex.Escape(key)}\\s*=\\s*)[^\\r\\n]*$",
+            $"^(?<prefix>[ \\t]*{Regex.Escape(key)}[ \\t]*=[ \\t]*)[^\\r\\n]*(?<carriageReturn>\\r?)$",
             RegexOptions.IgnoreCase | RegexOptions.Multiline);
 
         if (pattern.IsMatch(content))
         {
-            return pattern.Replace(content, match => match.Groups["prefix"].Value + value);
+            bool replaced = false;
+            return pattern.Replace(content, match =>
+            {
+                if (replaced)
+                {
+                    return string.Empty;
+                }
+
+                replaced = true;
+                return match.Groups["prefix"].Value + value + match.Groups["carriageReturn"].Value;
+            });
         }
 
         if (content.Length > 0 && !content.EndsWith("\r", StringComparison.Ordinal) && !content.EndsWith("\n", StringComparison.Ordinal))

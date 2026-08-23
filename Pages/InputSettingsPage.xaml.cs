@@ -9,6 +9,8 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class InputSettingsPage : Page
 {
+    private const double NarrowLayoutWidth = 900;
+
     private enum CaptureInputKind
     {
         None,
@@ -23,6 +25,7 @@ public sealed partial class InputSettingsPage : Page
 
     private static readonly string[] ActionLabels = ["カッ（左）", "ドン（左）", "ドン（右）", "カッ（右）"];
     private readonly InputBindingsStore _store = new();
+    private readonly KeyboardInputMonitor _keyboardMonitor = new();
     private readonly ControllerInputMonitor _controllerMonitor = new();
     private readonly DispatcherTimer _captureTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private InputBindings _bindings = new();
@@ -40,7 +43,6 @@ public sealed partial class InputSettingsPage : Page
         InitializeComponent();
         Loaded += InputSettingsPage_Loaded;
         Unloaded += InputSettingsPage_Unloaded;
-        CaptureDialog.Opened += CaptureDialog_Opened;
         _captureTimer.Tick += CaptureTimer_Tick;
     }
 
@@ -48,6 +50,20 @@ public sealed partial class InputSettingsPage : Page
     {
         await ReloadAsync();
         RefreshControllerStatus();
+    }
+
+    private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool usesNarrowLayout = e.NewSize.Width < NarrowLayoutWidth;
+        PageRoot.Padding = usesNarrowLayout
+            ? new Thickness(16, 16, 16, 28)
+            : new Thickness(32, 20, 32, 40);
+        PlayerOneColumn.Width = new GridLength(1, GridUnitType.Star);
+        PlayerTwoColumn.Width = usesNarrowLayout
+            ? new GridLength(0)
+            : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(PlayerTwoSurface, usesNarrowLayout ? 0 : 1);
+        Grid.SetRow(PlayerTwoSurface, usesNarrowLayout ? 1 : 0);
     }
 
     private void InputSettingsPage_Unloaded(object sender, RoutedEventArgs e)
@@ -151,11 +167,15 @@ public sealed partial class InputSettingsPage : Page
             ? "割り当てるキーボードのキーを押してください。コントローラー入力はこの画面では検出しません。"
             : "割り当てるコントローラーのボタン、または十字キー方向を押してください。キーボード入力はこの画面では登録しません。";
         CaptureDialog.XamlRoot = XamlRoot;
-        if (!capturesKeyboard)
+        if (capturesKeyboard)
+        {
+            _keyboardMonitor.ResetEdges();
+        }
+        else
         {
             _controllerMonitor.ResetEdges();
-            _captureTimer.Start();
         }
+        _captureTimer.Start();
         try
         {
             await CaptureDialog.ShowAsync();
@@ -259,11 +279,6 @@ public sealed partial class InputSettingsPage : Page
             $"{selected.Label} を1件削除しました。ほかの割り当ては保持しています。保存すると反映されます。");
     }
 
-    private void CaptureDialog_Opened(ContentDialog sender, ContentDialogOpenedEventArgs args)
-    {
-        CaptureFocusSurface.Focus(FocusState.Programmatic);
-    }
-
     private void CaptureDialog_KeyDown(object sender, KeyRoutedEventArgs e)
     {
         if (_captureInputKind != CaptureInputKind.Keyboard || e.Key == VirtualKey.Escape)
@@ -284,7 +299,13 @@ public sealed partial class InputSettingsPage : Page
 
     private void CaptureTimer_Tick(object? sender, object e)
     {
-        if (_captureInputKind == CaptureInputKind.Controller
+        if (_captureInputKind == CaptureInputKind.Keyboard
+            && _keyboardMonitor.TryGetPressed(out int keyCode))
+        {
+            _capturedKey = keyCode;
+            CaptureDialog.Hide();
+        }
+        else if (_captureInputKind == CaptureInputKind.Controller
             && _controllerMonitor.TryGetPressed(out ControllerInputBinding? input)
             && input is not null)
         {
