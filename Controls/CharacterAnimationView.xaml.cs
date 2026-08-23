@@ -18,11 +18,7 @@ public sealed partial class CharacterAnimationView : UserControl
         InitializeComponent();
         _timer.Tick += Timer_Tick;
         Loaded += (_, _) => Start();
-        Unloaded += (_, _) =>
-        {
-            _loadVersion++;
-            _timer.Stop();
-        };
+        Unloaded += (_, _) => ReleaseFrames();
     }
 
     public async Task ShowCharacterAsync(TaikoDiveInstallation installation, string characterType)
@@ -121,5 +117,14 @@ public sealed partial class CharacterAnimationView : UserControl
 
         _frameIndex = (_frameIndex + 1) % _frames.Count;
         PreviewImage.Source = _frames[_frameIndex];
+    }
+
+    private void ReleaseFrames()
+    {
+        _loadVersion++;
+        _timer.Stop();
+        _frames = [];
+        _frameIndex = 0;
+        PreviewImage.Source = null;
     }
 }

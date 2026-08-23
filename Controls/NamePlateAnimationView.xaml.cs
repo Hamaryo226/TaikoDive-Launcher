@@ -24,7 +24,7 @@ public sealed partial class NamePlateAnimationView : UserControl
         InitializeComponent();
         _timer.Tick += Timer_Tick;
         Loaded += (_, _) => Start();
-        Unloaded += (_, _) => Stop();
+        Unloaded += (_, _) => ReleasePreview();
     }
 
     public async Task ShowNamePlateAsync(TaikoDiveInstallation installation, int namePlateType)
@@ -167,6 +167,15 @@ public sealed partial class NamePlateAnimationView : UserControl
     {
         _timer.Stop();
         _clock.Stop();
+    }
+
+    private void ReleasePreview()
+    {
+        _loadVersion++;
+        Stop();
+        _animation = null;
+        _visuals.Clear();
+        AnimationStage.Children.Clear();
     }
 
     private void Timer_Tick(object? sender, object e)

@@ -67,7 +67,11 @@
                     <Button Click="OpenUpdateSettingsButton_Click" Content="設定を開く" />
                 </InfoBar.ActionButton>
             </InfoBar>
-            <Frame x:Name="ContentFrame" Grid.Row="1" />
+            <Frame
+                x:Name="ContentFrame"
+                Grid.Row="1"
+                CacheSize="0"
+                IsNavigationStackEnabled="False" />
         </Grid>
     </NavigationView>
 </Page>
