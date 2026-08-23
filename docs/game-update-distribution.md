@@ -27,7 +27,9 @@ privateのTaikoDiveリポジトリへ次を登録します。
 
 ## privateリポジトリのワークフロー例
 
-`docs/examples/publish-game-update.yml`をprivateのTaikoDiveリポジトリの`.github/workflows/publish-game-update.yml`へコピーします。`workflow_dispatch`で`1.4.0`のようなバージョンを指定すると、Releaseビルド、AESパッケージ生成、公開側の固定Release更新まで行います。
+`docs/examples/publish-game-update.yml`をprivateのTaikoDiveリポジトリの`.github/workflows/publish-game-update.yml`へコピーします。`main`へのpushを検知すると、Releaseビルド、AESパッケージ生成、公開側の固定Release更新まで自動で行います。手動再実行用に`workflow_dispatch`も残します。
+
+TaikoDive本体に明示的なバージョンがないため、更新用バージョンは`0.<GitHub Actionsのrun_number>.0`で自動生成します。たとえば最初の配布は`0.1.0`、次は`0.2.0`です。同じワークフローのrun numberは単調増加し、実際のソースはマニフェストとパッケージ名に含まれる7桁のコミットIDで追跡できます。連続してpushされた場合は古い実行をキャンセルし、最新のmainを配布します。
 
 パッケージ作成スクリプトは、`Setting.json`、`Info/User.ini`、`Songs`、スコア、リプレイ、スクリーンショット、ログ、ランチャー本体を除外します。必ずクリーンなGitHub Actions runnerの`build`から作成し、普段遊んでいるローカルの`build`を入力にしないでください。
 

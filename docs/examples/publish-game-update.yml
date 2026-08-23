@@ -1,12 +1,14 @@
 name: Publish TaikoDive game update
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
-    inputs:
-      version:
-        description: Semantic version such as 1.4.0
-        required: true
-        type: string
+
+concurrency:
+  group: publish-taikodive-game-update
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -40,6 +42,14 @@ jobs:
           repository: Hamaryo226/TaikoDive-Launcher
           path: launcher-tools
 
+      - name: Generate update version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "0.$env:GITHUB_RUN_NUMBER.0"
+          "value=$version" >> $env:GITHUB_OUTPUT
+          "TaikoDive update version: $version"
+
       - name: Create encrypted package
         shell: pwsh
         env:
@@ -50,7 +60,7 @@ jobs:
           }
           & .\launcher-tools\tools\game-update\New-TaikoDiveGameUpdate.ps1 `
             -BuildDirectory .\build `
-            -Version '${{ inputs.version }}' `
+            -Version '${{ steps.version.outputs.value }}' `
             -Revision $env:GITHUB_SHA `
             -PackageKey $env:GAME_PACKAGE_KEY `
             -OutputDirectory .\game-update
