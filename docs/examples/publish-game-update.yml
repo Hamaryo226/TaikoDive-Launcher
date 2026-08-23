@@ -1,0 +1,85 @@
+name: Publish TaikoDive game update
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version such as 1.4.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout private TaikoDive source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install 7-Zip
+        shell: pwsh
+        run: choco install 7zip --yes --no-progress
+
+      - name: Build TaikoDive
+        shell: pwsh
+        run: dotnet build TaikoDive.sln -c Release -p:Platform=x64
+
+      - name: Checkout public packaging tools
+        uses: actions/checkout@v4
+        with:
+          repository: Hamaryo226/TaikoDive-Launcher
+          path: launcher-tools
+
+      - name: Create encrypted package
+        shell: pwsh
+        env:
+          GAME_PACKAGE_KEY: ${{ secrets.GAME_PACKAGE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GAME_PACKAGE_KEY)) {
+            throw 'GAME_PACKAGE_KEY secret is required.'
+          }
+          & .\launcher-tools\tools\game-update\New-TaikoDiveGameUpdate.ps1 `
+            -BuildDirectory .\build `
+            -Version '${{ inputs.version }}' `
+            -Revision $env:GITHUB_SHA `
+            -PackageKey $env:GAME_PACKAGE_KEY `
+            -OutputDirectory .\game-update
+
+      - name: Create token for public release repository
+        id: release-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: Hamaryo226
+          repositories: TaikoDive-Launcher
+
+      - name: Publish stable game update
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        run: |
+          $repository = 'Hamaryo226/TaikoDive-Launcher'
+          $tag = 'game-stable'
+          $package = Get-Item .\game-update\TaikoDive_Update_*.zip
+          $manifest = Get-Item .\game-update\game-update-manifest.json
+
+          gh release view $tag --repo $repository *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo $repository `
+              --title 'TaikoDive - stable' `
+              --notes 'privateソースから生成されるTaikoDiveゲーム更新チャネルです。' `
+              --target main
+          }
+          gh release upload $tag $package.FullName $manifest.FullName --clobber --repo $repository

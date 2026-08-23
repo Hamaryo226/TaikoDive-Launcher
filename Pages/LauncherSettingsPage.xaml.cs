@@ -26,13 +26,17 @@ public sealed partial class LauncherSettingsPage : Page
         UpdateThemeButton();
         AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
         AppInstance.Context.Updates.StateChanged += Updates_StateChanged;
+        AppInstance.Context.GameUpdates.StateChanged -= GameUpdates_StateChanged;
+        AppInstance.Context.GameUpdates.StateChanged += GameUpdates_StateChanged;
         UpdateUpdateControls();
+        UpdateGameUpdateControls();
         _isLoading = false;
     }
 
     private void LauncherSettingsPage_Unloaded(object sender, RoutedEventArgs e)
     {
         AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
+        AppInstance.Context.GameUpdates.StateChanged -= GameUpdates_StateChanged;
     }
 
     private async void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
@@ -143,6 +147,60 @@ public sealed partial class LauncherSettingsPage : Page
         UpdateProgressRing.IsActive = isBusy;
         CheckUpdateButton.IsEnabled = !isBusy;
         InstallUpdateButton.IsEnabled = updates.State == LauncherUpdateState.Available;
+    }
+
+    private async void CheckGameUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        await AppInstance.Context.GameUpdates.CheckAsync();
+    }
+
+    private async void InstallGameUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (GameProcessService.IsRunning())
+        {
+            ShowStatus(InfoBarSeverity.Warning, "TaikoDiveを終了してからアップデートしてください。");
+            return;
+        }
+
+        GameUpdateManifest? update = AppInstance.Context.GameUpdates.AvailableUpdate;
+        ContentDialog confirmation = new()
+        {
+            Title = "TaikoDiveをアップデートしますか？",
+            Content = $"v{update?.Version}を検証して適用します。ユーザー設定、プロフィール、Songs、スコア、リプレイは保持されます。",
+            PrimaryButtonText = "アップデート",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        OperationResult result = await AppInstance.Context.GameUpdates.DownloadAndApplyAsync();
+        ShowStatus(
+            result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error,
+            result.Message);
+    }
+
+    private void GameUpdates_StateChanged(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(UpdateGameUpdateControls);
+    }
+
+    private void UpdateGameUpdateControls()
+    {
+        GameUpdateService updates = AppInstance.Context.GameUpdates;
+        CurrentGameVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
+        GameUpdateStatusText.Text = updates.StatusMessage;
+        bool isBusy = updates.State is
+            GameUpdateState.Checking or
+            GameUpdateState.Downloading or
+            GameUpdateState.Verifying or
+            GameUpdateState.Applying;
+        GameUpdateProgressRing.IsActive = isBusy;
+        CheckGameUpdateButton.IsEnabled = !isBusy;
+        InstallGameUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
     }
 
     private void ShowStatus(InfoBarSeverity severity, string message)

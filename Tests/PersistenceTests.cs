@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Diagnostics;
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -544,6 +545,230 @@ public sealed class PersistenceTests
         Assert.IsTrue(LauncherUpdateService.TryParseApplyCommand(validArgs, out PendingUpdateCommand? command));
         Assert.IsNotNull(command);
         Assert.IsFalse(LauncherUpdateService.TryParseApplyCommand(invalidArgs, out _));
+    }
+
+    [TestMethod]
+    public void GameUpdatePackageNameAndPasswordAreDeterministic()
+    {
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string fileName = GameUpdatePackageNaming.Create("1.2.3", revision);
+
+        Assert.AreEqual("TaikoDive_Update_v1.2.3_win-x64_0123456.zip", fileName);
+        Assert.IsTrue(GameUpdatePackageNaming.Matches(fileName, "1.2.3", revision));
+        Assert.IsFalse(GameUpdatePackageNaming.Matches(
+            "TaikoDive-v1.2.3.zip",
+            "1.2.3",
+            revision));
+        Assert.IsFalse(GameUpdatePackageNaming.IsVersion("999999999999.1.1"));
+        Assert.AreEqual(
+            GamePackageKeyProvider.DerivePassword("secret", fileName),
+            GamePackageKeyProvider.DerivePassword("secret", fileName));
+        Assert.AreNotEqual(
+            GamePackageKeyProvider.DerivePassword("secret", fileName),
+            GamePackageKeyProvider.DerivePassword("secret", GameUpdatePackageNaming.Create("1.2.4", revision)));
+    }
+
+    [TestMethod]
+    public void GameUpdateManifestRequiresCanonicalEncryptedPackage()
+    {
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = GameUpdatePackageNaming.Create("1.2.3", revision);
+        GameUpdateManifest manifest = new()
+        {
+            Version = "1.2.3",
+            Revision = revision,
+            PackageFileName = packageName,
+            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{packageName}",
+            Sha256 = new string('A', 64),
+            Size = 123,
+            PublishedAt = DateTimeOffset.UtcNow,
+            Archive = new GameUpdateArchiveInfo
+            {
+                Format = "zip",
+                Encryption = "winzip-aes-256",
+                Payload = "payload.bin",
+                KeyId = "2026-01",
+            },
+        };
+
+        GameUpdateService.ValidateManifest(manifest);
+        manifest.PackageFileName = "TaikoDive_Update_v1.2.3.zip";
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdateService.ValidateManifest(manifest));
+    }
+
+    [TestMethod]
+    public async Task GameUpdateCheckerFindsNewerPublicPackage()
+    {
+        using TemporaryInstallation temporary = new();
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = GameUpdatePackageNaming.Create("9.8.7", revision);
+        string manifest = $$"""
+            {
+              "version": "9.8.7",
+              "revision": "{{revision}}",
+              "packageFileName": "{{packageName}}",
+              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{{packageName}}",
+              "sha256": "{{new string('A', 64)}}",
+              "size": 1234,
+              "publishedAt": "2026-08-23T00:00:00Z",
+              "archive": {
+                "format": "zip",
+                "encryption": "winzip-aes-256",
+                "payload": "payload.bin",
+                "keyId": "2026-01"
+              }
+            }
+            """;
+        using HttpClient client = new(new StaticResponseHandler(manifest));
+        GameUpdateService service = new(
+            client,
+            new Uri("https://example.test/game-update-manifest.json"),
+            () => temporary.Installation,
+            () => false,
+            () => "test-package-key",
+            new GameUpdatePackageExtractor());
+
+        await service.CheckAsync();
+
+        Assert.AreEqual(GameUpdateState.Available, service.State);
+        Assert.IsNotNull(service.AvailableUpdate);
+        Assert.AreEqual("9.8.7", service.AvailableUpdate.Version);
+    }
+
+    [TestMethod]
+    public void GameUpdateRejectsUserDataPaths()
+    {
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Setting.json"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Info/User.ini"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Songs/song/song.ogg"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Screenshot/result.png"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Log.txt"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("../outside.dll"));
+        Assert.AreEqual("Texture/NewAsset.png", GameUpdatePathPolicy.NormalizeAndValidate("Texture/NewAsset.png"));
+    }
+
+    [TestMethod]
+    public async Task GameUpdateRollsBackAlreadyReplacedFilesWhenApplyFails()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string staged = Path.Combine(root, "staged");
+        string target = Path.Combine(root, "target");
+        string backup = Path.Combine(root, "backup");
+        Directory.CreateDirectory(staged);
+        Directory.CreateDirectory(target);
+        await File.WriteAllTextAsync(Path.Combine(staged, "first.dll"), "new");
+        await File.WriteAllTextAsync(Path.Combine(target, "first.dll"), "old");
+        try
+        {
+            IReadOnlyList<GamePackageFile> files =
+            [
+                new() { Path = "first.dll", Size = 3, Sha256 = new string('A', 64) },
+                new() { Path = "missing.dll", Size = 3, Sha256 = new string('B', 64) },
+            ];
+
+            await Assert.ThrowsExactlyAsync<FileNotFoundException>(() => GameUpdateService.ApplyWithRollbackAsync(
+                staged,
+                target,
+                backup,
+                files,
+                CancellationToken.None));
+
+            Assert.AreEqual("old", await File.ReadAllTextAsync(Path.Combine(target, "first.dll")));
+            Assert.IsFalse(File.Exists(Path.Combine(target, "missing.dll")));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task GameUpdateExtractorReadsWinZipAes256Payload()
+    {
+        string sevenZip = @"C:\Program Files\7-Zip\7z.exe";
+        if (!File.Exists(sevenZip))
+        {
+            Assert.Inconclusive("7-Zip is required for the AES integration test.");
+        }
+
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string payloadRoot = Path.Combine(root, "payload-root");
+        string output = Path.Combine(root, "output");
+        Directory.CreateDirectory(Path.Combine(payloadRoot, "Texture"));
+        Directory.CreateDirectory(output);
+        string assetPath = Path.Combine(payloadRoot, "Texture", "new.txt");
+        await File.WriteAllTextAsync(assetPath, "new-asset");
+        string hash = await GameUpdatePackageExtractor.ComputeSha256Async(assetPath, CancellationToken.None);
+        string revision = new('a', 40);
+        string packageName = GameUpdatePackageNaming.Create("1.2.3", revision);
+        GamePackageManifest internalManifest = new()
+        {
+            Version = "1.2.3",
+            Revision = revision,
+            Files = [new() { Path = "Texture/new.txt", Sha256 = hash, Size = new FileInfo(assetPath).Length }],
+        };
+        await File.WriteAllTextAsync(
+            Path.Combine(payloadRoot, "package-files.json"),
+            System.Text.Json.JsonSerializer.Serialize(internalManifest, LauncherJsonContext.Default.GamePackageManifest));
+        string payloadPath = Path.Combine(root, "payload.bin");
+        ZipFile.CreateFromDirectory(payloadRoot, payloadPath);
+        string packagePath = Path.Combine(root, packageName);
+        string key = "01234567890123456789012345678901";
+        string password = GamePackageKeyProvider.DerivePassword(key, packageName);
+        try
+        {
+            ProcessStartInfo startInfo = new(sevenZip)
+            {
+                UseShellExecute = false,
+                WorkingDirectory = root,
+            };
+            foreach (string argument in new[] { "a", "-tzip", "-mem=AES256", $"-p{password}", "-bd", "-bso0", "-bsp0", packagePath, payloadPath })
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+            using Process process = Process.Start(startInfo)!;
+            await process.WaitForExitAsync();
+            Assert.AreEqual(0, process.ExitCode);
+
+            FileInfo packageFile = new(packagePath);
+            GameUpdateManifest update = new()
+            {
+                Version = "1.2.3",
+                Revision = revision,
+                PackageFileName = packageName,
+                Sha256 = await GameUpdatePackageExtractor.ComputeSha256Async(packagePath, CancellationToken.None),
+                Size = packageFile.Length,
+                PublishedAt = DateTimeOffset.UtcNow,
+                PackageUrl = $"https://github.com/example/example/releases/download/game-stable/{packageName}",
+                Archive = new()
+                {
+                    Format = "zip",
+                    Encryption = "winzip-aes-256",
+                    Payload = "payload.bin",
+                    KeyId = "2026-01",
+                },
+            };
+            GameUpdatePackageExtractor extractor = new();
+            GamePackageManifest result = await extractor.ExtractAndVerifyAsync(
+                packagePath,
+                output,
+                update,
+                key,
+                CancellationToken.None);
+
+            Assert.HasCount(1, result.Files);
+            Assert.AreEqual("new-asset", await File.ReadAllTextAsync(Path.Combine(output, "files", "Texture", "new.txt")));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     private static void CreateZip(string path, params (string Path, string Content)[] files)

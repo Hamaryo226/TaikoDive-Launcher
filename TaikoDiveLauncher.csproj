@@ -21,6 +21,8 @@
     <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GamePackageKeyId Condition="'$(GamePackageKeyId)' == ''">2026-01</GamePackageKeyId>
+    <GamePackageKey Condition="'$(GamePackageKey)' == '' and '$(Configuration)' == 'Debug'">taikodive-local-development-key</GamePackageKey>
     <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;bin\**</DefaultItemExcludes>
   </PropertyGroup>
 
@@ -57,6 +59,9 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.WinUI" Version="2.3.6" />
     <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.6" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <AssemblyMetadata Include="TaikoDiveGamePackageKey" Value="$(GamePackageKey)" />
+    <AssemblyMetadata Include="TaikoDiveGamePackageKeyId" Value="$(GamePackageKeyId)" />
   </ItemGroup>
 
   <!--

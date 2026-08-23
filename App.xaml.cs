@@ -34,6 +34,7 @@ public partial class App : Application
                 StringComparison.Ordinal))
         {
             _ = Context.Updates.CheckAsync();
+            _ = Context.GameUpdates.CheckAsync();
         }
     }
 }

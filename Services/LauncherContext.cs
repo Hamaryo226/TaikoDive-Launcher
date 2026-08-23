@@ -13,6 +13,13 @@ public sealed class LauncherContext
 
     public LauncherUpdateService Updates { get; } = new();
 
+    public GameUpdateService GameUpdates { get; }
+
+    public LauncherContext()
+    {
+        GameUpdates = new GameUpdateService(() => Installation);
+    }
+
     public async Task InitializeAsync()
     {
         Preferences = await _preferencesStore.LoadAsync().ConfigureAwait(false);

@@ -32,7 +32,14 @@ jobs:
         run: dotnet test Tests\TaikoDiveLauncher.Tests.csproj -c Debug -p:Platform=x64
 
       - name: Build single-file launcher
-        run: dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64
+        shell: pwsh
+        env:
+          GAME_PACKAGE_KEY: ${{ secrets.GAME_PACKAGE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GAME_PACKAGE_KEY)) {
+            throw 'GAME_PACKAGE_KEY secret is required.'
+          }
+          dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64 "-p:GamePackageKey=$env:GAME_PACKAGE_KEY"
 
       - name: Create update manifest
         shell: pwsh
