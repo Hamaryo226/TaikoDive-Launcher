@@ -636,6 +636,47 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task GameUpdateCheckerTreatsExecutableProductVersionAsUnmanagedBaseline()
+    {
+        using TemporaryInstallation temporary = new(typeof(PersistenceTests).Assembly.Location);
+        string? productVersion = FileVersionInfo.GetVersionInfo(temporary.Installation.ExecutablePath).ProductVersion;
+        Assert.IsTrue(Regex.IsMatch(productVersion ?? string.Empty, @"\d+\.\d+\.\d+"));
+
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = GameUpdatePackageNaming.Create("0.1.0", revision);
+        string manifest = $$"""
+            {
+              "version": "0.1.0",
+              "revision": "{{revision}}",
+              "packageFileName": "{{packageName}}",
+              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{{packageName}}",
+              "sha256": "{{new string('A', 64)}}",
+              "size": 1234,
+              "publishedAt": "2026-08-23T00:00:00Z",
+              "archive": {
+                "format": "zip",
+                "encryption": "winzip-aes-256",
+                "payload": "payload.bin",
+                "keyId": "2026-01"
+              }
+            }
+            """;
+        using HttpClient client = new(new StaticResponseHandler(manifest));
+        GameUpdateService service = new(
+            client,
+            new Uri("https://example.test/game-update-manifest.json"),
+            () => temporary.Installation,
+            () => false,
+            () => "test-package-key",
+            new GameUpdatePackageExtractor());
+
+        await service.CheckAsync();
+
+        Assert.AreEqual(GameUpdateState.Available, service.State);
+        Assert.AreEqual("0.1.0", service.AvailableUpdate?.Version);
+    }
+
+    [TestMethod]
     public void GameUpdateRejectsUserDataPaths()
     {
         Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Setting.json"));
@@ -797,12 +838,20 @@ public sealed class PersistenceTests
 
     private sealed class TemporaryInstallation : IDisposable
     {
-        public TemporaryInstallation()
+        public TemporaryInstallation(string? executableSource = null)
         {
             RootDirectory = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
             string buildDirectory = Path.Combine(RootDirectory, "build");
             Directory.CreateDirectory(Path.Combine(buildDirectory, "Info"));
-            File.WriteAllBytes(Path.Combine(buildDirectory, "TaikoDive.exe"), [0]);
+            string executablePath = Path.Combine(buildDirectory, "TaikoDive.exe");
+            if (string.IsNullOrWhiteSpace(executableSource))
+            {
+                File.WriteAllBytes(executablePath, [0]);
+            }
+            else
+            {
+                File.Copy(executableSource, executablePath);
+            }
             Installation = new TaikoDiveInstallation(buildDirectory);
         }
 

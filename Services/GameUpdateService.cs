@@ -1,12 +1,10 @@
-using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using TaikoDiveLauncher.Models;
 
 namespace TaikoDiveLauncher.Services;
 
-public sealed partial class GameUpdateService
+public sealed class GameUpdateService
 {
     private const long MaximumDownloadSize = 4L * 1024 * 1024 * 1024;
     private static readonly Uri DefaultManifestUri = new(
@@ -353,22 +351,9 @@ public sealed partial class GameUpdateService
             return installed.Version;
         }
 
-        if (installation?.IsValid == true)
-        {
-            try
-            {
-                string? productVersion = FileVersionInfo.GetVersionInfo(installation.ExecutablePath).ProductVersion;
-                Match match = VersionInTextRegex().Match(productVersion ?? string.Empty);
-                if (match.Success && GameUpdatePackageNaming.IsVersion(match.Value))
-                {
-                    return match.Value;
-                }
-            }
-            catch
-            {
-                // An unversioned development executable is treated as 0.0.0.
-            }
-        }
+        // The update channel has its own monotonically increasing version. The executable's
+        // product version belongs to TaikoDive's build metadata and is not comparable with it.
+        // Until this launcher applies the first managed update, use the channel baseline.
         return "0.0.0";
     }
 
@@ -478,6 +463,4 @@ public sealed partial class GameUpdateService
         try { if (File.Exists(path)) { File.Delete(path); } } catch { }
     }
 
-    [GeneratedRegex(@"\d+\.\d+\.\d+", RegexOptions.CultureInvariant)]
-    private static partial Regex VersionInTextRegex();
 }
