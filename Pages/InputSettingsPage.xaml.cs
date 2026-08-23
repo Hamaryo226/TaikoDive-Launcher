@@ -7,7 +7,7 @@ using Windows.System;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed partial class InputSettingsPage : Page
+public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
 {
     private const double NarrowLayoutWidth = 900;
 
@@ -32,6 +32,10 @@ public sealed partial class InputSettingsPage : Page
     private CaptureInputKind _captureInputKind;
     private int? _capturedKey;
     private ControllerInputBinding? _capturedController;
+
+    public bool HasUnsavedChanges { get; private set; }
+
+    public string UnsavedChangesName => "入力設定";
 
     public IReadOnlyList<InputBindingRow> PlayerOneRows { get; } = CreateRows(1);
     public IReadOnlyList<InputBindingRow> PlayerTwoRows { get; } = CreateRows(2);
@@ -85,6 +89,7 @@ public sealed partial class InputSettingsPage : Page
         try
         {
             _bindings = await _store.LoadAsync(installation);
+            HasUnsavedChanges = false;
             RefreshRows();
             SetEnabled(true);
             StatusBar.IsOpen = false;
@@ -112,6 +117,7 @@ public sealed partial class InputSettingsPage : Page
         try
         {
             await _store.SaveAsync(installation, _bindings);
+            HasUnsavedChanges = false;
             ShowStatus(InfoBarSeverity.Success, "入力設定を保存しました。次回のTaikoDive起動から反映されます。");
         }
         catch (Exception ex)
@@ -274,6 +280,7 @@ public sealed partial class InputSettingsPage : Page
         }
 
         RefreshRows();
+        HasUnsavedChanges = true;
         ShowStatus(
             InfoBarSeverity.Informational,
             $"{selected.Label} を1件削除しました。ほかの割り当ては保持しています。保存すると反映されます。");
@@ -325,6 +332,7 @@ public sealed partial class InputSettingsPage : Page
         PlayerInputBindings player = GetPlayer(row.Player);
         InputBindingsEditor.AddKeyboard(player, row.Slot, keyCode);
         RefreshRows();
+        HasUnsavedChanges = true;
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.KeyLabel(keyCode)} を追加しました。保存すると反映されます。");
     }
 
@@ -339,6 +347,7 @@ public sealed partial class InputSettingsPage : Page
         PlayerInputBindings player = GetPlayer(row.Player);
         InputBindingsEditor.AddController(player, row.Slot, input);
         RefreshRows();
+        HasUnsavedChanges = true;
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.ControllerLabel(input)} を追加しました。保存すると反映されます。");
     }
 

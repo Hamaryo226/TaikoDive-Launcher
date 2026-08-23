@@ -5,12 +5,22 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed partial class ProfilesPage : Page
+public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
 {
     private readonly UserProfileStore _profileStore = new();
     private IReadOnlyList<UserProfile> _profiles = [];
     private CancellationTokenSource? _statisticsCancellation;
     private bool _updatingEditor;
+    private bool _restoringProfileSelection;
+    private UserProfile? _activeProfile;
+
+    public bool HasUnsavedChanges => _activeProfile is not null
+        && (NameBox.Text != _activeProfile.Name
+            || TitleBox.Text != _activeProfile.Title
+            || (CharacterBox.SelectedValue as string ?? _activeProfile.CharaType) != _activeProfile.CharaType
+            || (NamePlateBox.SelectedValue is int plateType ? plateType : _activeProfile.NamePlateType) != _activeProfile.NamePlateType);
+
+    public string UnsavedChangesName => "プロフィール";
 
     private App AppInstance => (App)Application.Current;
 
@@ -47,6 +57,7 @@ public sealed partial class ProfilesPage : Page
         try
         {
             _profiles = await _profileStore.LoadAsync(installation);
+            _activeProfile = null;
             ProfileList.ItemsSource = _profiles;
             ProfileList.SelectedItem = _profiles.FirstOrDefault(profile => profile.Slot == selectedSlot) ?? _profiles[0];
             SetEditorEnabled(true);
@@ -65,22 +76,38 @@ public sealed partial class ProfilesPage : Page
 
     private async void ProfileList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
+        if (_restoringProfileSelection)
+        {
+            return;
+        }
+
         if (ProfileList.SelectedItem is not UserProfile profile || AppInstance.Context.Installation is not { } installation)
         {
             return;
         }
 
+        if (_activeProfile is not null
+            && _activeProfile.Slot != profile.Slot
+            && HasUnsavedChanges
+            && !await ConfirmDiscardChangesAsync())
+        {
+            _restoringProfileSelection = true;
+            ProfileList.SelectedItem = _activeProfile;
+            _restoringProfileSelection = false;
+            return;
+        }
+
+        _activeProfile = profile;
+        _updatingEditor = true;
         SlotHeading.Text = $"{profile.Slot}P USER";
         NameBox.Text = profile.Name;
         TitleBox.Text = profile.Title;
-
-        _updatingEditor = true;
         CharacterBox.ItemsSource = _profileStore.GetCharacterOptions(installation, profile.CharaType);
         CharacterBox.SelectedValue = profile.CharaType;
         NamePlateBox.ItemsSource = _profileStore.GetNamePlateOptions(installation, profile.NamePlateType);
         NamePlateBox.SelectedValue = profile.NamePlateType;
         _updatingEditor = false;
-        CharacterPreview.ShowCharacter(installation, profile.CharaType);
+        await CharacterPreview.ShowCharacterAsync(installation, profile.CharaType);
         await NamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
 
         _statisticsCancellation?.Cancel();
@@ -111,7 +138,7 @@ public sealed partial class ProfilesPage : Page
         }
     }
 
-    private void CharacterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void CharacterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingEditor)
         {
@@ -120,7 +147,7 @@ public sealed partial class ProfilesPage : Page
 
         if (CharacterBox.SelectedValue is string characterType && AppInstance.Context.Installation is { } installation)
         {
-            CharacterPreview.ShowCharacter(installation, characterType);
+            await CharacterPreview.ShowCharacterAsync(installation, characterType);
         }
     }
 
@@ -195,5 +222,28 @@ public sealed partial class ProfilesPage : Page
         StatusBar.Severity = severity;
         StatusBar.Message = message;
         StatusBar.IsOpen = true;
+    }
+
+    private async Task<bool> ConfirmDiscardChangesAsync()
+    {
+        ProfileList.IsEnabled = false;
+        ContentDialog dialog = new()
+        {
+            Title = "変更を保存していません",
+            Content = "このプロフィールの変更は保存されていません。破棄して別のプロフィールへ移動しますか？",
+            PrimaryButtonText = "破棄して移動",
+            CloseButtonText = "編集に戻る",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+
+        try
+        {
+            return await dialog.ShowAsync() == ContentDialogResult.Primary;
+        }
+        finally
+        {
+            ProfileList.IsEnabled = true;
+        }
     }
 }

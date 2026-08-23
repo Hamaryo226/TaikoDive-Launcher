@@ -5,7 +5,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed partial class LaunchSettingsPage : Page
+public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
 {
     private static readonly IReadOnlyList<ResolutionOption> StandardResolutions =
     [
@@ -20,6 +20,12 @@ public sealed partial class LaunchSettingsPage : Page
         ["DirectSound", "Wasapi", "WasapiExclusive", "ASIO"];
 
     private readonly GameSettingsStore _settingsStore = new();
+    private GameSettings? _loadedSettings;
+
+    public bool HasUnsavedChanges => _loadedSettings is not null
+        && !SettingsEqual(_loadedSettings, ReadSettings());
+
+    public string UnsavedChangesName => "起動構成";
 
     private App AppInstance => (App)Application.Current;
 
@@ -49,6 +55,7 @@ public sealed partial class LaunchSettingsPage : Page
         try
         {
             GameSettings settings = await _settingsStore.LoadAsync(installation);
+            _loadedSettings = settings;
             List<ResolutionOption> resolutions = StandardResolutions.ToList();
             if (resolutions.All(item => item.Width != settings.ScreenWidth))
             {
@@ -95,31 +102,13 @@ public sealed partial class LaunchSettingsPage : Page
             return;
         }
 
-        int screenWidth = ResolutionBox.SelectedValue is int width ? width : 1920;
-        GameSettings settings = new()
-        {
-            GuestMode = GuestModeSwitch.IsOn,
-            TwoPlayerMode = TwoPlayerModeSwitch.IsOn,
-            FullScreen = FullScreenSwitch.IsOn,
-            BorderlessWindow = BorderlessSwitch.IsOn,
-            ScreenWidth = screenWidth,
-            VerticalSync = VerticalSyncSwitch.IsOn,
-            SaveBestReplay = SaveReplaySwitch.IsOn,
-            MasterVolume = (int)Math.Round(MasterVolumeSlider.Value),
-            MusicVolume = (int)Math.Round(MusicVolumeSlider.Value),
-            SoundEffectVolume = (int)Math.Round(SoundEffectVolumeSlider.Value),
-            SoundType = SoundTypeBox.SelectedItem as string ?? "DirectSound",
-            SoundBufferSamples = double.IsNaN(SoundBufferBox.Value) ? 0 : (int)Math.Round(SoundBufferBox.Value),
-            UseCompressedSongSound = CompressedSoundSwitch.IsOn,
-            ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
-            ReduceCharaTextureColorTo16bit = CharaTexture16BitSwitch.IsOn,
-            CharaAnimationFrameSkip = double.IsNaN(CharaFrameSkipBox.Value) ? 3 : (int)Math.Round(CharaFrameSkipBox.Value),
-        };
+        GameSettings settings = ReadSettings();
 
         SetBusy(true);
         try
         {
             await _settingsStore.SaveAsync(installation, settings);
+            _loadedSettings = settings;
             ShowStatus(InfoBarSeverity.Success, "起動構成を保存しました。変更は次回のゲーム起動から反映されます。");
         }
         catch (Exception ex)
@@ -154,5 +143,48 @@ public sealed partial class LaunchSettingsPage : Page
         StatusBar.Severity = severity;
         StatusBar.Message = message;
         StatusBar.IsOpen = true;
+    }
+
+    private GameSettings ReadSettings()
+    {
+        return new GameSettings
+        {
+            GuestMode = GuestModeSwitch.IsOn,
+            TwoPlayerMode = TwoPlayerModeSwitch.IsOn,
+            FullScreen = FullScreenSwitch.IsOn,
+            BorderlessWindow = BorderlessSwitch.IsOn,
+            ScreenWidth = ResolutionBox.SelectedValue is int width ? width : 1920,
+            VerticalSync = VerticalSyncSwitch.IsOn,
+            SaveBestReplay = SaveReplaySwitch.IsOn,
+            MasterVolume = (int)Math.Round(MasterVolumeSlider.Value),
+            MusicVolume = (int)Math.Round(MusicVolumeSlider.Value),
+            SoundEffectVolume = (int)Math.Round(SoundEffectVolumeSlider.Value),
+            SoundType = SoundTypeBox.SelectedItem as string ?? "DirectSound",
+            SoundBufferSamples = double.IsNaN(SoundBufferBox.Value) ? 0 : (int)Math.Round(SoundBufferBox.Value),
+            UseCompressedSongSound = CompressedSoundSwitch.IsOn,
+            ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
+            ReduceCharaTextureColorTo16bit = CharaTexture16BitSwitch.IsOn,
+            CharaAnimationFrameSkip = double.IsNaN(CharaFrameSkipBox.Value) ? 3 : (int)Math.Round(CharaFrameSkipBox.Value),
+        };
+    }
+
+    private static bool SettingsEqual(GameSettings left, GameSettings right)
+    {
+        return left.GuestMode == right.GuestMode
+            && left.TwoPlayerMode == right.TwoPlayerMode
+            && left.FullScreen == right.FullScreen
+            && left.BorderlessWindow == right.BorderlessWindow
+            && left.ScreenWidth == right.ScreenWidth
+            && left.VerticalSync == right.VerticalSync
+            && left.SaveBestReplay == right.SaveBestReplay
+            && left.MasterVolume == right.MasterVolume
+            && left.MusicVolume == right.MusicVolume
+            && left.SoundEffectVolume == right.SoundEffectVolume
+            && left.SoundType == right.SoundType
+            && left.SoundBufferSamples == right.SoundBufferSamples
+            && left.UseCompressedSongSound == right.UseCompressedSongSound
+            && left.ReduceTextureColorTo16bit == right.ReduceTextureColorTo16bit
+            && left.ReduceCharaTextureColorTo16bit == right.ReduceCharaTextureColorTo16bit
+            && left.CharaAnimationFrameSkip == right.CharaAnimationFrameSkip;
     }
 }
