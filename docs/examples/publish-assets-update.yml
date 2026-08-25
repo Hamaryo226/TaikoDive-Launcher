@@ -1,0 +1,89 @@
+name: Publish TaikoDive Asset update
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - src/**
+      - .github/workflows/publish-assets-update.yml
+  workflow_dispatch:
+
+concurrency:
+  group: publish-taikodive-assets-update
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout private Asset repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install 7-Zip
+        shell: pwsh
+        run: choco install 7zip --yes --no-progress
+
+      - name: Checkout public packaging tools
+        uses: actions/checkout@v4
+        with:
+          repository: Hamaryo226/TaikoDive-Launcher
+          path: launcher-tools
+
+      - name: Generate update version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "0.$env:GITHUB_RUN_NUMBER.0"
+          "value=$version" >> $env:GITHUB_OUTPUT
+          "TaikoDive Asset update version: $version"
+
+      - name: Create encrypted package from src
+        shell: pwsh
+        env:
+          GAME_PACKAGE_KEY: ${{ secrets.GAME_PACKAGE_KEY }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:GAME_PACKAGE_KEY)) {
+            throw 'GAME_PACKAGE_KEY secret is required.'
+          }
+          & .\launcher-tools\tools\assets-update\New-TaikoDiveAssetsUpdate.ps1 `
+            -SourceDirectory .\src `
+            -Version '${{ steps.version.outputs.value }}' `
+            -Revision $env:GITHUB_SHA `
+            -PackageKey $env:GAME_PACKAGE_KEY `
+            -OutputDirectory .\assets-update
+
+      - name: Create token for public release repository
+        id: release-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: Hamaryo226
+          repositories: TaikoDive-Launcher
+
+      - name: Publish stable Asset update
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        run: |
+          $repository = 'Hamaryo226/TaikoDive-Launcher'
+          $tag = 'assets-stable'
+          $package = Get-Item .\assets-update\TaikoDive_Assets_*.zip
+          $manifest = Get-Item .\assets-update\assets-update-manifest.json
+
+          gh release view $tag --repo $repository *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo $repository `
+              --title 'TaikoDive Asset - stable' `
+              --notes 'privateのTaikoDive-Assets srcから生成されるAsset更新チャンネルです。' `
+              --target main
+          }
+          gh release upload $tag $package.FullName $manifest.FullName --clobber --repo $repository

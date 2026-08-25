@@ -69,6 +69,31 @@ internal static partial class GameUpdatePackageNaming
     }
 }
 
+internal static partial class AssetUpdatePackageNaming
+{
+    [GeneratedRegex(@"^TaikoDive_Assets_v(?<version>(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))_win-x64_(?<revision>[0-9a-f]{7})\.zip$", RegexOptions.CultureInvariant)]
+    private static partial Regex PackageNameRegex();
+
+    public static string Create(string version, string revision)
+    {
+        if (!GameUpdatePackageNaming.IsVersion(version) || !GameUpdatePackageNaming.IsRevision(revision))
+        {
+            throw new ArgumentException("バージョンまたはリビジョンが不正です。");
+        }
+
+        return $"TaikoDive_Assets_v{version}_win-x64_{revision[..7].ToLowerInvariant()}.zip";
+    }
+
+    public static bool Matches(string fileName, string version, string revision)
+    {
+        Match match = PackageNameRegex().Match(fileName);
+        return match.Success
+            && string.Equals(match.Groups["version"].Value, version, StringComparison.Ordinal)
+            && revision.Length >= 7
+            && string.Equals(match.Groups["revision"].Value, revision[..7], StringComparison.OrdinalIgnoreCase);
+    }
+}
+
 internal static class GamePackageKeyProvider
 {
     public static string KeyId => GetMetadata("TaikoDiveGamePackageKeyId") ?? "2026-01";
@@ -123,6 +148,19 @@ internal static class GameUpdatePathPolicy
 
     public static string NormalizeAndValidate(string path)
     {
+        string normalized = NormalizeSyntax(path);
+        if (ProtectedFiles.Contains(normalized, StringComparer.OrdinalIgnoreCase)
+            || ProtectedDirectories.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            || normalized.EndsWith(".launcher.bak", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException($"更新パッケージに保護対象のユーザーファイルが含まれています: {normalized}");
+        }
+
+        return normalized;
+    }
+
+    internal static string NormalizeSyntax(string path)
+    {
         string normalized = path.Replace('\\', '/').TrimStart('/');
         if (string.IsNullOrWhiteSpace(normalized)
             || Path.IsPathRooted(path)
@@ -135,14 +173,40 @@ internal static class GameUpdatePathPolicy
         {
             throw new InvalidDataException($"更新パッケージに不正なパスがあります: {path}");
         }
+        return normalized;
+    }
+}
 
+internal static class AssetUpdatePathPolicy
+{
+    private static readonly string[] ProtectedFiles =
+    [
+        "Setting.json",
+        "Info/User.ini",
+        "TaikoDive.Launcher.exe",
+        "Log.txt",
+    ];
+
+    private static readonly string[] ProtectedDirectories =
+    [
+        "Info/ScoreData/",
+        "Info/TaikoDiveLauncher/",
+        "Replay/",
+        "Replays/",
+        "Screenshot/",
+        "Screenshots/",
+        "Log/",
+    ];
+
+    public static string NormalizeAndValidate(string path)
+    {
+        string normalized = GameUpdatePathPolicy.NormalizeSyntax(path);
         if (ProtectedFiles.Contains(normalized, StringComparer.OrdinalIgnoreCase)
             || ProtectedDirectories.Any(prefix => normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             || normalized.EndsWith(".launcher.bak", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidDataException($"更新パッケージに保護対象のユーザーファイルが含まれています: {normalized}");
+            throw new InvalidDataException($"Asset更新パッケージに保護対象のユーザーファイルが含まれています: {normalized}");
         }
-
         return normalized;
     }
 }
@@ -153,6 +217,12 @@ internal sealed class GameUpdatePackageExtractor
     private const int MaximumEntryCount = 20_000;
     private const long MaximumEntrySize = 2L * 1024 * 1024 * 1024;
     private const long MaximumExpandedSize = 8L * 1024 * 1024 * 1024;
+    private readonly Func<string, string> _normalizePath;
+
+    public GameUpdatePackageExtractor(Func<string, string>? normalizePath = null)
+    {
+        _normalizePath = normalizePath ?? GameUpdatePathPolicy.NormalizeAndValidate;
+    }
 
     public async Task<GamePackageManifest> ExtractAndVerifyAsync(
         string packagePath,
@@ -199,7 +269,7 @@ internal sealed class GameUpdatePackageExtractor
         CopyWithLimit(source, destination, MaximumExpandedSize);
     }
 
-    private static async Task<GamePackageManifest> ExtractPayloadAsync(
+    private async Task<GamePackageManifest> ExtractPayloadAsync(
         string payloadPath,
         string filesDirectory,
         CancellationToken cancellationToken)
@@ -246,7 +316,7 @@ internal sealed class GameUpdatePackageExtractor
                 continue;
             }
 
-            string normalized = GameUpdatePathPolicy.NormalizeAndValidate(entryPath);
+            string normalized = _normalizePath(entryPath);
             string destinationPath = ResolveContainedPath(filesDirectory, normalized);
             Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
             await using Stream source = entry.Open();
@@ -263,7 +333,7 @@ internal sealed class GameUpdatePackageExtractor
         return packageManifest ?? throw new InvalidDataException("package-files.jsonがありません。");
     }
 
-    private static void ValidatePackageManifest(GamePackageManifest package, GameUpdateManifest update)
+    private void ValidatePackageManifest(GamePackageManifest package, GameUpdateManifest update)
     {
         if (!string.Equals(package.Version, update.Version, StringComparison.Ordinal)
             || !string.Equals(package.Revision, update.Revision, StringComparison.OrdinalIgnoreCase)
@@ -275,7 +345,7 @@ internal sealed class GameUpdatePackageExtractor
         HashSet<string> paths = new(StringComparer.OrdinalIgnoreCase);
         foreach (GamePackageFile file in package.Files)
         {
-            file.Path = GameUpdatePathPolicy.NormalizeAndValidate(file.Path);
+            file.Path = _normalizePath(file.Path);
             if (!paths.Add(file.Path)
                 || file.Size is < 0 or > MaximumEntrySize
                 || !IsHex(file.Sha256, 64))

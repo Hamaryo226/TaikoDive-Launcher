@@ -15,9 +15,12 @@ public sealed class LauncherContext
 
     public GameUpdateService GameUpdates { get; }
 
+    public GameUpdateService AssetUpdates { get; }
+
     public LauncherContext()
     {
         GameUpdates = new GameUpdateService(() => Installation);
+        AssetUpdates = GameUpdateService.CreateAssets(() => Installation);
     }
 
     public async Task InitializeAsync()

@@ -35,6 +35,7 @@ public partial class App : Application
         {
             _ = Context.Updates.CheckAsync();
             _ = Context.GameUpdates.CheckAsync();
+            _ = Context.AssetUpdates.CheckAsync();
         }
     }
 }

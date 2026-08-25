@@ -28,8 +28,11 @@ public sealed partial class LauncherSettingsPage : Page
         AppInstance.Context.Updates.StateChanged += Updates_StateChanged;
         AppInstance.Context.GameUpdates.StateChanged -= GameUpdates_StateChanged;
         AppInstance.Context.GameUpdates.StateChanged += GameUpdates_StateChanged;
+        AppInstance.Context.AssetUpdates.StateChanged -= AssetUpdates_StateChanged;
+        AppInstance.Context.AssetUpdates.StateChanged += AssetUpdates_StateChanged;
         UpdateUpdateControls();
         UpdateGameUpdateControls();
+        UpdateAssetUpdateControls();
         _isLoading = false;
     }
 
@@ -37,6 +40,7 @@ public sealed partial class LauncherSettingsPage : Page
     {
         AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
         AppInstance.Context.GameUpdates.StateChanged -= GameUpdates_StateChanged;
+        AppInstance.Context.AssetUpdates.StateChanged -= AssetUpdates_StateChanged;
     }
 
     private async void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
@@ -201,6 +205,60 @@ public sealed partial class LauncherSettingsPage : Page
         GameUpdateProgressRing.IsActive = isBusy;
         CheckGameUpdateButton.IsEnabled = !isBusy;
         InstallGameUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
+    }
+
+    private async void CheckAssetUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        await AppInstance.Context.AssetUpdates.CheckAsync();
+    }
+
+    private async void InstallAssetUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (GameProcessService.IsRunning())
+        {
+            ShowStatus(InfoBarSeverity.Warning, "TaikoDiveを終了してからAssetをアップデートしてください。");
+            return;
+        }
+
+        GameUpdateManifest? update = AppInstance.Context.AssetUpdates.AvailableUpdate;
+        ContentDialog confirmation = new()
+        {
+            Title = "TaikoDive Assetをアップデートしますか？",
+            Content = $"v{update?.Version}を検証し、Assetリポジトリのsrcの内容をbuildへ適用します。Info/User.iniなどのユーザーデータは保持されます。",
+            PrimaryButtonText = "アップデート",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        OperationResult result = await AppInstance.Context.AssetUpdates.DownloadAndApplyAsync();
+        ShowStatus(
+            result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error,
+            result.Message);
+    }
+
+    private void AssetUpdates_StateChanged(object? sender, EventArgs e)
+    {
+        DispatcherQueue.TryEnqueue(UpdateAssetUpdateControls);
+    }
+
+    private void UpdateAssetUpdateControls()
+    {
+        GameUpdateService updates = AppInstance.Context.AssetUpdates;
+        CurrentAssetVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
+        AssetUpdateStatusText.Text = updates.StatusMessage;
+        bool isBusy = updates.State is
+            GameUpdateState.Checking or
+            GameUpdateState.Downloading or
+            GameUpdateState.Verifying or
+            GameUpdateState.Applying;
+        AssetUpdateProgressRing.IsActive = isBusy;
+        CheckAssetUpdateButton.IsEnabled = !isBusy;
+        InstallAssetUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
     }
 
     private void ShowStatus(InfoBarSeverity severity, string message)

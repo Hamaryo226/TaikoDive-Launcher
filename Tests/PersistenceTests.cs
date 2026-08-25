@@ -569,6 +569,37 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public void AssetUpdatePackageNameAndManifestUseIndependentChannel()
+    {
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = AssetUpdatePackageNaming.Create("2.3.4", revision);
+        Assert.AreEqual("TaikoDive_Assets_v2.3.4_win-x64_0123456.zip", packageName);
+        Assert.IsTrue(AssetUpdatePackageNaming.Matches(packageName, "2.3.4", revision));
+        Assert.IsFalse(GameUpdatePackageNaming.Matches(packageName, "2.3.4", revision));
+
+        GameUpdateManifest manifest = new()
+        {
+            Version = "2.3.4",
+            Revision = revision,
+            PackageFileName = packageName,
+            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/assets-stable/{packageName}",
+            Sha256 = new string('A', 64),
+            Size = 123,
+            PublishedAt = DateTimeOffset.UtcNow,
+            Archive = new GameUpdateArchiveInfo
+            {
+                Format = "zip",
+                Encryption = "winzip-aes-256",
+                Payload = "payload.bin",
+                KeyId = "2026-01",
+            },
+        };
+
+        GameUpdateService.ValidateAssetManifest(manifest);
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdateService.ValidateManifest(manifest));
+    }
+
+    [TestMethod]
     public void GameUpdateManifestRequiresCanonicalEncryptedPackage()
     {
         string revision = "0123456789abcdef0123456789abcdef01234567";
@@ -686,6 +717,16 @@ public sealed class PersistenceTests
         Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Log.txt"));
         Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("../outside.dll"));
         Assert.AreEqual("Texture/NewAsset.png", GameUpdatePathPolicy.NormalizeAndValidate("Texture/NewAsset.png"));
+    }
+
+    [TestMethod]
+    public void AssetUpdateAllowsManagedSongsButRejectsUserProfile()
+    {
+        Assert.AreEqual(
+            "Songs/09 段位道場.7z",
+            AssetUpdatePathPolicy.NormalizeAndValidate("Songs/09 段位道場.7z"));
+        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/User.ini"));
+        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("../outside.png"));
     }
 
     [TestMethod]

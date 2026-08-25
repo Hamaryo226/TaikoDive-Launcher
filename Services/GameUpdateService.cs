@@ -16,10 +16,12 @@ public sealed class GameUpdateService
     private readonly Func<bool> _isGameRunning;
     private readonly Func<string?> _packageKeyProvider;
     private readonly GameUpdatePackageExtractor _extractor;
+    private readonly UpdateChannel _channel;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
+    private static readonly SemaphoreSlim ApplyLock = new(1, 1);
     private readonly object _stateLock = new();
     private GameUpdateState _state;
-    private string _statusMessage = "公開チャンネルからTaikoDiveの更新を確認できます。";
+    private string _statusMessage;
     private GameUpdateManifest? _availableUpdate;
 
     public GameUpdateService(Func<TaikoDiveInstallation?> installationProvider)
@@ -29,9 +31,19 @@ public sealed class GameUpdateService
             installationProvider,
             GameProcessService.IsRunning,
             GamePackageKeyProvider.GetPackageKey,
-            new GameUpdatePackageExtractor())
+            new GameUpdatePackageExtractor(),
+            UpdateChannel.Game)
     {
     }
+
+    public static GameUpdateService CreateAssets(Func<TaikoDiveInstallation?> installationProvider) => new(
+        CreateHttpClient(),
+        UpdateChannel.Assets.ManifestUri,
+        installationProvider,
+        GameProcessService.IsRunning,
+        GamePackageKeyProvider.GetPackageKey,
+        new GameUpdatePackageExtractor(AssetUpdatePathPolicy.NormalizeAndValidate),
+        UpdateChannel.Assets);
 
     internal GameUpdateService(
         HttpClient httpClient,
@@ -39,7 +51,8 @@ public sealed class GameUpdateService
         Func<TaikoDiveInstallation?> installationProvider,
         Func<bool> isGameRunning,
         Func<string?> packageKeyProvider,
-        GameUpdatePackageExtractor extractor)
+        GameUpdatePackageExtractor extractor,
+        UpdateChannel? channel = null)
     {
         _httpClient = httpClient;
         _manifestUri = manifestUri;
@@ -47,6 +60,8 @@ public sealed class GameUpdateService
         _isGameRunning = isGameRunning;
         _packageKeyProvider = packageKeyProvider;
         _extractor = extractor;
+        _channel = channel ?? UpdateChannel.Game with { ManifestUri = manifestUri };
+        _statusMessage = $"公開チャンネルから{_channel.DisplayName}の更新を確認できます。";
     }
 
     public event EventHandler? StateChanged;
@@ -84,7 +99,7 @@ public sealed class GameUpdateService
                 return;
             }
 
-            SetState(GameUpdateState.Checking, "TaikoDiveのアップデートを確認しています…", null);
+            SetState(GameUpdateState.Checking, $"{_channel.DisplayName}のアップデートを確認しています…", null);
             using HttpRequestMessage request = new(HttpMethod.Get, AddCacheBuster(_manifestUri));
             request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
             using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
@@ -95,7 +110,7 @@ public sealed class GameUpdateService
                     LauncherJsonContext.Default.GameUpdateManifest,
                     cancellationToken)
                 .ConfigureAwait(false);
-            ValidateManifest(manifest);
+            ValidateManifest(manifest, _channel);
 
             string currentVersion = DetectCurrentVersion(installation);
             if (GameUpdatePackageNaming.CompareVersions(manifest!.Version, currentVersion) <= 0)
@@ -104,7 +119,7 @@ public sealed class GameUpdateService
                 return;
             }
 
-            SetState(GameUpdateState.Available, $"TaikoDive v{manifest.Version}を利用できます。", manifest);
+            SetState(GameUpdateState.Available, $"{_channel.DisplayName} v{manifest.Version}を利用できます。", manifest);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -112,7 +127,7 @@ public sealed class GameUpdateService
         }
         catch (Exception ex)
         {
-            SetState(GameUpdateState.Failed, $"TaikoDiveの更新を確認できませんでした: {ex.Message}", null);
+            SetState(GameUpdateState.Failed, $"{_channel.DisplayName}の更新を確認できませんでした: {ex.Message}", null);
         }
         finally
         {
@@ -128,13 +143,14 @@ public sealed class GameUpdateService
         }
 
         string? operationDirectory = null;
+        bool applyLockTaken = false;
         try
         {
             GameUpdateManifest? update = AvailableUpdate;
             TaikoDiveInstallation? installation = _installationProvider();
             if (update is null)
             {
-                return OperationResult.Failure("利用できるTaikoDiveアップデートがありません。");
+                return OperationResult.Failure($"利用できる{_channel.DisplayName}アップデートがありません。");
             }
             if (installation is null || !installation.IsValid)
             {
@@ -148,13 +164,15 @@ public sealed class GameUpdateService
             string? packageKey = _packageKeyProvider();
             if (string.IsNullOrWhiteSpace(packageKey))
             {
-                return OperationResult.Failure("このランチャーにはゲーム更新用キーが設定されていません。");
+                return OperationResult.Failure("このランチャーには更新用キーが設定されていません。");
             }
 
+            await ApplyLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            applyLockTaken = true;
             operationDirectory = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(operationDirectory);
             string packagePath = Path.Combine(operationDirectory, update.PackageFileName);
-            SetState(GameUpdateState.Downloading, $"TaikoDive v{update.Version}をダウンロードしています…", update);
+            SetState(GameUpdateState.Downloading, $"{_channel.DisplayName} v{update.Version}をダウンロードしています…", update);
             await DownloadAndVerifyAsync(packagePath, update, cancellationToken).ConfigureAwait(false);
 
             SetState(GameUpdateState.Verifying, "暗号化パッケージを検証しています…", update);
@@ -178,20 +196,21 @@ public sealed class GameUpdateService
                 installation.BuildDirectory,
                 backupDirectory,
                 package.Files,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                _channel.NormalizePath).ConfigureAwait(false);
             await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
 
-            SetState(GameUpdateState.Completed, $"TaikoDive v{update.Version}へ更新しました。", null);
-            return OperationResult.Success($"TaikoDive v{update.Version}へ更新しました。");
+            SetState(GameUpdateState.Completed, $"{_channel.DisplayName} v{update.Version}へ更新しました。", null);
+            return OperationResult.Success($"{_channel.DisplayName} v{update.Version}へ更新しました。");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            SetState(GameUpdateState.Available, "TaikoDiveのアップデートを中止しました。", AvailableUpdate);
+            SetState(GameUpdateState.Available, $"{_channel.DisplayName}のアップデートを中止しました。", AvailableUpdate);
             return OperationResult.Failure("アップデートを中止しました。");
         }
         catch (Exception ex)
         {
-            SetState(GameUpdateState.Failed, $"TaikoDiveのアップデートに失敗しました: {ex.Message}", AvailableUpdate);
+            SetState(GameUpdateState.Failed, $"{_channel.DisplayName}のアップデートに失敗しました: {ex.Message}", AvailableUpdate);
             return OperationResult.Failure(ex.Message);
         }
         finally
@@ -200,16 +219,26 @@ public sealed class GameUpdateService
             {
                 TryDeleteDirectory(operationDirectory);
             }
+            if (applyLockTaken)
+            {
+                ApplyLock.Release();
+            }
             _operationLock.Release();
         }
     }
 
     internal static void ValidateManifest(GameUpdateManifest? manifest)
+        => ValidateManifest(manifest, UpdateChannel.Game);
+
+    internal static void ValidateAssetManifest(GameUpdateManifest? manifest)
+        => ValidateManifest(manifest, UpdateChannel.Assets);
+
+    private static void ValidateManifest(GameUpdateManifest? manifest, UpdateChannel channel)
     {
         if (manifest is null
             || !GameUpdatePackageNaming.IsVersion(manifest.Version)
             || !GameUpdatePackageNaming.IsRevision(manifest.Revision)
-            || !GameUpdatePackageNaming.Matches(manifest.PackageFileName, manifest.Version, manifest.Revision)
+            || !channel.PackageMatches(manifest.PackageFileName, manifest.Version, manifest.Revision)
             || !GameUpdatePackageExtractor.IsHex(manifest.Sha256, 64)
             || manifest.Size is <= 0 or > MaximumDownloadSize
             || manifest.PublishedAt == default
@@ -222,7 +251,7 @@ public sealed class GameUpdateService
             || !string.Equals(manifest.Archive.Payload, "payload.bin", StringComparison.Ordinal)
             || string.IsNullOrWhiteSpace(manifest.Archive.KeyId))
         {
-            throw new InvalidDataException("TaikoDive更新マニフェストが不正です。");
+            throw new InvalidDataException($"{channel.DisplayName}更新マニフェストが不正です。");
         }
 
         if (!string.Equals(manifest.Archive.KeyId, GamePackageKeyProvider.KeyId, StringComparison.Ordinal))
@@ -239,8 +268,10 @@ public sealed class GameUpdateService
         string targetDirectory,
         string backupDirectory,
         IReadOnlyList<GamePackageFile> files,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<string, string>? normalizePath = null)
     {
+        normalizePath ??= GameUpdatePathPolicy.NormalizeAndValidate;
         Directory.CreateDirectory(backupDirectory);
         List<string> replaced = [];
         List<string> created = [];
@@ -249,7 +280,7 @@ public sealed class GameUpdateService
             foreach (GamePackageFile file in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string relativePath = GameUpdatePathPolicy.NormalizeAndValidate(file.Path);
+                string relativePath = normalizePath(file.Path);
                 string source = GameUpdatePackageExtractor.ResolveContainedPath(stagedFilesDirectory, relativePath);
                 string target = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -340,7 +371,7 @@ public sealed class GameUpdateService
         }
     }
 
-    private static string DetectCurrentVersion(TaikoDiveInstallation? installation)
+    private string DetectCurrentVersion(TaikoDiveInstallation? installation)
     {
         InstalledGameUpdate? installed = LoadInstalledUpdate();
         if (installed is not null
@@ -373,7 +404,7 @@ public sealed class GameUpdateService
         }
     }
 
-    private static InstalledGameUpdate? LoadInstalledUpdate()
+    private InstalledGameUpdate? LoadInstalledUpdate()
     {
         try
         {
@@ -391,7 +422,7 @@ public sealed class GameUpdateService
         }
     }
 
-    private static async Task SaveInstalledUpdateAsync(
+    private async Task SaveInstalledUpdateAsync(
         TaikoDiveInstallation installation,
         GameUpdateManifest update,
         CancellationToken cancellationToken)
@@ -441,14 +472,14 @@ public sealed class GameUpdateService
         return builder.Uri;
     }
 
-    private static string GetUpdatesRoot() => Path.Combine(
+    private string GetUpdatesRoot() => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TaikoDiveLauncher",
-        "game-updates");
+        _channel.StorageDirectoryName);
 
-    private static string GetInstalledStatePath() => Path.Combine(GetUpdatesRoot(), "installed.json");
+    private string GetInstalledStatePath() => Path.Combine(GetUpdatesRoot(), "installed.json");
 
-    private static string CreateBackupDirectory(GameUpdateManifest update) => Path.Combine(
+    private string CreateBackupDirectory(GameUpdateManifest update) => Path.Combine(
         GetUpdatesRoot(),
         "backups",
         $"v{update.Version}-{update.Revision[..7]}-{DateTimeOffset.Now:yyyyMMdd-HHmmss}");
@@ -461,6 +492,28 @@ public sealed class GameUpdateService
     private static void TryDeleteFile(string path)
     {
         try { if (File.Exists(path)) { File.Delete(path); } } catch { }
+    }
+
+    internal sealed record UpdateChannel(
+        string DisplayName,
+        Uri ManifestUri,
+        string StorageDirectoryName,
+        Func<string, string, string, bool> PackageMatches,
+        Func<string, string> NormalizePath)
+    {
+        public static UpdateChannel Game { get; } = new(
+            "TaikoDive",
+            DefaultManifestUri,
+            "game-updates",
+            GameUpdatePackageNaming.Matches,
+            GameUpdatePathPolicy.NormalizeAndValidate);
+
+        public static UpdateChannel Assets { get; } = new(
+            "TaikoDive Asset",
+            new Uri("https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/assets-stable/assets-update-manifest.json"),
+            "asset-updates",
+            AssetUpdatePackageNaming.Matches,
+            AssetUpdatePathPolicy.NormalizeAndValidate);
     }
 
 }
