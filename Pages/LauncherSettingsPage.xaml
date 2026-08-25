@@ -62,102 +62,234 @@
 
                 <Border Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="ランチャーのアップデート" Style="{StaticResource SectionTitleStyle}" />
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource UpdateCardIconStyle}">
+                                <SymbolIcon Symbol="Sync" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="ランチャー" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="CurrentVersionText" Style="{StaticResource UpdateVersionStyle}" />
+                            </StackPanel>
+                            <Border
+                                x:Name="UpdateAvailableBadge"
+                                Grid.Column="2"
+                                Style="{StaticResource UpdateAvailableBadgeStyle}"
+                                Visibility="Collapsed">
+                                <TextBlock Text="更新あり" Style="{StaticResource UpdateAvailableBadgeTextStyle}" />
+                            </Border>
+                        </Grid>
                         <TextBlock
                             Text="起動時にバックグラウンドでmainブランチの最新版を確認します。"
                             Style="{StaticResource PageSubtitleStyle}" />
-                        <TextBlock x:Name="CurrentVersionText" Style="{StaticResource FieldLabelStyle}" />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Grid MinHeight="24" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <ProgressRing
                                 x:Name="UpdateProgressRing"
                                 Width="20"
                                 Height="20"
-                                IsActive="False" />
+                                IsActive="False"
+                                Visibility="Collapsed" />
+                            <SymbolIcon
+                                x:Name="UpdateStatusIcon"
+                                Width="20"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Symbol="Help" />
                             <TextBlock
                                 x:Name="UpdateStatusText"
+                                Grid.Column="1"
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        </Grid>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Button
                                 x:Name="CheckUpdateButton"
-                                Click="CheckUpdateButton_Click"
-                                Content="今すぐ確認" />
+                                Click="CheckUpdateButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Refresh" />
+                                    <TextBlock Text="更新を確認" />
+                                </StackPanel>
+                            </Button>
                             <Button
                                 x:Name="InstallUpdateButton"
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
                                 Click="InstallUpdateButton_Click"
-                                Content="アップデート"
                                 IsEnabled="False"
-                                Style="{StaticResource PrimaryButtonStyle}" />
-                        </StackPanel>
+                                Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Download" />
+                                    <TextBlock Text="ランチャーを更新" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
                 <Border Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="TaikoDiveのアップデート" Style="{StaticResource SectionTitleStyle}" />
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource UpdateCardIconStyle}">
+                                <SymbolIcon Symbol="Play" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="TaikoDive" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="CurrentGameVersionText" Style="{StaticResource UpdateVersionStyle}" />
+                            </StackPanel>
+                            <Border
+                                x:Name="GameUpdateAvailableBadge"
+                                Grid.Column="2"
+                                Style="{StaticResource UpdateAvailableBadgeStyle}"
+                                Visibility="Collapsed">
+                                <TextBlock Text="更新あり" Style="{StaticResource UpdateAvailableBadgeTextStyle}" />
+                            </Border>
+                        </Grid>
                         <TextBlock
                             Text="配布情報とSHA-256を検証し、暗号化された公式パッケージからゲーム本体を更新します。設定、プロフィール、Songs、スコア、リプレイは変更しません。"
                             Style="{StaticResource PageSubtitleStyle}"
                             TextWrapping="Wrap" />
-                        <TextBlock x:Name="CurrentGameVersionText" Style="{StaticResource FieldLabelStyle}" />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Grid MinHeight="24" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <ProgressRing
                                 x:Name="GameUpdateProgressRing"
                                 Width="20"
                                 Height="20"
-                                IsActive="False" />
+                                IsActive="False"
+                                Visibility="Collapsed" />
+                            <SymbolIcon
+                                x:Name="GameUpdateStatusIcon"
+                                Width="20"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Symbol="Help" />
                             <TextBlock
                                 x:Name="GameUpdateStatusText"
+                                Grid.Column="1"
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        </Grid>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Button
                                 x:Name="CheckGameUpdateButton"
-                                Click="CheckGameUpdateButton_Click"
-                                Content="今すぐ確認" />
+                                Click="CheckGameUpdateButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Refresh" />
+                                    <TextBlock Text="更新を確認" />
+                                </StackPanel>
+                            </Button>
                             <Button
                                 x:Name="InstallGameUpdateButton"
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
                                 Click="InstallGameUpdateButton_Click"
-                                Content="TaikoDiveを更新"
                                 IsEnabled="False"
-                                Style="{StaticResource PrimaryButtonStyle}" />
-                        </StackPanel>
+                                Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Download" />
+                                    <TextBlock Text="TaikoDiveを更新" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </StackPanel>
                 </Border>
 
                 <Border Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="12">
-                        <TextBlock Text="TaikoDive Assetのアップデート" Style="{StaticResource SectionTitleStyle}" />
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource UpdateCardIconStyle}">
+                                <SymbolIcon Symbol="Pictures" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="TaikoDive Asset" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="CurrentAssetVersionText" Style="{StaticResource UpdateVersionStyle}" />
+                            </StackPanel>
+                            <Border
+                                x:Name="AssetUpdateAvailableBadge"
+                                Grid.Column="2"
+                                Style="{StaticResource UpdateAvailableBadgeStyle}"
+                                Visibility="Collapsed">
+                                <TextBlock Text="更新あり" Style="{StaticResource UpdateAvailableBadgeTextStyle}" />
+                            </Border>
+                        </Grid>
                         <TextBlock
                             Text="privateの公式Assetリポジトリで配布されたsrcの内容を、検証後にゲームのbuildフォルダーへ適用します。Info/User.iniなどのユーザーデータは変更しません。"
                             Style="{StaticResource PageSubtitleStyle}"
                             TextWrapping="Wrap" />
-                        <TextBlock x:Name="CurrentAssetVersionText" Style="{StaticResource FieldLabelStyle}" />
-                        <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Grid MinHeight="24" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <ProgressRing
                                 x:Name="AssetUpdateProgressRing"
                                 Width="20"
                                 Height="20"
-                                IsActive="False" />
+                                IsActive="False"
+                                Visibility="Collapsed" />
+                            <SymbolIcon
+                                x:Name="AssetUpdateStatusIcon"
+                                Width="20"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Symbol="Help" />
                             <TextBlock
                                 x:Name="AssetUpdateStatusText"
+                                Grid.Column="1"
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
+                        </Grid>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
                             <Button
                                 x:Name="CheckAssetUpdateButton"
-                                Click="CheckAssetUpdateButton_Click"
-                                Content="今すぐ確認" />
+                                Click="CheckAssetUpdateButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Refresh" />
+                                    <TextBlock Text="更新を確認" />
+                                </StackPanel>
+                            </Button>
                             <Button
                                 x:Name="InstallAssetUpdateButton"
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
                                 Click="InstallAssetUpdateButton_Click"
-                                Content="Assetを更新"
                                 IsEnabled="False"
-                                Style="{StaticResource PrimaryButtonStyle}" />
-                        </StackPanel>
+                                Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Download" />
+                                    <TextBlock Text="Assetを更新" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
                     </StackPanel>
                 </Border>
             </StackPanel>

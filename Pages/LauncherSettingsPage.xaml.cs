@@ -149,8 +149,19 @@ public sealed partial class LauncherSettingsPage : Page
             LauncherUpdateState.Downloading or
             LauncherUpdateState.StartingInstaller;
         UpdateProgressRing.IsActive = isBusy;
+        UpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        UpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        UpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
+        UpdateAvailableBadge.Visibility = updates.State == LauncherUpdateState.Available
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         CheckUpdateButton.IsEnabled = !isBusy;
         InstallUpdateButton.IsEnabled = updates.State == LauncherUpdateState.Available;
+        AutomationProperties.SetName(
+            InstallUpdateButton,
+            updates.State == LauncherUpdateState.Available
+                ? "ランチャーのアップデートを適用"
+                : "ランチャーのアップデートはありません");
     }
 
     private async void CheckGameUpdateButton_Click(object sender, RoutedEventArgs e)
@@ -203,8 +214,19 @@ public sealed partial class LauncherSettingsPage : Page
             GameUpdateState.Verifying or
             GameUpdateState.Applying;
         GameUpdateProgressRing.IsActive = isBusy;
+        GameUpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        GameUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        GameUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
+        GameUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         CheckGameUpdateButton.IsEnabled = !isBusy;
         InstallGameUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
+        AutomationProperties.SetName(
+            InstallGameUpdateButton,
+            updates.State == GameUpdateState.Available
+                ? "TaikoDiveのアップデートを適用"
+                : "TaikoDiveのアップデートはありません");
     }
 
     private async void CheckAssetUpdateButton_Click(object sender, RoutedEventArgs e)
@@ -257,9 +279,36 @@ public sealed partial class LauncherSettingsPage : Page
             GameUpdateState.Verifying or
             GameUpdateState.Applying;
         AssetUpdateProgressRing.IsActive = isBusy;
+        AssetUpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        AssetUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        AssetUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
+        AssetUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
+            ? Visibility.Visible
+            : Visibility.Collapsed;
         CheckAssetUpdateButton.IsEnabled = !isBusy;
         InstallAssetUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
+        AutomationProperties.SetName(
+            InstallAssetUpdateButton,
+            updates.State == GameUpdateState.Available
+                ? "TaikoDive Assetのアップデートを適用"
+                : "TaikoDive Assetのアップデートはありません");
     }
+
+    private static Symbol GetStatusSymbol(LauncherUpdateState state) => state switch
+    {
+        LauncherUpdateState.Available => Symbol.Download,
+        LauncherUpdateState.UpToDate => Symbol.Accept,
+        LauncherUpdateState.Failed => Symbol.Important,
+        _ => Symbol.Help,
+    };
+
+    private static Symbol GetStatusSymbol(GameUpdateState state) => state switch
+    {
+        GameUpdateState.Available => Symbol.Download,
+        GameUpdateState.UpToDate or GameUpdateState.Completed => Symbol.Accept,
+        GameUpdateState.Failed => Symbol.Important,
+        _ => Symbol.Help,
+    };
 
     private void ShowStatus(InfoBarSeverity severity, string message)
     {

@@ -56,4 +56,32 @@
         <Setter Property="CornerRadius" Value="6" />
         <Setter Property="Padding" Value="20" />
     </Style>
+
+    <Style x:Key="UpdateCardIconStyle" TargetType="Border">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="Background" Value="{ThemeResource ControlFillColorSecondaryBrush}" />
+        <Setter Property="BorderBrush" Value="{ThemeResource ControlStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="UpdateVersionStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+    </Style>
+
+    <Style x:Key="UpdateAvailableBadgeStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,4" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style x:Key="UpdateAvailableBadgeTextStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorPrimaryBrush}" />
+    </Style>
 </ResourceDictionary>
