@@ -26,6 +26,7 @@ public sealed class LauncherUpdateService
     private LauncherUpdateState _state;
     private string _statusMessage = "起動時にmainブランチの最新版を確認します。";
     private LauncherUpdateManifest? _availableUpdate;
+    private double? _progressPercentage;
 
     public LauncherUpdateService()
         : this(
@@ -82,6 +83,17 @@ public sealed class LauncherUpdateService
             lock (_stateLock)
             {
                 return _availableUpdate;
+            }
+        }
+    }
+
+    public double? ProgressPercentage
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _progressPercentage;
             }
         }
     }
@@ -161,7 +173,7 @@ public sealed class LauncherUpdateService
             EnsureTargetDirectoryIsWritable(targetPath);
             string stagedPath = GetStagedExecutablePath(manifest.Revision);
             Directory.CreateDirectory(Path.GetDirectoryName(stagedPath)!);
-            SetState(LauncherUpdateState.Downloading, "アップデートをダウンロードしています…", manifest);
+            SetState(LauncherUpdateState.Downloading, "アップデートをダウンロードしています…", manifest, 0);
             await DownloadAndVerifyAsync(stagedPath, manifest, cancellationToken).ConfigureAwait(false);
 
             ProcessStartInfo installer = new()
@@ -185,7 +197,7 @@ public sealed class LauncherUpdateService
                 throw new InvalidOperationException("アップデーターを起動できませんでした。");
             }
 
-            SetState(LauncherUpdateState.StartingInstaller, "更新を適用するため再起動します…", manifest);
+            SetState(LauncherUpdateState.StartingInstaller, "更新を適用するため再起動します…", manifest, 100);
             return OperationResult.Success("アップデーターを起動しました。");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -322,7 +334,15 @@ public sealed class LauncherUpdateService
                 81920,
                 FileOptions.Asynchronous | FileOptions.SequentialScan))
             {
-                await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+                byte[] buffer = new byte[81920];
+                long downloadedBytes = 0;
+                int bytesRead;
+                while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                {
+                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                    downloadedBytes += bytesRead;
+                    ReportProgress(downloadedBytes, manifest.Size);
+                }
             }
 
             FileInfo downloadedFile = new(temporaryPath);
@@ -362,16 +382,39 @@ public sealed class LauncherUpdateService
     private void SetState(
         LauncherUpdateState state,
         string message,
-        LauncherUpdateManifest? availableUpdate)
+        LauncherUpdateManifest? availableUpdate,
+        double? progressPercentage = null)
     {
         lock (_stateLock)
         {
             _state = state;
             _statusMessage = message;
             _availableUpdate = availableUpdate;
+            _progressPercentage = progressPercentage;
         }
 
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ReportProgress(long completedBytes, long totalBytes)
+    {
+        if (totalBytes <= 0)
+        {
+            return;
+        }
+
+        double percentage = Math.Floor(Math.Clamp(completedBytes * 100d / totalBytes, 0, 100));
+        bool changed;
+        lock (_stateLock)
+        {
+            changed = _progressPercentage != percentage;
+            _progressPercentage = percentage;
+        }
+
+        if (changed)
+        {
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private static HttpClient CreateHttpClient()
