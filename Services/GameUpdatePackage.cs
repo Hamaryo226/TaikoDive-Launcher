@@ -189,6 +189,7 @@ internal static class AssetUpdatePathPolicy
 
     private static readonly string[] ProtectedDirectories =
     [
+        "Info/Chara/",
         "Info/ScoreData/",
         "Info/TaikoDiveLauncher/",
         "Replay/",
