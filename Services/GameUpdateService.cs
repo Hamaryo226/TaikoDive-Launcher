@@ -23,6 +23,7 @@ public sealed class GameUpdateService
     private GameUpdateState _state;
     private string _statusMessage;
     private GameUpdateManifest? _availableUpdate;
+    private double? _progressPercentage;
 
     public GameUpdateService(Func<TaikoDiveInstallation?> installationProvider)
         : this(
@@ -79,6 +80,11 @@ public sealed class GameUpdateService
     public GameUpdateManifest? AvailableUpdate
     {
         get { lock (_stateLock) { return _availableUpdate; } }
+    }
+
+    public double? ProgressPercentage
+    {
+        get { lock (_stateLock) { return _progressPercentage; } }
     }
 
     public string CurrentVersionText => DetectCurrentVersion(_installationProvider());
@@ -172,7 +178,7 @@ public sealed class GameUpdateService
             operationDirectory = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(operationDirectory);
             string packagePath = Path.Combine(operationDirectory, update.PackageFileName);
-            SetState(GameUpdateState.Downloading, $"{_channel.DisplayName} v{update.Version}をダウンロードしています…", update);
+            SetState(GameUpdateState.Downloading, $"{_channel.DisplayName} v{update.Version}をダウンロードしています…", update, 0);
             await DownloadAndVerifyAsync(packagePath, update, cancellationToken).ConfigureAwait(false);
 
             SetState(GameUpdateState.Verifying, "暗号化パッケージを検証しています…", update);
@@ -189,7 +195,7 @@ public sealed class GameUpdateService
                 throw new InvalidOperationException("TaikoDiveが起動しました。終了してからもう一度お試しください。");
             }
 
-            SetState(GameUpdateState.Applying, "検証済みファイルを適用しています…", update);
+            SetState(GameUpdateState.Applying, "検証済みファイルを適用しています…", update, 0);
             string backupDirectory = CreateBackupDirectory(update);
             await ApplyWithRollbackAsync(
                 Path.Combine(extractionDirectory, "files"),
@@ -197,10 +203,11 @@ public sealed class GameUpdateService
                 backupDirectory,
                 package.Files,
                 cancellationToken,
-                _channel.NormalizePath).ConfigureAwait(false);
+                _channel.NormalizePath,
+                ReportProgress).ConfigureAwait(false);
             await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
 
-            SetState(GameUpdateState.Completed, $"{_channel.DisplayName} v{update.Version}へ更新しました。", null);
+            SetState(GameUpdateState.Completed, $"{_channel.DisplayName} v{update.Version}へ更新しました。", null, 100);
             return OperationResult.Success($"{_channel.DisplayName} v{update.Version}へ更新しました。");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -269,12 +276,14 @@ public sealed class GameUpdateService
         string backupDirectory,
         IReadOnlyList<GamePackageFile> files,
         CancellationToken cancellationToken,
-        Func<string, string>? normalizePath = null)
+        Func<string, string>? normalizePath = null,
+        Action<long, long>? progress = null)
     {
         normalizePath ??= GameUpdatePathPolicy.NormalizeAndValidate;
         Directory.CreateDirectory(backupDirectory);
         List<string> replaced = [];
         List<string> created = [];
+        long completedFiles = 0;
         try
         {
             foreach (GamePackageFile file in files)
@@ -307,6 +316,9 @@ public sealed class GameUpdateService
                 {
                     TryDeleteFile(pending);
                 }
+
+                completedFiles++;
+                progress?.Invoke(completedFiles, files.Count);
             }
         }
         catch
@@ -356,7 +368,15 @@ public sealed class GameUpdateService
             81920,
             FileOptions.Asynchronous | FileOptions.SequentialScan))
         {
-            await source.CopyToAsync(destination, cancellationToken).ConfigureAwait(false);
+            byte[] buffer = new byte[81920];
+            long downloadedBytes = 0;
+            int bytesRead;
+            while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+            {
+                await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
+                downloadedBytes += bytesRead;
+                ReportProgress(downloadedBytes, manifest.Size);
+            }
         }
 
         FileInfo file = new(destinationPath);
@@ -448,15 +468,41 @@ public sealed class GameUpdateService
         File.Move(temporaryPath, path, overwrite: true);
     }
 
-    private void SetState(GameUpdateState state, string message, GameUpdateManifest? availableUpdate)
+    private void SetState(
+        GameUpdateState state,
+        string message,
+        GameUpdateManifest? availableUpdate,
+        double? progressPercentage = null)
     {
         lock (_stateLock)
         {
             _state = state;
             _statusMessage = message;
             _availableUpdate = availableUpdate;
+            _progressPercentage = progressPercentage;
         }
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void ReportProgress(long completed, long total)
+    {
+        if (total <= 0)
+        {
+            return;
+        }
+
+        double percentage = Math.Floor(Math.Clamp(completed * 100d / total, 0, 100));
+        bool changed;
+        lock (_stateLock)
+        {
+            changed = _progressPercentage != percentage;
+            _progressPercentage = percentage;
+        }
+
+        if (changed)
+        {
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
     }
 
     private static HttpClient CreateHttpClient()
