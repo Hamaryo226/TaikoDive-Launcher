@@ -144,6 +144,7 @@ public sealed partial class LauncherSettingsPage : Page
         LauncherUpdateService updates = AppInstance.Context.Updates;
         CurrentVersionText.Text = $"現在のバージョン: {updates.CurrentVersionText}";
         UpdateStatusText.Text = updates.StatusMessage;
+        UpdateDescriptionText.Text = FormatUpdateNotes(updates.LatestUpdate?.ReleaseNotes);
         bool isBusy = updates.State is
             LauncherUpdateState.Checking or
             LauncherUpdateState.Downloading or
@@ -215,6 +216,7 @@ public sealed partial class LauncherSettingsPage : Page
         GameUpdateService updates = AppInstance.Context.GameUpdates;
         CurrentGameVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
         GameUpdateStatusText.Text = updates.StatusMessage;
+        GameUpdateDescriptionText.Text = FormatUpdateNotes(updates.LatestUpdate?.ReleaseNotes);
         bool isBusy = updates.State is
             GameUpdateState.Checking or
             GameUpdateState.Downloading or
@@ -287,6 +289,7 @@ public sealed partial class LauncherSettingsPage : Page
         GameUpdateService updates = AppInstance.Context.AssetUpdates;
         CurrentAssetVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
         AssetUpdateStatusText.Text = updates.StatusMessage;
+        AssetUpdateDescriptionText.Text = FormatUpdateNotes(updates.LatestUpdate?.ReleaseNotes);
         bool isBusy = updates.State is
             GameUpdateState.Checking or
             GameUpdateState.Downloading or
@@ -313,6 +316,13 @@ public sealed partial class LauncherSettingsPage : Page
             updates.State == GameUpdateState.Available
                 ? "TaikoDive Assetのアップデートを適用"
                 : "TaikoDive Assetのアップデートはありません");
+    }
+
+    private static string FormatUpdateNotes(string? releaseNotes)
+    {
+        return string.IsNullOrWhiteSpace(releaseNotes)
+            ? "アップデート内容は更新確認後に表示されます。"
+            : releaseNotes.Trim();
     }
 
     private static void UpdateProgressControls(
