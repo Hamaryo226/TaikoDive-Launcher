@@ -108,6 +108,25 @@
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
                         </Grid>
+                        <Grid x:Name="UpdateProgressPanel" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar
+                                x:Name="UpdateProgressBar"
+                                Height="4"
+                                Minimum="0"
+                                Maximum="100"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                x:Name="UpdateProgressText"
+                                Grid.Column="1"
+                                MinWidth="36"
+                                HorizontalAlignment="Right"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextAlignment="Right" />
+                        </Grid>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -186,6 +205,25 @@
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
                         </Grid>
+                        <Grid x:Name="GameUpdateProgressPanel" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar
+                                x:Name="GameUpdateProgressBar"
+                                Height="4"
+                                Minimum="0"
+                                Maximum="100"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                x:Name="GameUpdateProgressText"
+                                Grid.Column="1"
+                                MinWidth="36"
+                                HorizontalAlignment="Right"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextAlignment="Right" />
+                        </Grid>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -263,6 +301,25 @@
                                 Grid.Column="1"
                                 VerticalAlignment="Center"
                                 TextWrapping="Wrap" />
+                        </Grid>
+                        <Grid x:Name="AssetUpdateProgressPanel" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar
+                                x:Name="AssetUpdateProgressBar"
+                                Height="4"
+                                Minimum="0"
+                                Maximum="100"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                x:Name="AssetUpdateProgressText"
+                                Grid.Column="1"
+                                MinWidth="36"
+                                HorizontalAlignment="Right"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextAlignment="Right" />
                         </Grid>
                         <Grid ColumnSpacing="8">
                             <Grid.ColumnDefinitions>
