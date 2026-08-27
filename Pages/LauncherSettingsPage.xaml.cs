@@ -150,6 +150,13 @@ public sealed partial class LauncherSettingsPage : Page
             LauncherUpdateState.StartingInstaller;
         UpdateProgressRing.IsActive = isBusy;
         UpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        UpdateProgressControls(
+            UpdateProgressPanel,
+            UpdateProgressBar,
+            UpdateProgressText,
+            isBusy,
+            updates.ProgressPercentage,
+            "ランチャー");
         UpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
         UpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
         UpdateAvailableBadge.Visibility = updates.State == LauncherUpdateState.Available
@@ -215,6 +222,13 @@ public sealed partial class LauncherSettingsPage : Page
             GameUpdateState.Applying;
         GameUpdateProgressRing.IsActive = isBusy;
         GameUpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        UpdateProgressControls(
+            GameUpdateProgressPanel,
+            GameUpdateProgressBar,
+            GameUpdateProgressText,
+            isBusy,
+            updates.ProgressPercentage,
+            "TaikoDive");
         GameUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
         GameUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
         GameUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
@@ -280,6 +294,13 @@ public sealed partial class LauncherSettingsPage : Page
             GameUpdateState.Applying;
         AssetUpdateProgressRing.IsActive = isBusy;
         AssetUpdateProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        UpdateProgressControls(
+            AssetUpdateProgressPanel,
+            AssetUpdateProgressBar,
+            AssetUpdateProgressText,
+            isBusy,
+            updates.ProgressPercentage,
+            "TaikoDive Asset");
         AssetUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
         AssetUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
         AssetUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
@@ -292,6 +313,26 @@ public sealed partial class LauncherSettingsPage : Page
             updates.State == GameUpdateState.Available
                 ? "TaikoDive Assetのアップデートを適用"
                 : "TaikoDive Assetのアップデートはありません");
+    }
+
+    private static void UpdateProgressControls(
+        Grid panel,
+        ProgressBar progressBar,
+        TextBlock progressText,
+        bool isBusy,
+        double? percentage,
+        string updateName)
+    {
+        panel.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        bool isDeterminate = percentage.HasValue;
+        progressBar.IsIndeterminate = isBusy && !isDeterminate;
+        progressBar.Value = percentage ?? 0;
+        progressText.Text = isDeterminate ? $"{percentage!.Value:0}%" : "処理中";
+        AutomationProperties.SetName(
+            progressBar,
+            isDeterminate
+                ? $"{updateName}のアップデート進捗 {percentage!.Value:0}%"
+                : $"{updateName}のアップデートを処理中");
     }
 
     private static Symbol GetStatusSymbol(LauncherUpdateState state) => state switch
