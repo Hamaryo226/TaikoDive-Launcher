@@ -18,8 +18,12 @@
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
-            <StackPanel MaxWidth="720" HorizontalAlignment="Left" Spacing="16">
+        <ScrollViewer
+            Grid.Row="2"
+            HorizontalContentAlignment="Stretch"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
                 <Border Style="{StaticResource QuietSurfaceStyle}">
                     <Grid ColumnSpacing="20">
                         <Grid.ColumnDefinitions>
