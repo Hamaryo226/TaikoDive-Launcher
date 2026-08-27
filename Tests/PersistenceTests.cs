@@ -726,6 +726,8 @@ public sealed class PersistenceTests
             "Songs/09 段位道場.7z",
             AssetUpdatePathPolicy.NormalizeAndValidate("Songs/09 段位道場.7z"));
         Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/User.ini"));
+        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/Chara/Don/Chara.png"));
+        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("info/chara/Don/Chara.png"));
         Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("../outside.png"));
     }
 

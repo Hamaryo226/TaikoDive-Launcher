@@ -74,6 +74,7 @@ $protectedFiles = @(
     'Log.txt'
 )
 $protectedPrefixes = @(
+    'Info/Chara/',
     'Info/ScoreData/',
     'Info/TaikoDiveLauncher/',
     'Replay/',
