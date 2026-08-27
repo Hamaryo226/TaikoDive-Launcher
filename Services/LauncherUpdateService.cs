@@ -11,6 +11,7 @@ public sealed class LauncherUpdateService
     private const string UpdateTag = "launcher-main";
     private const string ExecutableName = "TaikoDive.Launcher.exe";
     private const long MaximumDownloadSize = 512L * 1024 * 1024;
+    private const int MaximumReleaseNotesLength = 4000;
     private static readonly Uri DefaultManifestUri = new(
         $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/{UpdateTag}/update-manifest.json");
     private static readonly Uri DefaultExecutableUri = new(
@@ -26,6 +27,7 @@ public sealed class LauncherUpdateService
     private LauncherUpdateState _state;
     private string _statusMessage = "起動時にmainブランチの最新版を確認します。";
     private LauncherUpdateManifest? _availableUpdate;
+    private LauncherUpdateManifest? _latestUpdate;
     private double? _progressPercentage;
 
     public LauncherUpdateService()
@@ -87,6 +89,17 @@ public sealed class LauncherUpdateService
         }
     }
 
+    public LauncherUpdateManifest? LatestUpdate
+    {
+        get
+        {
+            lock (_stateLock)
+            {
+                return _latestUpdate;
+            }
+        }
+    }
+
     public double? ProgressPercentage
     {
         get
@@ -122,6 +135,7 @@ public sealed class LauncherUpdateService
                     cancellationToken)
                 .ConfigureAwait(false);
             ValidateManifest(manifest);
+            SetLatestUpdate(manifest!);
 
             if (string.Equals(manifest!.Revision, _currentRevision, StringComparison.OrdinalIgnoreCase))
             {
@@ -370,13 +384,24 @@ public sealed class LauncherUpdateService
         if (manifest is null
             || !IsHex(manifest.Revision, 40)
             || !IsHex(manifest.Sha256, 64)
+            || manifest.ReleaseNotes is null
+            || manifest.ReleaseNotes.Length > MaximumReleaseNotesLength
             || manifest.Size is <= 0 or > MaximumDownloadSize)
         {
             throw new InvalidDataException("更新マニフェストが不正です。");
         }
 
         manifest.Revision = manifest.Revision.ToLowerInvariant();
+        manifest.ReleaseNotes = manifest.ReleaseNotes.Trim();
         manifest.Sha256 = manifest.Sha256.ToUpperInvariant();
+    }
+
+    private void SetLatestUpdate(LauncherUpdateManifest latestUpdate)
+    {
+        lock (_stateLock)
+        {
+            _latestUpdate = latestUpdate;
+        }
     }
 
     private void SetState(
