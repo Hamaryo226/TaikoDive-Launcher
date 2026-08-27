@@ -7,6 +7,7 @@ namespace TaikoDiveLauncher.Services;
 public sealed class GameUpdateService
 {
     private const long MaximumDownloadSize = 4L * 1024 * 1024 * 1024;
+    private const int MaximumReleaseNotesLength = 4000;
     private static readonly Uri DefaultManifestUri = new(
         "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/game-update-manifest.json");
 
@@ -23,6 +24,7 @@ public sealed class GameUpdateService
     private GameUpdateState _state;
     private string _statusMessage;
     private GameUpdateManifest? _availableUpdate;
+    private GameUpdateManifest? _latestUpdate;
     private double? _progressPercentage;
 
     public GameUpdateService(Func<TaikoDiveInstallation?> installationProvider)
@@ -82,6 +84,11 @@ public sealed class GameUpdateService
         get { lock (_stateLock) { return _availableUpdate; } }
     }
 
+    public GameUpdateManifest? LatestUpdate
+    {
+        get { lock (_stateLock) { return _latestUpdate; } }
+    }
+
     public double? ProgressPercentage
     {
         get { lock (_stateLock) { return _progressPercentage; } }
@@ -117,6 +124,7 @@ public sealed class GameUpdateService
                     cancellationToken)
                 .ConfigureAwait(false);
             ValidateManifest(manifest, _channel);
+            SetLatestUpdate(manifest!);
 
             string currentVersion = DetectCurrentVersion(installation);
             if (GameUpdatePackageNaming.CompareVersions(manifest!.Version, currentVersion) <= 0)
@@ -247,6 +255,8 @@ public sealed class GameUpdateService
             || !GameUpdatePackageNaming.IsRevision(manifest.Revision)
             || !channel.PackageMatches(manifest.PackageFileName, manifest.Version, manifest.Revision)
             || !GameUpdatePackageExtractor.IsHex(manifest.Sha256, 64)
+            || manifest.ReleaseNotes is null
+            || manifest.ReleaseNotes.Length > MaximumReleaseNotesLength
             || manifest.Size is <= 0 or > MaximumDownloadSize
             || manifest.PublishedAt == default
             || !Uri.TryCreate(manifest.PackageUrl, UriKind.Absolute, out Uri? packageUri)
@@ -267,6 +277,7 @@ public sealed class GameUpdateService
         }
 
         manifest.Revision = manifest.Revision.ToLowerInvariant();
+        manifest.ReleaseNotes = manifest.ReleaseNotes.Trim();
         manifest.Sha256 = manifest.Sha256.ToUpperInvariant();
     }
 
@@ -466,6 +477,14 @@ public sealed class GameUpdateService
                 cancellationToken).ConfigureAwait(false);
         }
         File.Move(temporaryPath, path, overwrite: true);
+    }
+
+    private void SetLatestUpdate(GameUpdateManifest latestUpdate)
+    {
+        lock (_stateLock)
+        {
+            _latestUpdate = latestUpdate;
+        }
     }
 
     private void SetState(

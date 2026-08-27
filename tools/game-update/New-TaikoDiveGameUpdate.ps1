@@ -18,6 +18,9 @@ param(
 
     [string] $PublicRepository = 'Hamaryo226/TaikoDive-Launcher',
 
+    [ValidateLength(0, 4000)]
+    [string] $ReleaseNotes = '',
+
     [Parameter(Mandatory)]
     [string] $OutputDirectory,
 
@@ -161,6 +164,7 @@ try {
     $externalManifest = [ordered]@{
         version = $Version
         revision = $revisionLower
+        releaseNotes = $ReleaseNotes.Trim()
         packageFileName = $packageName
         packageUrl = "https://github.com/$PublicRepository/releases/download/game-stable/$packageName"
         sha256 = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash

@@ -19,6 +19,8 @@ public sealed class GameUpdateManifest
 
     public string Revision { get; set; } = string.Empty;
 
+    public string ReleaseNotes { get; set; } = string.Empty;
+
     public string PackageFileName { get; set; } = string.Empty;
 
     public string PackageUrl { get; set; } = string.Empty;

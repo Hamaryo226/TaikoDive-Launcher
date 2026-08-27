@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - src/**
+      - RELEASE_NOTES.md
       - .github/workflows/publish-assets-update.yml
   workflow_dispatch:
 
@@ -49,6 +50,18 @@ jobs:
         env:
           GAME_PACKAGE_KEY: ${{ secrets.GAME_PACKAGE_KEY }}
         run: |
+          $releaseNotesPath = Join-Path $env:GITHUB_WORKSPACE 'RELEASE_NOTES.md'
+          if (-not (Test-Path -LiteralPath $releaseNotesPath -PathType Leaf)) {
+            throw 'RELEASE_NOTES.md is required.'
+          }
+          $releaseNotes = (Get-Content -LiteralPath $releaseNotesPath -Raw -Encoding UTF8).Trim()
+          if ([string]::IsNullOrWhiteSpace($releaseNotes)) {
+            throw 'RELEASE_NOTES.md must not be empty.'
+          }
+          if ($releaseNotes.Length -gt 4000) {
+            throw 'RELEASE_NOTES.md must be 4000 characters or fewer.'
+          }
+
           if ([string]::IsNullOrWhiteSpace($env:GAME_PACKAGE_KEY)) {
             throw 'GAME_PACKAGE_KEY secret is required.'
           }
@@ -56,6 +69,7 @@ jobs:
             -SourceDirectory .\src `
             -Version '${{ steps.version.outputs.value }}' `
             -Revision $env:GITHUB_SHA `
+            -ReleaseNotes $releaseNotes `
             -PackageKey $env:GAME_PACKAGE_KEY `
             -OutputDirectory .\assets-update
 

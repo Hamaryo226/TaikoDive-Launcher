@@ -21,4 +21,6 @@
 4. `TaikoDive-Assets`のActionsを手動実行するか、`src/**`を`main`へpushする。
 5. 別のゲーム配置でAsset更新と`Info/User.ini`保持、TaikoDive起動を確認する。
 
+リポジトリ直下の`RELEASE_NOTES.md`には、利用者へ公開してよい今回の更新内容だけを記載します。この内容は公開Releaseのマニフェストに含まれ、ランチャーのAsset更新カードへそのまま表示されます。空欄または4,000文字を超える場合は配布を停止し、privateリポジトリ内のコミット件名は自動公開しません。
+
 更新用バージョンはActionsのrun numberから`0.<run_number>.0`として生成します。

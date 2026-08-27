@@ -88,8 +88,10 @@
                             </Border>
                         </Grid>
                         <TextBlock
-                            Text="起動時にバックグラウンドでmainブランチの最新版を確認します。"
-                            Style="{StaticResource PageSubtitleStyle}" />
+                            x:Name="UpdateDescriptionText"
+                            Text="アップデート内容は更新確認後に表示されます。"
+                            Style="{StaticResource PageSubtitleStyle}"
+                            TextWrapping="Wrap" />
                         <Grid MinHeight="24" ColumnSpacing="10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
@@ -184,7 +186,8 @@
                             </Border>
                         </Grid>
                         <TextBlock
-                            Text="配布情報とSHA-256を検証し、暗号化された公式パッケージからゲーム本体を更新します。設定、プロフィール、Songs、スコア、リプレイは変更しません。"
+                            x:Name="GameUpdateDescriptionText"
+                            Text="アップデート内容は更新確認後に表示されます。"
                             Style="{StaticResource PageSubtitleStyle}"
                             TextWrapping="Wrap" />
                         <Grid MinHeight="24" ColumnSpacing="10">
@@ -281,7 +284,8 @@
                             </Border>
                         </Grid>
                         <TextBlock
-                            Text="privateの公式Assetリポジトリで配布されたsrcの内容を、検証後にゲームのbuildフォルダーへ適用します。Info/User.iniなどのユーザーデータは変更しません。"
+                            x:Name="AssetUpdateDescriptionText"
+                            Text="アップデート内容は更新確認後に表示されます。"
                             Style="{StaticResource PageSubtitleStyle}"
                             TextWrapping="Wrap" />
                         <Grid MinHeight="24" ColumnSpacing="10">

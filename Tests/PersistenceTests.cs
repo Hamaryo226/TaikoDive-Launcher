@@ -508,6 +508,7 @@ public sealed class PersistenceTests
         string manifest = $$"""
             {
               "revision": "{{latestRevision}}",
+              "releaseNotes": "・設定画面で更新内容を表示",
               "sha256": "{{new string('C', 64)}}",
               "size": 172552040,
               "publishedAt": "2026-08-22T00:00:00Z"
@@ -526,6 +527,8 @@ public sealed class PersistenceTests
         Assert.AreEqual(LauncherUpdateState.Available, service.State);
         Assert.IsNotNull(service.AvailableUpdate);
         Assert.AreEqual(latestRevision, service.AvailableUpdate.Revision);
+        Assert.IsNotNull(service.LatestUpdate);
+        Assert.AreEqual("・設定画面で更新内容を表示", service.LatestUpdate.ReleaseNotes);
     }
 
     [TestMethod]
@@ -637,6 +640,7 @@ public sealed class PersistenceTests
             {
               "version": "9.8.7",
               "revision": "{{revision}}",
+              "releaseNotes": "・オンラインプレイを改善",
               "packageFileName": "{{packageName}}",
               "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{{packageName}}",
               "sha256": "{{new string('A', 64)}}",
@@ -664,6 +668,8 @@ public sealed class PersistenceTests
         Assert.AreEqual(GameUpdateState.Available, service.State);
         Assert.IsNotNull(service.AvailableUpdate);
         Assert.AreEqual("9.8.7", service.AvailableUpdate.Version);
+        Assert.IsNotNull(service.LatestUpdate);
+        Assert.AreEqual("・オンラインプレイを改善", service.LatestUpdate.ReleaseNotes);
     }
 
     [TestMethod]
