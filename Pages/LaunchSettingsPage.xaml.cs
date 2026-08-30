@@ -19,6 +19,12 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     private static readonly IReadOnlyList<string> SoundTypes =
         ["DirectSound", "Wasapi", "WasapiExclusive", "ASIO"];
 
+    private static readonly IReadOnlyList<BackgroundMovieLayoutOption> BackgroundMovieLayouts =
+    [
+        new("FullScreen", "全画面"),
+        new("BlurredWithInset", "ぼかし背景＋元の比率"),
+    ];
+
     private readonly GameSettingsStore _settingsStore = new();
     private GameSettings? _loadedSettings;
 
@@ -38,6 +44,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     private async void LaunchSettingsPage_Loaded(object sender, RoutedEventArgs e)
     {
         SoundTypeBox.ItemsSource = SoundTypes;
+        BackgroundMovieLayoutBox.ItemsSource = BackgroundMovieLayouts;
         await ReloadAsync();
     }
 
@@ -68,18 +75,30 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             FullScreenSwitch.IsOn = settings.FullScreen;
             BorderlessSwitch.IsOn = settings.BorderlessWindow;
             VerticalSyncSwitch.IsOn = settings.VerticalSync;
+            TitleShowSwitch.IsOn = settings.TitleShow;
+            CollaboBackSwitch.IsOn = settings.CollaboBack;
             GuestModeSwitch.IsOn = settings.GuestMode;
             TwoPlayerModeSwitch.IsOn = settings.TwoPlayerMode;
             SaveReplaySwitch.IsOn = settings.SaveBestReplay;
+            FreePlaySwitch.IsOn = settings.FreePlay;
+            BackgroundMovieLayoutBox.SelectedValue = settings.BackgroundMovieLayoutMode;
             MasterVolumeSlider.Value = settings.MasterVolume;
             MusicVolumeSlider.Value = settings.MusicVolume;
             SoundEffectVolumeSlider.Value = settings.SoundEffectVolume;
             SoundTypeBox.SelectedItem = settings.SoundType;
             SoundBufferBox.Value = settings.SoundBufferSamples;
+            FontOedoBox.Text = settings.FontOedo;
+            FontDFGothicBox.Text = settings.FontDFGothic;
+            FontSeuratBox.Text = settings.FontSeurat;
+            FontDomCasualBox.Text = settings.FontDomCasual;
+            FontFallbackBox.Text = settings.FontFallback;
             CompressedSoundSwitch.IsOn = settings.UseCompressedSongSound;
             Texture16BitSwitch.IsOn = settings.ReduceTextureColorTo16bit;
             CharaTexture16BitSwitch.IsOn = settings.ReduceCharaTextureColorTo16bit;
+            BgTexture16BitSwitch.IsOn = settings.ReduceBgTextureColorTo16bit;
             CharaFrameSkipBox.Value = settings.CharaAnimationFrameSkip;
+            OnlinePortBox.Value = settings.OnlinePort;
+            LastJoinAddressBox.Text = settings.LastJoinAddress;
             SetSettingsEnabled(true);
             StatusBar.IsOpen = false;
         }
@@ -155,16 +174,28 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             BorderlessWindow = BorderlessSwitch.IsOn,
             ScreenWidth = ResolutionBox.SelectedValue is int width ? width : 1920,
             VerticalSync = VerticalSyncSwitch.IsOn,
+            TitleShow = TitleShowSwitch.IsOn,
+            CollaboBack = CollaboBackSwitch.IsOn,
             SaveBestReplay = SaveReplaySwitch.IsOn,
+            FreePlay = FreePlaySwitch.IsOn,
+            BackgroundMovieLayoutMode = BackgroundMovieLayoutBox.SelectedValue as string ?? "FullScreen",
             MasterVolume = (int)Math.Round(MasterVolumeSlider.Value),
             MusicVolume = (int)Math.Round(MusicVolumeSlider.Value),
             SoundEffectVolume = (int)Math.Round(SoundEffectVolumeSlider.Value),
             SoundType = SoundTypeBox.SelectedItem as string ?? "DirectSound",
             SoundBufferSamples = double.IsNaN(SoundBufferBox.Value) ? 0 : (int)Math.Round(SoundBufferBox.Value),
+            FontOedo = FontOedoBox.Text,
+            FontDFGothic = FontDFGothicBox.Text,
+            FontSeurat = FontSeuratBox.Text,
+            FontDomCasual = FontDomCasualBox.Text,
+            FontFallback = FontFallbackBox.Text,
             UseCompressedSongSound = CompressedSoundSwitch.IsOn,
             ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
             ReduceCharaTextureColorTo16bit = CharaTexture16BitSwitch.IsOn,
+            ReduceBgTextureColorTo16bit = BgTexture16BitSwitch.IsOn,
             CharaAnimationFrameSkip = double.IsNaN(CharaFrameSkipBox.Value) ? 3 : (int)Math.Round(CharaFrameSkipBox.Value),
+            OnlinePort = double.IsNaN(OnlinePortBox.Value) ? 22047 : (int)Math.Round(OnlinePortBox.Value),
+            LastJoinAddress = LastJoinAddressBox.Text,
         };
     }
 
@@ -176,15 +207,29 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             && left.BorderlessWindow == right.BorderlessWindow
             && left.ScreenWidth == right.ScreenWidth
             && left.VerticalSync == right.VerticalSync
+            && left.TitleShow == right.TitleShow
+            && left.CollaboBack == right.CollaboBack
             && left.SaveBestReplay == right.SaveBestReplay
+            && left.FreePlay == right.FreePlay
+            && left.BackgroundMovieLayoutMode == right.BackgroundMovieLayoutMode
             && left.MasterVolume == right.MasterVolume
             && left.MusicVolume == right.MusicVolume
             && left.SoundEffectVolume == right.SoundEffectVolume
             && left.SoundType == right.SoundType
             && left.SoundBufferSamples == right.SoundBufferSamples
+            && left.FontOedo == right.FontOedo
+            && left.FontDFGothic == right.FontDFGothic
+            && left.FontSeurat == right.FontSeurat
+            && left.FontDomCasual == right.FontDomCasual
+            && left.FontFallback == right.FontFallback
             && left.UseCompressedSongSound == right.UseCompressedSongSound
             && left.ReduceTextureColorTo16bit == right.ReduceTextureColorTo16bit
             && left.ReduceCharaTextureColorTo16bit == right.ReduceCharaTextureColorTo16bit
-            && left.CharaAnimationFrameSkip == right.CharaAnimationFrameSkip;
+            && left.ReduceBgTextureColorTo16bit == right.ReduceBgTextureColorTo16bit
+            && left.CharaAnimationFrameSkip == right.CharaAnimationFrameSkip
+            && left.OnlinePort == right.OnlinePort
+            && left.LastJoinAddress == right.LastJoinAddress;
     }
+
+    private sealed record BackgroundMovieLayoutOption(string Value, string Label);
 }

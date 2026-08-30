@@ -138,6 +138,60 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task GameSettingsRoundTripsLatestTopLevelProperties()
+    {
+        using TemporaryInstallation temporary = new();
+        string original = """
+            {
+              "titleShow": false,
+              "collaboBack": true,
+              "freePlay": true,
+              "backgroundMovieLayoutMode": "BlurredWithInset",
+              "fontOedo": "Oedo Test",
+              "fontDFGothic": "DF Gothic Test",
+              "fontSeurat": "Seurat Test",
+              "fontDomCasual": "Dom Test",
+              "fontFallback": "Fallback Test",
+              "reduceBgTextureColorTo16bit": true,
+              "onlinePort": 32123,
+              "lastJoinAddress": "example.test:32123"
+            }
+            """;
+        await File.WriteAllTextAsync(temporary.Installation.GameSettingsPath, original);
+
+        GameSettingsStore store = new(() => false);
+        GameSettings settings = await store.LoadAsync(temporary.Installation);
+
+        Assert.IsFalse(settings.TitleShow);
+        Assert.IsTrue(settings.CollaboBack);
+        Assert.IsTrue(settings.FreePlay);
+        Assert.AreEqual("BlurredWithInset", settings.BackgroundMovieLayoutMode);
+        Assert.AreEqual("Oedo Test", settings.FontOedo);
+        Assert.AreEqual("DF Gothic Test", settings.FontDFGothic);
+        Assert.AreEqual("Seurat Test", settings.FontSeurat);
+        Assert.AreEqual("Dom Test", settings.FontDomCasual);
+        Assert.AreEqual("Fallback Test", settings.FontFallback);
+        Assert.IsTrue(settings.ReduceBgTextureColorTo16bit);
+        Assert.AreEqual(32123, settings.OnlinePort);
+        Assert.AreEqual("example.test:32123", settings.LastJoinAddress);
+
+        settings.TitleShow = true;
+        settings.BackgroundMovieLayoutMode = "FullScreen";
+        settings.OnlinePort = 22047;
+        settings.LastJoinAddress = string.Empty;
+        await store.SaveAsync(temporary.Installation, settings);
+
+        JsonObject saved = JsonNode.Parse(
+            await File.ReadAllTextAsync(temporary.Installation.GameSettingsPath))!.AsObject();
+        Assert.IsTrue(saved["titleShow"]!.GetValue<bool>());
+        Assert.AreEqual("FullScreen", saved["backgroundMovieLayoutMode"]!.GetValue<string>());
+        Assert.AreEqual("Oedo Test", saved["fontOedo"]!.GetValue<string>());
+        Assert.IsTrue(saved["reduceBgTextureColorTo16bit"]!.GetValue<bool>());
+        Assert.AreEqual(22047, saved["onlinePort"]!.GetValue<int>());
+        Assert.AreEqual(string.Empty, saved["lastJoinAddress"]!.GetValue<string>());
+    }
+
+    [TestMethod]
     public async Task InputBindingsSavePreservesUnknownPropertiesAndRoundTripsControllerInput()
     {
         using TemporaryInstallation temporary = new();

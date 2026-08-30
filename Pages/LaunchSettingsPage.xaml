@@ -55,6 +55,8 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <Border x:Name="WindowSurface" Style="{StaticResource QuietSurfaceStyle}">
@@ -68,9 +70,17 @@
                         <ToggleSwitch x:Name="FullScreenSwitch" Header="フルスクリーン" />
                         <ToggleSwitch x:Name="BorderlessSwitch" Header="ボーダーレスウィンドウ" />
                         <ToggleSwitch x:Name="VerticalSyncSwitch" Header="垂直同期" />
+                        <ComboBox
+                            x:Name="BackgroundMovieLayoutBox"
+                            Header="背景ムービーの表示"
+                            DisplayMemberPath="Label"
+                            SelectedValuePath="Value" />
+                        <ToggleSwitch x:Name="TitleShowSwitch" Header="タイトル画面を表示" />
                         <ToggleSwitch x:Name="GuestModeSwitch" Header="ゲストモード" />
                         <ToggleSwitch x:Name="TwoPlayerModeSwitch" Header="2人プレイ" />
                         <ToggleSwitch x:Name="SaveReplaySwitch" Header="ベストリプレイを保存" />
+                        <ToggleSwitch x:Name="FreePlaySwitch" Header="フリープレイ" />
+                        <ToggleSwitch x:Name="CollaboBackSwitch" Header="コラボ背景を表示" />
                     </StackPanel>
                 </Border>
 
@@ -97,6 +107,7 @@
                         <ToggleSwitch x:Name="CompressedSoundSwitch" Header="楽曲音声を圧縮したまま保持" />
                         <ToggleSwitch x:Name="Texture16BitSwitch" Header="一般テクスチャを16bit化" />
                         <ToggleSwitch x:Name="CharaTexture16BitSwitch" Header="キャラテクスチャを16bit化" />
+                        <ToggleSwitch x:Name="BgTexture16BitSwitch" Header="背景テクスチャを16bit化" />
                         <NumberBox
                             x:Name="CharaFrameSkipBox"
                             Header="キャラアニメの読み込み間隔（1〜4）"
@@ -106,6 +117,40 @@
                             SpinButtonPlacementMode="Compact" />
                         <TextBlock
                             Text="16bit化はRAMを節約しますが、グラデーションや白いキャラの色に差が出る場合があります。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="FontSurface" Grid.Row="2" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="フォント" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBox x:Name="FontOedoBox" Header="大江戸勘亭流" />
+                        <TextBox x:Name="FontDFGothicBox" Header="太丸ゴシック" />
+                        <TextBox x:Name="FontSeuratBox" Header="スーラ" />
+                        <TextBox x:Name="FontDomCasualBox" Header="Dom Casual" />
+                        <TextBox x:Name="FontFallbackBox" Header="フォールバック" />
+                        <TextBlock
+                            Text="ゲームで使用するフォントファミリー名を指定します。変更は次回起動から反映されます。"
+                            Style="{StaticResource PageSubtitleStyle}" />
+                    </StackPanel>
+                </Border>
+
+                <Border x:Name="OnlineSurface" Grid.Row="2" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="オンライン" Style="{StaticResource SectionTitleStyle}" />
+                        <NumberBox
+                            x:Name="OnlinePortBox"
+                            Header="接続ポート"
+                            Minimum="1"
+                            Maximum="65535"
+                            SmallChange="1"
+                            SpinButtonPlacementMode="Compact" />
+                        <TextBox
+                            x:Name="LastJoinAddressBox"
+                            Header="最後に接続したアドレス"
+                            PlaceholderText="例: 192.0.2.1:22047" />
+                        <TextBlock
+                            Text="アドレスはオンラインロビーで接続先の初期値として使われます。"
                             Style="{StaticResource PageSubtitleStyle}" />
                     </StackPanel>
                 </Border>
@@ -128,6 +173,9 @@
                                 <Setter Target="AudioSurface.(Grid.Column)" Value="0" />
                                 <Setter Target="AudioSurface.(Grid.Row)" Value="1" />
                                 <Setter Target="PerformanceSurface.(Grid.Row)" Value="2" />
+                                <Setter Target="FontSurface.(Grid.Row)" Value="3" />
+                                <Setter Target="OnlineSurface.(Grid.Column)" Value="0" />
+                                <Setter Target="OnlineSurface.(Grid.Row)" Value="4" />
                             </VisualState.Setters>
                         </VisualState>
                     </VisualStateGroup>

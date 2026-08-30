@@ -34,16 +34,29 @@ public sealed class GameSettingsStore
             BorderlessWindow = GetBoolean(root, "borderlessWindow", false),
             ScreenWidth = GetInteger(root, "screenWidth", GetBoolean(root, "fullHD", true) ? 1920 : 1280),
             VerticalSync = GetBoolean(root, "verticalSync", true),
+            TitleShow = GetBoolean(root, "titleShow", true),
+            CollaboBack = GetBoolean(root, "collaboBack", false),
             SaveBestReplay = GetBoolean(root, "saveBestReplay", true),
+            FreePlay = GetBoolean(root, "freePlay", false),
             MasterVolume = Math.Clamp(GetInteger(root, "masterVolume", 100), 0, 100),
             MusicVolume = Math.Clamp(GetInteger(root, "musicVolume", 100), 0, 100),
             SoundEffectVolume = Math.Clamp(GetInteger(root, "soundEffectVolume", 100), 0, 100),
+            BackgroundMovieLayoutMode = NormalizeBackgroundMovieLayoutMode(
+                GetString(root, "backgroundMovieLayoutMode", "FullScreen")),
             SoundType = GetString(root, "soundType", "DirectSound"),
             SoundBufferSamples = Math.Clamp(GetInteger(root, "soundBufferSamples", 0), 0, 8192),
+            FontOedo = GetString(root, "fontOedo", "FOT-大江戸勘亭流 Std E"),
+            FontDFGothic = GetString(root, "fontDFGothic", "ＤＦ太丸ゴシック体 Pro-5"),
+            FontSeurat = GetString(root, "fontSeurat", "FOT-スーラ Pro B"),
+            FontDomCasual = GetString(root, "fontDomCasual", "Dom Casual"),
+            FontFallback = GetString(root, "fontFallback", "Comic Sans MS"),
             ReduceTextureColorTo16bit = GetBoolean(root, "reduceTextureColorTo16bit", false),
             CharaAnimationFrameSkip = Math.Clamp(GetInteger(root, "charaAnimationFrameSkip", 3), 1, 4),
             ReduceCharaTextureColorTo16bit = GetBoolean(root, "reduceCharaTextureColorTo16bit", false),
+            ReduceBgTextureColorTo16bit = GetBoolean(root, "reduceBgTextureColorTo16bit", false),
             UseCompressedSongSound = GetBoolean(root, "useCompressedSongSound", true),
+            OnlinePort = Math.Clamp(GetInteger(root, "onlinePort", 22047), 1, 65535),
+            LastJoinAddress = GetString(root, "lastJoinAddress", string.Empty),
         };
     }
 
@@ -62,16 +75,28 @@ public sealed class GameSettingsStore
         Set(root, "fullHD", settings.ScreenWidth >= 1920);
         Set(root, "screenWidth", Math.Clamp(settings.ScreenWidth, 640, 7680));
         Set(root, "verticalSync", settings.VerticalSync);
+        Set(root, "titleShow", settings.TitleShow);
+        Set(root, "collaboBack", settings.CollaboBack);
         Set(root, "saveBestReplay", settings.SaveBestReplay);
+        Set(root, "freePlay", settings.FreePlay);
         Set(root, "masterVolume", Math.Clamp(settings.MasterVolume, 0, 100));
         Set(root, "musicVolume", Math.Clamp(settings.MusicVolume, 0, 100));
         Set(root, "soundEffectVolume", Math.Clamp(settings.SoundEffectVolume, 0, 100));
+        Set(root, "backgroundMovieLayoutMode", NormalizeBackgroundMovieLayoutMode(settings.BackgroundMovieLayoutMode));
         Set(root, "soundType", NormalizeSoundType(settings.SoundType));
         Set(root, "soundBufferSamples", NormalizeBufferSize(settings.SoundBufferSamples));
+        Set(root, "fontOedo", settings.FontOedo);
+        Set(root, "fontDFGothic", settings.FontDFGothic);
+        Set(root, "fontSeurat", settings.FontSeurat);
+        Set(root, "fontDomCasual", settings.FontDomCasual);
+        Set(root, "fontFallback", settings.FontFallback);
         Set(root, "reduceTextureColorTo16bit", settings.ReduceTextureColorTo16bit);
         Set(root, "charaAnimationFrameSkip", Math.Clamp(settings.CharaAnimationFrameSkip, 1, 4));
         Set(root, "reduceCharaTextureColorTo16bit", settings.ReduceCharaTextureColorTo16bit);
+        Set(root, "reduceBgTextureColorTo16bit", settings.ReduceBgTextureColorTo16bit);
         Set(root, "useCompressedSongSound", settings.UseCompressedSongSound);
+        Set(root, "onlinePort", Math.Clamp(settings.OnlinePort, 1, 65535));
+        Set(root, "lastJoinAddress", settings.LastJoinAddress);
 
         string json = root.ToJsonString(SerializerOptions) + Environment.NewLine;
         await FilePersistence.WriteTextAtomicAsync(
@@ -201,6 +226,13 @@ public sealed class GameSettingsStore
         string[] allowed = ["DirectSound", "Wasapi", "WasapiExclusive", "ASIO"];
         return allowed.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase))
             ?? "DirectSound";
+    }
+
+    private static string NormalizeBackgroundMovieLayoutMode(string? value)
+    {
+        string[] allowed = ["FullScreen", "BlurredWithInset"];
+        return allowed.FirstOrDefault(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase))
+            ?? "FullScreen";
     }
 
     private static int NormalizeBufferSize(int value)
