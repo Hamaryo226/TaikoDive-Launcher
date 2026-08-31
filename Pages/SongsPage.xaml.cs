@@ -23,7 +23,42 @@ public sealed partial class SongsPage : Page
         Loaded += SongsPage_Loaded;
     }
 
-    private void SongsPage_Loaded(object sender, RoutedEventArgs e) => ReloadGenres();
+    private async void SongsPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        await SynchronizeRedirectedSongsAssetsAsync();
+        ReloadGenres();
+    }
+
+    private async Task SynchronizeRedirectedSongsAssetsAsync()
+    {
+        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
+        if (installation is null || !SongsPathService.GetState(installation).IsRedirected)
+        {
+            return;
+        }
+
+        SetBusy(true);
+        try
+        {
+            SongsAssetSyncResult result = await SongsPathService.SynchronizeRequiredAssetsAsync(installation);
+            if (!result.Succeeded)
+            {
+                ShowStatus(InfoBarSeverity.Error, result.Message);
+            }
+            else if (result.CopiedCount > 0)
+            {
+                ShowStatus(InfoBarSeverity.Success, result.Message);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            ShowStatus(InfoBarSeverity.Warning, "Songsフォルダーのアセット補完をキャンセルしました。");
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
 
     private void ReloadGenres()
     {

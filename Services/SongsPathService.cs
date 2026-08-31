@@ -4,6 +4,8 @@ namespace TaikoDiveLauncher.Services;
 
 public sealed record SongsPathState(string EffectivePath, bool IsRedirected, bool CanRestore);
 
+public readonly record struct SongsAssetSyncResult(bool Succeeded, int CopiedCount, string Message);
+
 public static class SongsPathService
 {
     private static readonly HashSet<string> RequiredGenreFiles = new(StringComparer.OrdinalIgnoreCase)
@@ -64,7 +66,15 @@ public static class SongsPathService
         SongsPathState currentState = GetState(installation);
         if (PathsEqual(currentState.EffectivePath, targetPath))
         {
-            return OperationResult.Success("Songsフォルダーはすでに選択した場所を使用しています。");
+            SongsAssetSyncResult syncResult = await SynchronizeRequiredAssetsWithoutProcessCheckAsync(
+                installation,
+                cancellationToken).ConfigureAwait(false);
+            return syncResult.Succeeded
+                ? OperationResult.Success(
+                    syncResult.CopiedCount > 0
+                        ? $"Songsフォルダーはすでに選択した場所を使用しています。TaikoDive用アセットを{syncResult.CopiedCount}ファイル補完しました。"
+                        : $"Songsフォルダーはすでに選択した場所を使用しています。{syncResult.Message}")
+                : OperationResult.Failure(syncResult.Message);
         }
 
         if (IsSameOrChildPath(targetPath, songsPath) || IsSameOrChildPath(targetPath, backupPath))
@@ -97,6 +107,74 @@ public static class SongsPathService
         return await Task.Run(
             () => RestoreCore(installation, cancellationToken),
             cancellationToken).ConfigureAwait(false);
+    }
+
+    public static async Task<SongsAssetSyncResult> SynchronizeRequiredAssetsAsync(
+        TaikoDiveInstallation installation,
+        CancellationToken cancellationToken = default)
+    {
+        if (GameProcessService.IsRunning())
+        {
+            return new SongsAssetSyncResult(
+                false,
+                0,
+                "TaikoDiveの実行中はSongsフォルダーのアセットを補完できません。ゲームを終了してから再試行してください。");
+        }
+
+        return await SynchronizeRequiredAssetsWithoutProcessCheckAsync(installation, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    internal static async Task<SongsAssetSyncResult> SynchronizeRequiredAssetsWithoutProcessCheckAsync(
+        TaikoDiveInstallation installation,
+        CancellationToken cancellationToken = default)
+    {
+        SongsPathState state = GetState(installation);
+        if (!state.IsRedirected)
+        {
+            return new SongsAssetSyncResult(true, 0, "TaikoDive標準のSongsフォルダーを使用しています。");
+        }
+
+        string backupPath = GetBackupPath(installation);
+        if (!Directory.Exists(backupPath) || IsDirectoryLink(backupPath))
+        {
+            return new SongsAssetSyncResult(
+                true,
+                0,
+                "補完元のTaikoDive標準Songsがないため、外部Songsをそのまま使用しています。");
+        }
+
+        if (!Directory.Exists(state.EffectivePath))
+        {
+            return new SongsAssetSyncResult(false, 0, "リンク先のSongsフォルダーが見つかりません。");
+        }
+
+        try
+        {
+            int copiedAssets = await Task.Run(
+                () =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    int count = CopyRequiredAssets(backupPath, state.EffectivePath);
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return count;
+                },
+                cancellationToken).ConfigureAwait(false);
+            return new SongsAssetSyncResult(
+                true,
+                copiedAssets,
+                copiedAssets > 0
+                    ? $"TaikoDive用アセットを{copiedAssets}ファイル補完しました。"
+                    : "TaikoDive用アセットは揃っています。");
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return new SongsAssetSyncResult(false, 0, $"TaikoDive用アセットを補完できませんでした: {ex.Message}");
+        }
     }
 
     internal static int CopyRequiredAssets(string sourceSongsDirectory, string targetSongsDirectory)

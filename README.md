@@ -21,7 +21,7 @@ TaikoDive のユーザーデータと起動構成を管理する、Windows ネ�
 
 保存時は未知の設定項目や `User.ini` のコメントを残し、直前のファイルを `*.launcher.bak` にバックアップします。TaikoDive の実行中は競合を避けるため保存しません。
 
-Songsの切替はTaikoDive側へディレクトリリンクを作成し、元のSongsを `build/Info/TaikoDiveLauncher/Songs.original` に保持します。切替先には選曲画面に必要な `box.def`、`CenterText.apt`、`Image` 内の不足ファイルだけを補完し、既存ファイルや楽曲は上書きしません。TaikoNauts検索はデスクトップ、ドキュメント、ダウンロード、Program Filesを対象にし、複数見つかった場合は使用先を選択できます。
+Songsの切替はTaikoDive側へディレクトリリンクを作成し、元のSongsを `build/Info/TaikoDiveLauncher/Songs.original` に保持します。切替先には選曲画面に必要な `box.def`、`CenterText.apt`、`Image` 内の不足ファイルだけを補完し、既存ファイルや楽曲は上書きしません。リンク作成後に「最近遊んだ曲」などのTaikoDive用ジャンルが追加された場合も、楽曲ページを開くと不足アセットを再補完します。TaikoNauts検索はデスクトップ、ドキュメント、ダウンロード、Program Filesを対象にし、複数見つかった場合は使用先を選択できます。
 
 ## 技術構成
 

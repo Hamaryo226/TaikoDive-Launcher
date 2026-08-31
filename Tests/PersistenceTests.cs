@@ -508,6 +508,46 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task ExistingSongsLinkRepairsNewRequiredGenreAssets()
+    {
+        using TemporaryInstallation temporary = new();
+        string originalGenre = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(originalGenre);
+        await File.WriteAllTextAsync(Path.Combine(originalGenre, "box.def"), "original-box");
+
+        string externalSongs = Path.Combine(temporary.RootDirectory, "ExternalSongs");
+        Directory.CreateDirectory(externalSongs);
+        OperationResult changed = await SongsPathService.ChangeWithoutProcessCheckAsync(
+            temporary.Installation,
+            externalSongs);
+        Assert.IsTrue(changed.Succeeded, changed.Message);
+
+        string backupSongs = Path.Combine(
+            temporary.Installation.BuildDirectory,
+            "Info",
+            "TaikoDiveLauncher",
+            "Songs.original");
+        string recentGenre = Path.Combine(backupSongs, "09 最近遊んだ曲");
+        Directory.CreateDirectory(Path.Combine(recentGenre, "Image"));
+        await File.WriteAllTextAsync(Path.Combine(recentGenre, "box.def"), "recent-box");
+        await File.WriteAllTextAsync(Path.Combine(recentGenre, "CenterText.apt"), "recent-center");
+        await File.WriteAllTextAsync(Path.Combine(recentGenre, "Image", "Bar.png"), "recent-bar");
+        await File.WriteAllTextAsync(Path.Combine(recentGenre, "song.tja"), "TITLE:Must not copy");
+
+        OperationResult selectedAgain = await SongsPathService.ChangeWithoutProcessCheckAsync(
+            temporary.Installation,
+            externalSongs);
+
+        Assert.IsTrue(selectedAgain.Succeeded, selectedAgain.Message);
+        StringAssert.Contains(selectedAgain.Message, "3ファイル補完");
+        string externalRecentGenre = Path.Combine(externalSongs, "09 最近遊んだ曲");
+        Assert.AreEqual("recent-box", await File.ReadAllTextAsync(Path.Combine(externalRecentGenre, "box.def")));
+        Assert.AreEqual("recent-center", await File.ReadAllTextAsync(Path.Combine(externalRecentGenre, "CenterText.apt")));
+        Assert.AreEqual("recent-bar", await File.ReadAllTextAsync(Path.Combine(externalRecentGenre, "Image", "Bar.png")));
+        Assert.IsFalse(File.Exists(Path.Combine(externalRecentGenre, "song.tja")));
+    }
+
+    [TestMethod]
     public void TaikoNautsDiscoveryReturnsOnlyInstallationsWithSongsDirectory()
     {
         string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
