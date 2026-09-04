@@ -116,8 +116,8 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
-  <!-- SharpCompress discovers archive support dynamically; retain it in trimmed experiments. -->
-  <ItemGroup Condition="'$(SizeExperimentMode)' == 'TrimmedSingleFile' or '$(SizeExperimentMode)' == 'NativeAot'">
+  <!-- SharpCompress discovers archive support dynamically; retain it whenever trimming is enabled. -->
+  <ItemGroup>
     <TrimmerRootAssembly Include="SharpCompress" />
   </ItemGroup>
 
