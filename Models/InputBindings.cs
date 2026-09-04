@@ -89,7 +89,7 @@ public sealed class InputBindings
     };
 }
 
-public sealed class InputBindingRow : INotifyPropertyChanged
+public sealed partial class InputBindingRow : INotifyPropertyChanged
 {
     private string _keyboardValue = "未設定";
     private string _controllerValue = "未設定";

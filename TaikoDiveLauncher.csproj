@@ -21,6 +21,8 @@
     <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Required by CsWinRT to generate trim-safe generic WinRT marshalling helpers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GamePackageKeyId Condition="'$(GamePackageKeyId)' == ''">2026-01</GamePackageKeyId>
     <GamePackageKey Condition="'$(GamePackageKey)' == '' and '$(Configuration)' == 'Debug'">taikodive-local-development-key</GamePackageKey>
     <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;bin\**</DefaultItemExcludes>
@@ -80,6 +82,29 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- Experimental Native AOT mode used only by the size-comparison workflow. -->
+  <PropertyGroup Condition="'$(SizeExperimentMode)' == 'NativeAot'">
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <PublishAot>true</PublishAot>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- SharpCompress discovers archive support dynamically; retain it whenever trimming is enabled. -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="SharpCompress" />
+  </ItemGroup>
 
   <!-- A normal Release build also creates the ready-to-distribute single EXE. -->
   <Target Name="PublishReleaseBundleAfterBuild"
