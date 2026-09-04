@@ -83,25 +83,7 @@
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
 
-  <!-- Experimental publish modes used only by the size-comparison workflow. -->
-  <PropertyGroup Condition="'$(SizeExperimentMode)' == 'TrimmedSingleFile'">
-    <SelfContained>true</SelfContained>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>full</TrimMode>
-    <PublishReadyToRun>false</PublishReadyToRun>
-    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
-    <TrimmerSingleWarn>false</TrimmerSingleWarn>
-    <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
-    <NoWarn>$(NoWarn);IL2081</NoWarn>
-    <DebugType>None</DebugType>
-    <DebugSymbols>false</DebugSymbols>
-  </PropertyGroup>
-
+  <!-- Experimental Native AOT mode used only by the size-comparison workflow. -->
   <PropertyGroup Condition="'$(SizeExperimentMode)' == 'NativeAot'">
     <SelfContained>true</SelfContained>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>

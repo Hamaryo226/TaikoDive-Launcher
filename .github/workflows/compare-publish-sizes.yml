@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: compare-publish-sizes-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: windows-latest
@@ -67,6 +71,10 @@ jobs:
             $publishArgs += "-p:PublishProfile=Properties\PublishProfiles\win-x64.pubxml"
             # Preserve the pre-trimming release configuration as the comparison baseline.
             $publishArgs += "-p:PublishTrimmed=false"
+          }
+          elseif ("${{ matrix.mode }}" -eq "TrimmedSingleFile") {
+            # Exercise the exact profile used by the normal main-branch release workflow.
+            $publishArgs += "-p:PublishProfile=Properties\PublishProfiles\win-x64.pubxml"
           }
           else {
             # Avoid importing the normal single-file profile into Native AOT, where
