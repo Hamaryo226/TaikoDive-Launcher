@@ -97,6 +97,7 @@
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <NoWarn>$(NoWarn);IL2081</NoWarn>
     <DebugType>None</DebugType>
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
