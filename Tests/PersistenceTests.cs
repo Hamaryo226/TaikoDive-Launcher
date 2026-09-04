@@ -311,7 +311,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public void CharacterPreviewUsesConfiguredNormalLoopAndCapsDecodedFrames()
+    public void CharacterPreviewUsesConfiguredNormalLoopAndLimitsPlaybackToThirtyFramesPerSecond()
     {
         using TemporaryInstallation temporary = new();
         string characterRoot = Path.Combine(temporary.Installation.CharacterDirectory, "4");
@@ -328,8 +328,8 @@ public sealed class PersistenceTests
         CharacterPreviewData? preview = CharacterPreviewService.Load(temporary.Installation, "4");
 
         Assert.IsNotNull(preview);
-        Assert.HasCount(30, preview.Frames);
-        Assert.AreEqual(20, preview.FrameInterval.TotalMilliseconds);
+        Assert.HasCount(18, preview.Frames);
+        Assert.AreEqual(600d / 18, preview.FrameInterval.TotalMilliseconds, 0.001);
     }
 
     [TestMethod]
