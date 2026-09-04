@@ -34,10 +34,13 @@ jobs:
         include:
           - mode: Baseline
             experimental: false
+            uploadOutput: false
           - mode: TrimmedSingleFile
-            experimental: true
+            experimental: false
+            uploadOutput: true
           - mode: NativeAot
             experimental: true
+            uploadOutput: true
 
     steps:
       - uses: actions/checkout@v4
@@ -62,6 +65,8 @@ jobs:
 
           if ("${{ matrix.mode }}" -eq "Baseline") {
             $publishArgs += "-p:PublishProfile=Properties\PublishProfiles\win-x64.pubxml"
+            # Preserve the pre-trimming release configuration as the comparison baseline.
+            $publishArgs += "-p:PublishTrimmed=false"
           }
           else {
             # Avoid importing the normal single-file profile into Native AOT, where
@@ -100,6 +105,26 @@ jobs:
           "- Uncompressed: $([Math]::Round($totalBytes / 1MB, 2)) MiB" | Add-Content $env:GITHUB_STEP_SUMMARY
           "- ZIP: $([Math]::Round((Get-Item $archive).Length / 1MB, 2)) MiB" | Add-Content $env:GITHUB_STEP_SUMMARY
 
+      - name: Smoke-test startup
+        shell: pwsh
+        env:
+          TAIKODIVE_LAUNCHER_DISABLE_UPDATE_CHECK: "1"
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "publish-${{ matrix.mode }}"
+          $executable = Join-Path $output "TaikoDive.Launcher.exe"
+          $process = Start-Process -FilePath $executable -WorkingDirectory $output -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            if ($process.HasExited) {
+              throw "Launcher exited during startup with code $($process.ExitCode)."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
+
       - name: Upload metrics
         uses: actions/upload-artifact@v4
         with:
@@ -108,7 +133,7 @@ jobs:
           retention-days: 14
 
       - name: Upload experimental output
-        if: matrix.experimental
+        if: matrix.uploadOutput
         uses: actions/upload-artifact@v4
         with:
           name: launcher-output-${{ matrix.mode }}
