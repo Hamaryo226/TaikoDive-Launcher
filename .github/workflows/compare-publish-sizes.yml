@@ -1,0 +1,141 @@
+name: Compare launcher publish sizes
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/compare-publish-sizes.yml"
+      - "**/*.cs"
+      - "**/*.csproj"
+      - "**/*.xaml"
+      - "Properties/PublishProfiles/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Run tests
+        run: dotnet test Tests\TaikoDiveLauncher.Tests.csproj -c Debug -p:Platform=x64
+
+  publish:
+    needs: test
+    runs-on: windows-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: Baseline
+            experimental: false
+          - mode: TrimmedSingleFile
+            experimental: true
+          - mode: NativeAot
+            experimental: true
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish ${{ matrix.mode }}
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "publish-${{ matrix.mode }}"
+          $publishArgs = @(
+            "TaikoDiveLauncher.csproj",
+            "-c", "Release",
+            "-r", "win-x64",
+            "--self-contained", "true",
+            "--output", $output,
+            "-p:Platform=x64",
+            "-p:SkipReleaseBundle=true",
+            "-p:GamePackageKey=taikodive-size-experiment-key"
+          )
+
+          if ("${{ matrix.mode }}" -eq "Baseline") {
+            $publishArgs += "-p:PublishProfile=Properties\PublishProfiles\win-x64.pubxml"
+          }
+          else {
+            # Avoid importing the normal single-file profile into Native AOT, where
+            # PublishAot and PublishSingleFile cannot be enabled together.
+            $publishArgs += "-p:PublishProfile="
+            $publishArgs += "-p:SizeExperimentMode=${{ matrix.mode }}"
+          }
+
+          & dotnet publish @publishArgs
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          $files = @(Get-ChildItem $output -File -Recurse)
+          if ($files.Count -eq 0) {
+            throw "Publish output is empty."
+          }
+
+          $totalBytes = ($files | Measure-Object Length -Sum).Sum
+          $archive = Join-Path $env:RUNNER_TEMP "${{ matrix.mode }}.zip"
+          Compress-Archive -Path (Join-Path $output "*") -DestinationPath $archive -CompressionLevel Optimal
+          $metrics = [ordered]@{
+            mode = "${{ matrix.mode }}"
+            fileCount = $files.Count
+            totalBytes = $totalBytes
+            archiveBytes = (Get-Item $archive).Length
+            largestFiles = @($files |
+              Sort-Object Length -Descending |
+              Select-Object -First 10 @{ Name = "path"; Expression = { $_.FullName.Substring($output.Length + 1) } }, Length)
+          }
+
+          $metricsPath = Join-Path $env:RUNNER_TEMP "${{ matrix.mode }}.json"
+          $metrics | ConvertTo-Json -Depth 4 | Set-Content $metricsPath -Encoding utf8
+          "### ${{ matrix.mode }}" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- Files: $($files.Count)" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- Uncompressed: $([Math]::Round($totalBytes / 1MB, 2)) MiB" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "- ZIP: $([Math]::Round((Get-Item $archive).Length / 1MB, 2)) MiB" | Add-Content $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-size-${{ matrix.mode }}
+          path: ${{ runner.temp }}/${{ matrix.mode }}.json
+          retention-days: 14
+
+      - name: Upload experimental output
+        if: matrix.experimental
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-output-${{ matrix.mode }}
+          path: ${{ runner.temp }}/publish-${{ matrix.mode }}/**
+          retention-days: 7
+
+  summarize:
+    needs: publish
+    if: always()
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: launcher-size-*
+          path: metrics
+          merge-multiple: true
+
+      - name: Write comparison
+        shell: pwsh
+        run: |
+          "## Launcher publish size comparison" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "| Mode | Files | Uncompressed | ZIP |" | Add-Content $env:GITHUB_STEP_SUMMARY
+          "|---|---:|---:|---:|" | Add-Content $env:GITHUB_STEP_SUMMARY
+          Get-ChildItem metrics -Filter *.json | ForEach-Object {
+            $item = Get-Content $_.FullName -Raw | ConvertFrom-Json
+            $totalMiB = [Math]::Round($item.totalBytes / 1MB, 2)
+            $zipMiB = [Math]::Round($item.archiveBytes / 1MB, 2)
+            "| $($item.mode) | $($item.fileCount) | $totalMiB MiB | $zipMiB MiB |" |
+              Add-Content $env:GITHUB_STEP_SUMMARY
+          }
