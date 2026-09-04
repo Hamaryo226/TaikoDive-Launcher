@@ -81,6 +81,46 @@
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
   </PropertyGroup>
 
+  <!-- Experimental publish modes used only by the size-comparison workflow. -->
+  <PropertyGroup Condition="'$(SizeExperimentMode)' == 'TrimmedSingleFile'">
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(SizeExperimentMode)' == 'NativeAot'">
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <PublishAot>true</PublishAot>
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <OptimizationPreference>Size</OptimizationPreference>
+    <StripSymbols>true</StripSymbols>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+    <CsWinRTAotWarningLevel>2</CsWinRTAotWarningLevel>
+    <DebugType>None</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- SharpCompress discovers archive support dynamically; retain it in trimmed experiments. -->
+  <ItemGroup Condition="'$(SizeExperimentMode)' == 'TrimmedSingleFile' or '$(SizeExperimentMode)' == 'NativeAot'">
+    <TrimmerRootAssembly Include="SharpCompress" />
+  </ItemGroup>
+
   <!-- A normal Release build also creates the ready-to-distribute single EXE. -->
   <Target Name="PublishReleaseBundleAfterBuild"
           AfterTargets="Build"
