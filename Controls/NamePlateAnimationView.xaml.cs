@@ -13,7 +13,8 @@ namespace TaikoDiveLauncher.Controls;
 
 public sealed partial class NamePlateAnimationView : UserControl
 {
-    private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(16) };
+    private static readonly TimeSpan PreviewFrameInterval = TimeSpan.FromMilliseconds(1000d / 30);
+    private readonly DispatcherTimer _timer = new() { Interval = PreviewFrameInterval };
     private readonly Stopwatch _clock = new();
     private readonly List<VisualElement> _visuals = [];
     private Aup2Animation? _animation;
