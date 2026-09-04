@@ -131,7 +131,8 @@ public sealed class InputBindingsStore
         JsonArray result = [];
         foreach (int value in values.Distinct())
         {
-            result.Add(value);
+            JsonNode? node = JsonValue.Create(value);
+            result.Add(node);
         }
         return result;
     }
@@ -141,7 +142,7 @@ public sealed class InputBindingsStore
         JsonArray result = [];
         foreach (ControllerInputBinding value in values)
         {
-            result.Add(new JsonObject
+            JsonNode node = new JsonObject
             {
                 ["vendorId"] = value.VendorId,
                 ["productId"] = value.ProductId,
@@ -151,7 +152,8 @@ public sealed class InputBindingsStore
                 ["inputType"] = value.InputType.ToString(),
                 ["inputIndex"] = value.InputIndex,
                 ["inputValue"] = value.InputValue,
-            });
+            };
+            result.Add(node);
         }
         return result;
     }

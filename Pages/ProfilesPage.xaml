@@ -73,7 +73,7 @@
                                 <TextBlock
                                     Padding="8,6"
                                     Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                                    Text="{x:Bind DisplayLabel, Mode=OneWay}"
+                                    Text="{x:Bind DisplayLabel}"
                                     TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
                         </ListView.ItemTemplate>

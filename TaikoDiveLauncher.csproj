@@ -21,6 +21,8 @@
     <EnableWinAppRunSupport>false</EnableWinAppRunSupport>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <!-- Required by CsWinRT to generate trim-safe generic WinRT marshalling helpers. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GamePackageKeyId Condition="'$(GamePackageKeyId)' == ''">2026-01</GamePackageKeyId>
     <GamePackageKey Condition="'$(GamePackageKey)' == '' and '$(Configuration)' == 'Debug'">taikodive-local-development-key</GamePackageKey>
     <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**;bin\**</DefaultItemExcludes>

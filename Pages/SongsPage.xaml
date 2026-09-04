@@ -161,7 +161,7 @@
                             SelectionMode="Single">
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="services:SongGenre">
-                                    <TextBlock Padding="8,6" Text="{x:Bind Name, Mode=OneWay}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Padding="8,6" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
