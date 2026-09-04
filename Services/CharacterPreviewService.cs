@@ -9,6 +9,7 @@ public static class CharacterPreviewService
     private const string DefaultCharacterRoot = @"Info\Chara\<Type>";
     private const string DefaultNormalLoop = @"result_loop|Common\Normal_loop|songselect_loop|entry_loop";
     private const int MaximumPreviewFrames = 30;
+    private const double MaximumPreviewFramesPerSecond = 30;
 
     public static CharacterPreviewData? Load(TaikoDiveInstallation installation, string characterType)
     {
@@ -47,7 +48,11 @@ public static class CharacterPreviewService
             return null;
         }
 
-        int previewCount = Math.Min(MaximumPreviewFrames, allFrames.Count);
+        double loopMilliseconds = ReadLoopDuration(characterRoot);
+        int playbackFrameCount = Math.Max(
+            1,
+            (int)Math.Ceiling(loopMilliseconds * MaximumPreviewFramesPerSecond / 1000));
+        int previewCount = Math.Min(allFrames.Count, Math.Min(MaximumPreviewFrames, playbackFrameCount));
         List<string> previewFrames = new(previewCount);
         for (int index = 0; index < previewCount; index++)
         {
@@ -55,7 +60,6 @@ public static class CharacterPreviewService
             previewFrames.Add(allFrames[sourceIndex]);
         }
 
-        double loopMilliseconds = ReadLoopDuration(characterRoot);
         return new CharacterPreviewData(
             previewFrames,
             TimeSpan.FromMilliseconds(Math.Max(16, loopMilliseconds / previewFrames.Count)),
