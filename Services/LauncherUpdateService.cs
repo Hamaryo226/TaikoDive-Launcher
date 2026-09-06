@@ -22,6 +22,7 @@ public sealed class LauncherUpdateService
     private readonly Uri _manifestUri;
     private readonly Uri _executableUri;
     private readonly Func<string?> _processPathProvider;
+    private readonly Func<bool> _isGameRunning;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private readonly object _stateLock = new();
     private LauncherUpdateState _state;
@@ -36,7 +37,8 @@ public sealed class LauncherUpdateService
             LauncherBuildInfo.CurrentRevision,
             DefaultManifestUri,
             DefaultExecutableUri,
-            () => Environment.ProcessPath)
+            () => Environment.ProcessPath,
+            GameProcessService.IsRunning)
     {
     }
 
@@ -45,13 +47,15 @@ public sealed class LauncherUpdateService
         string currentRevision,
         Uri manifestUri,
         Uri executableUri,
-        Func<string?> processPathProvider)
+        Func<string?> processPathProvider,
+        Func<bool>? isGameRunning = null)
     {
         _httpClient = httpClient;
         _currentRevision = currentRevision;
         _manifestUri = manifestUri;
         _executableUri = executableUri;
         _processPathProvider = processPathProvider;
+        _isGameRunning = isGameRunning ?? (() => false);
     }
 
     public event EventHandler? StateChanged;
@@ -176,6 +180,10 @@ public sealed class LauncherUpdateService
             {
                 return OperationResult.Failure("利用できるアップデートがありません。");
             }
+            if (_isGameRunning())
+            {
+                return OperationResult.Failure("TaikoDiveを終了してからランチャーをアップデートしてください。");
+            }
 
             string? targetPath = _processPathProvider();
             if (string.IsNullOrWhiteSpace(targetPath)
@@ -186,9 +194,15 @@ public sealed class LauncherUpdateService
 
             EnsureTargetDirectoryIsWritable(targetPath);
             string stagedPath = GetStagedExecutablePath(manifest.Revision);
-            Directory.CreateDirectory(Path.GetDirectoryName(stagedPath)!);
+            string stagedDirectory = Path.GetDirectoryName(stagedPath)!;
+            Directory.CreateDirectory(stagedDirectory);
             SetState(LauncherUpdateState.Downloading, "アップデートをダウンロードしています…", manifest, 0);
             await DownloadAndVerifyAsync(stagedPath, manifest, cancellationToken).ConfigureAwait(false);
+            string settingsPath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(targetPath))!, "Setting.json");
+            TaikoDiveSettingsSnapshot? settingsSnapshot = await TaikoDiveSettingsPreserver.CaptureAsync(
+                settingsPath,
+                stagedDirectory,
+                cancellationToken).ConfigureAwait(false);
 
             ProcessStartInfo installer = new()
             {
@@ -205,6 +219,13 @@ public sealed class LauncherUpdateService
             installer.ArgumentList.Add(Path.GetDirectoryName(Path.GetFullPath(targetPath))!);
             installer.ArgumentList.Add("--sha256");
             installer.ArgumentList.Add(manifest.Sha256);
+            if (settingsSnapshot is not null)
+            {
+                installer.ArgumentList.Add("--settings-path");
+                installer.ArgumentList.Add(settingsSnapshot.SettingsPath);
+                installer.ArgumentList.Add("--settings-backup");
+                installer.ArgumentList.Add(settingsSnapshot.BackupPath);
+            }
 
             if (Process.Start(installer) is null)
             {
@@ -242,12 +263,29 @@ public sealed class LauncherUpdateService
         string? parentText = GetArgumentValue(args, "--parent");
         string? workingDirectory = GetArgumentValue(args, "--working-directory");
         string? sha256 = GetArgumentValue(args, "--sha256");
+        string? settingsPath = GetArgumentValue(args, "--settings-path");
+        string? settingsBackupPath = GetArgumentValue(args, "--settings-backup");
         if (string.IsNullOrWhiteSpace(target)
             || !string.Equals(Path.GetFileName(target), ExecutableName, StringComparison.OrdinalIgnoreCase)
             || !int.TryParse(parentText, out int parentProcessId)
             || parentProcessId <= 0
             || string.IsNullOrWhiteSpace(workingDirectory)
-            || !IsHex(sha256, 64))
+            || !IsHex(sha256, 64)
+            || string.IsNullOrWhiteSpace(settingsPath) != string.IsNullOrWhiteSpace(settingsBackupPath))
+        {
+            return false;
+        }
+
+        string fullWorkingDirectory = Path.GetFullPath(workingDirectory);
+        string? fullSettingsPath = string.IsNullOrWhiteSpace(settingsPath) ? null : Path.GetFullPath(settingsPath);
+        string? fullSettingsBackupPath = string.IsNullOrWhiteSpace(settingsBackupPath)
+            ? null
+            : Path.GetFullPath(settingsBackupPath);
+        if (fullSettingsPath is not null
+            && !string.Equals(
+                fullSettingsPath,
+                Path.Combine(fullWorkingDirectory, "Setting.json"),
+                StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }
@@ -255,8 +293,10 @@ public sealed class LauncherUpdateService
         command = new PendingUpdateCommand(
             Path.GetFullPath(target),
             parentProcessId,
-            Path.GetFullPath(workingDirectory),
-            sha256!.ToUpperInvariant());
+            fullWorkingDirectory,
+            sha256!.ToUpperInvariant(),
+            fullSettingsPath,
+            fullSettingsBackupPath);
         return true;
     }
 
@@ -279,9 +319,22 @@ public sealed class LauncherUpdateService
             }
 
             await WaitForProcessExitAsync(command.ParentProcessId, cancellationToken).ConfigureAwait(false);
-            string replacementPath = command.TargetPath + ".update.pending";
-            File.Copy(sourcePath, replacementPath, overwrite: true);
-            File.Move(replacementPath, command.TargetPath, overwrite: true);
+            try
+            {
+                string replacementPath = command.TargetPath + ".update.pending";
+                File.Copy(sourcePath, replacementPath, overwrite: true);
+                File.Move(replacementPath, command.TargetPath, overwrite: true);
+            }
+            finally
+            {
+                if (command.SettingsPath is not null && command.SettingsBackupPath is not null)
+                {
+                    await TaikoDiveSettingsPreserver.RestoreAsync(
+                        command.SettingsPath,
+                        command.SettingsBackupPath,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+            }
 
             Process.Start(new ProcessStartInfo
             {
@@ -598,7 +651,9 @@ internal sealed record PendingUpdateCommand(
     string TargetPath,
     int ParentProcessId,
     string WorkingDirectory,
-    string Sha256);
+    string Sha256,
+    string? SettingsPath,
+    string? SettingsBackupPath);
 
 internal static class LauncherBuildInfo
 {

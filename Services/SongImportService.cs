@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text;
 
 namespace TaikoDiveLauncher.Services;
 
@@ -15,6 +16,7 @@ public static class SongImportService
 {
     private const int MaximumEntryCount = 10_000;
     private const long MaximumExpandedBytes = 4L * 1024 * 1024 * 1024;
+    private static readonly Encoding LegacyJapaneseZipEncoding = CreateLegacyJapaneseZipEncoding();
 
     public static IReadOnlyList<SongGenre> LoadGenres(TaikoDiveInstallation installation)
     {
@@ -51,7 +53,7 @@ public static class SongImportService
         string temporaryDirectory = Path.Combine(genreDirectory, $".launcher-import-{Guid.NewGuid():N}");
         try
         {
-            using ZipArchive archive = ZipFile.OpenRead(zipPath);
+            using ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Read, LegacyJapaneseZipEncoding);
             List<ZipArchiveEntry> fileEntries = archive.Entries
                 .Where(entry => !string.IsNullOrEmpty(entry.Name))
                 .ToList();
@@ -211,6 +213,12 @@ public static class SongImportService
         }
 
         return sanitized;
+    }
+
+    private static Encoding CreateLegacyJapaneseZipEncoding()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        return Encoding.GetEncoding(932);
     }
 
     private static string EnsureTrailingSeparator(string path) =>

@@ -425,6 +425,30 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task SongImportDecodesLegacyJapaneseZipEntryNames()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(genrePath);
+        string zipPath = Path.Combine(temporary.RootDirectory, "Japanese.zip");
+        CreateZip(
+            zipPath,
+            Encoding.GetEncoding(932),
+            ("日本語の曲/譜面.tja", "TITLE:日本語の曲\nWAVE:音源.ogg"),
+            ("日本語の曲/音源.ogg", "audio"));
+        SongGenre genre = SongImportService.LoadGenres(temporary.Installation).Single();
+
+        SongImportResult result = await SongImportService.ImportAsync(temporary.Installation, zipPath, genre);
+
+        Assert.IsTrue(result.Succeeded, result.Message);
+        Assert.IsNotNull(result.DestinationPath);
+        Assert.AreEqual("日本語の曲", Path.GetFileName(result.DestinationPath));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, "譜面.tja")));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, "音源.ogg")));
+    }
+
+    [TestMethod]
     public async Task SongImportRejectsPathTraversalAndCleansTemporaryFiles()
     {
         using TemporaryInstallation temporary = new();
@@ -642,6 +666,59 @@ public sealed class PersistenceTests
         Assert.IsTrue(LauncherUpdateService.TryParseApplyCommand(validArgs, out PendingUpdateCommand? command));
         Assert.IsNotNull(command);
         Assert.IsFalse(LauncherUpdateService.TryParseApplyCommand(invalidArgs, out _));
+    }
+
+    [TestMethod]
+    public void UpdateApplyCommandAcceptsOnlyMatchingSettingsPathPair()
+    {
+        string[] validArgs =
+        [
+            "TaikoDive.Launcher.exe",
+            "--apply-update",
+            "--target", "C:\\Games\\TaikoDive\\TaikoDive.Launcher.exe",
+            "--parent", "1234",
+            "--working-directory", "C:\\Games\\TaikoDive",
+            "--sha256", new string('A', 64),
+            "--settings-path", "C:\\Games\\TaikoDive\\Setting.json",
+            "--settings-backup", "C:\\Updates\\Setting.json.preserve",
+        ];
+
+        Assert.IsTrue(LauncherUpdateService.TryParseApplyCommand(validArgs, out PendingUpdateCommand? command));
+        Assert.IsNotNull(command);
+        Assert.AreEqual(Path.GetFullPath("C:\\Games\\TaikoDive\\Setting.json"), command.SettingsPath);
+        Assert.IsFalse(LauncherUpdateService.TryParseApplyCommand(
+            [.. validArgs[..^4], "--settings-path", "C:\\Games\\Other\\Setting.json", "--settings-backup", "C:\\Updates\\Setting.json.preserve"],
+            out _));
+        Assert.IsFalse(LauncherUpdateService.TryParseApplyCommand(validArgs[..^2], out _));
+    }
+
+    [TestMethod]
+    public async Task SettingsSnapshotRestoresOriginalBytesAfterUpdateMutation()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string settingsPath = Path.Combine(root, "build", "Setting.json");
+        string backupDirectory = Path.Combine(root, "update");
+        byte[] original = [0xEF, 0xBB, 0xBF, .. Encoding.UTF8.GetBytes("{\"masterVolume\":37}")];
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+            await File.WriteAllBytesAsync(settingsPath, original);
+            TaikoDiveSettingsSnapshot? snapshot = await TaikoDiveSettingsPreserver.CaptureAsync(
+                settingsPath,
+                backupDirectory);
+            await File.WriteAllTextAsync(settingsPath, "{\"masterVolume\":100}");
+
+            await TaikoDiveSettingsPreserver.RestoreAsync(snapshot);
+
+            CollectionAssert.AreEqual(original, await File.ReadAllBytesAsync(settingsPath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
     }
 
     [TestMethod]
@@ -956,8 +1033,14 @@ public sealed class PersistenceTests
     }
 
     private static void CreateZip(string path, params (string Path, string Content)[] files)
+        => CreateZip(path, entryNameEncoding: null, files);
+
+    private static void CreateZip(
+        string path,
+        Encoding? entryNameEncoding,
+        params (string Path, string Content)[] files)
     {
-        using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
+        using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create, entryNameEncoding);
         foreach ((string entryPath, string content) in files)
         {
             ZipArchiveEntry entry = archive.CreateEntry(entryPath);

@@ -205,15 +205,27 @@ public sealed class GameUpdateService
 
             SetState(GameUpdateState.Applying, "検証済みファイルを適用しています…", update, 0);
             string backupDirectory = CreateBackupDirectory(update);
-            await ApplyWithRollbackAsync(
-                Path.Combine(extractionDirectory, "files"),
-                installation.BuildDirectory,
-                backupDirectory,
-                package.Files,
-                cancellationToken,
-                _channel.NormalizePath,
-                ReportProgress).ConfigureAwait(false);
-            await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
+            TaikoDiveSettingsSnapshot? settingsSnapshot = await TaikoDiveSettingsPreserver.CaptureAsync(
+                installation.GameSettingsPath,
+                operationDirectory,
+                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ApplyWithRollbackAsync(
+                    Path.Combine(extractionDirectory, "files"),
+                    installation.BuildDirectory,
+                    backupDirectory,
+                    package.Files,
+                    cancellationToken,
+                    _channel.NormalizePath,
+                    ReportProgress).ConfigureAwait(false);
+                await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                await TaikoDiveSettingsPreserver.RestoreAsync(settingsSnapshot, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
 
             SetState(GameUpdateState.Completed, $"{_channel.DisplayName} v{update.Version}へ更新しました。", null, 100);
             return OperationResult.Success($"{_channel.DisplayName} v{update.Version}へ更新しました。");
