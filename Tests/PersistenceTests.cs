@@ -1037,6 +1037,114 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task AssetUpdateDeletesOnlyUnlistedTextureAndSoundFiles()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string staged = Path.Combine(root, "staged");
+        string target = Path.Combine(root, "target");
+        string backup = Path.Combine(root, "backup");
+        string listedTexture = Path.Combine(staged, "Texture", "listed.png");
+        string listedSound = Path.Combine(staged, "Sound", "listed.ogg");
+        Directory.CreateDirectory(Path.GetDirectoryName(listedTexture)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(listedSound)!);
+        await File.WriteAllTextAsync(listedTexture, "new texture");
+        await File.WriteAllTextAsync(listedSound, "new sound");
+
+        string obsoleteTexture = Path.Combine(target, "Texture", "Old", "obsolete.png");
+        string obsoleteSound = Path.Combine(target, "Sound", "obsolete.ogg");
+        string userSong = Path.Combine(target, "Songs", "User", "song.tja");
+        string infoAsset = Path.Combine(target, "Info", "custom.dat");
+        Directory.CreateDirectory(Path.GetDirectoryName(obsoleteTexture)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(obsoleteSound)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(userSong)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(infoAsset)!);
+        await File.WriteAllTextAsync(obsoleteTexture, "obsolete texture");
+        await File.WriteAllTextAsync(obsoleteSound, "obsolete sound");
+        await File.WriteAllTextAsync(userSong, "user song");
+        await File.WriteAllTextAsync(infoAsset, "custom info");
+
+        try
+        {
+            IReadOnlyList<GamePackageFile> files =
+            [
+                new() { Path = "Texture/listed.png", Size = 11, Sha256 = new string('A', 64) },
+                new() { Path = "Sound/listed.ogg", Size = 9, Sha256 = new string('B', 64) },
+            ];
+
+            await GameUpdateService.ApplyWithRollbackAsync(
+                staged,
+                target,
+                backup,
+                files,
+                CancellationToken.None,
+                AssetUpdatePathPolicy.NormalizeAndValidate,
+                mirroredDirectories: ["Texture", "Sound"]);
+
+            Assert.AreEqual("new texture", await File.ReadAllTextAsync(Path.Combine(target, "Texture", "listed.png")));
+            Assert.AreEqual("new sound", await File.ReadAllTextAsync(Path.Combine(target, "Sound", "listed.ogg")));
+            Assert.IsFalse(File.Exists(obsoleteTexture));
+            Assert.IsFalse(File.Exists(obsoleteSound));
+            Assert.IsFalse(Directory.Exists(Path.Combine(target, "Texture", "Old")));
+            Assert.AreEqual("user song", await File.ReadAllTextAsync(userSong));
+            Assert.AreEqual("custom info", await File.ReadAllTextAsync(infoAsset));
+            Assert.AreEqual(
+                "obsolete texture",
+                await File.ReadAllTextAsync(Path.Combine(backup, "Texture", "Old", "obsolete.png")));
+            Assert.AreEqual(
+                "obsolete sound",
+                await File.ReadAllTextAsync(Path.Combine(backup, "Sound", "obsolete.ogg")));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
+    public async Task AssetUpdateRestoresDeletedFilesWhenApplyFails()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncher.Tests", Guid.NewGuid().ToString("N"));
+        string staged = Path.Combine(root, "staged");
+        string target = Path.Combine(root, "target");
+        string backup = Path.Combine(root, "backup");
+        Directory.CreateDirectory(staged);
+        Directory.CreateDirectory(Path.Combine(staged, "Texture"));
+        string obsoleteTexture = Path.Combine(target, "Texture", "obsolete.png");
+        Directory.CreateDirectory(Path.GetDirectoryName(obsoleteTexture)!);
+        await File.WriteAllTextAsync(obsoleteTexture, "restore me");
+
+        try
+        {
+            IReadOnlyList<GamePackageFile> files =
+            [
+                new() { Path = "Texture/missing.png", Size = 3, Sha256 = new string('A', 64) },
+            ];
+
+            await Assert.ThrowsExactlyAsync<FileNotFoundException>(() => GameUpdateService.ApplyWithRollbackAsync(
+                staged,
+                target,
+                backup,
+                files,
+                CancellationToken.None,
+                AssetUpdatePathPolicy.NormalizeAndValidate,
+                mirroredDirectories: ["Texture", "Sound"]));
+
+            Assert.AreEqual("restore me", await File.ReadAllTextAsync(obsoleteTexture));
+            Assert.IsFalse(File.Exists(Path.Combine(target, "Texture", "missing.png")));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [TestMethod]
     public async Task GameUpdateExtractorReadsWinZipAes256Payload()
     {
         string sevenZip = @"C:\Program Files\7-Zip\7z.exe";

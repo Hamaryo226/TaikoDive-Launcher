@@ -51,4 +51,4 @@ Releaseビルド後、`bin/x64/Release/net10.0-windows10.0.26100.0/win-x64` に�
 
 ゲーム本体の更新は、privateのTaikoDiveリポジトリでビルドした`TaikoDive_Update_v{major}.{minor}.{patch}_win-x64_{commit7}.zip`を公開Releaseの固定タグ`game-stable`へ配置します。ランチャーは外側のAES-256 ZIP、外部・内部マニフェスト、全ファイルのサイズとSHA-256、保護対象パスを検証してから適用します。構築方法と必要なGitHub Secretsは[ゲーム更新の配布手順](docs/game-update-distribution.md)を参照してください。
 
-Asset更新は、privateの`TaikoDive-Assets`にある`src/`の中身を同じ方式で暗号化し、公開Releaseの固定タグ`assets-stable`へ配置します。`src`相対パスをゲームの`build`相対パスとして適用し、`Info/User.ini`などのユーザーデータは保持します。詳細は[Asset更新の配布手順](docs/assets-update-distribution.md)を参照してください。
+Asset更新は、privateの`TaikoDive-Assets`にある`src/`の中身を同じ方式で暗号化し、公開Releaseの固定タグ`assets-stable`へ配置します。`src`相対パスをゲームの`build`相対パスとして適用し、`Texture`と`Sound`はリポジトリにないファイルを削除します。`Songs`と`Info`は比較・削除せず、`Info/User.ini`などのユーザーデータを保持します。詳細は[Asset更新の配布手順](docs/assets-update-distribution.md)を参照してください。

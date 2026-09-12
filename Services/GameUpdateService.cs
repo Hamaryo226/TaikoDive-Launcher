@@ -218,7 +218,8 @@ public sealed class GameUpdateService
                     package.Files,
                     cancellationToken,
                     _channel.NormalizePath,
-                    ReportProgress).ConfigureAwait(false);
+                    ReportProgress,
+                    _channel.MirroredDirectories).ConfigureAwait(false);
                 await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
             }
             finally
@@ -300,19 +301,42 @@ public sealed class GameUpdateService
         IReadOnlyList<GamePackageFile> files,
         CancellationToken cancellationToken,
         Func<string, string>? normalizePath = null,
-        Action<long, long>? progress = null)
+        Action<long, long>? progress = null,
+        IReadOnlyList<string>? mirroredDirectories = null)
     {
         normalizePath ??= GameUpdatePathPolicy.NormalizeAndValidate;
         Directory.CreateDirectory(backupDirectory);
         List<string> replaced = [];
         List<string> created = [];
+        List<string> deleted = [];
         long completedFiles = 0;
+        string[] normalizedPaths = files.Select(file => normalizePath(file.Path)).ToArray();
+        string[] unlistedPaths = FindUnlistedFiles(
+            targetDirectory,
+            normalizedPaths,
+            mirroredDirectories ?? []);
+        long totalFiles = files.Count + unlistedPaths.Length;
         try
         {
-            foreach (GamePackageFile file in files)
+            foreach (string relativePath in unlistedPaths)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                string relativePath = normalizePath(file.Path);
+                string target = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath);
+                string backup = GameUpdatePackageExtractor.ResolveContainedPath(backupDirectory, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(backup)!);
+                File.Copy(target, backup, overwrite: false);
+                File.Delete(target);
+                deleted.Add(relativePath);
+
+                completedFiles++;
+                progress?.Invoke(completedFiles, totalFiles);
+            }
+
+            for (int index = 0; index < files.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                GamePackageFile file = files[index];
+                string relativePath = normalizedPaths[index];
                 string source = GameUpdatePackageExtractor.ResolveContainedPath(stagedFilesDirectory, relativePath);
                 string target = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath);
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
@@ -341,8 +365,10 @@ public sealed class GameUpdateService
                 }
 
                 completedFiles++;
-                progress?.Invoke(completedFiles, files.Count);
+                progress?.Invoke(completedFiles, totalFiles);
             }
+
+            DeleteEmptyDirectories(targetDirectory, mirroredDirectories ?? []);
         }
         catch
         {
@@ -360,8 +386,142 @@ public sealed class GameUpdateService
             {
                 TryDeleteFile(GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath));
             }
+            foreach (string relativePath in deleted.AsEnumerable().Reverse())
+            {
+                string backup = GameUpdatePackageExtractor.ResolveContainedPath(backupDirectory, relativePath);
+                string target = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath);
+                if (File.Exists(backup))
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    File.Copy(backup, target, overwrite: true);
+                }
+            }
             throw;
         }
+    }
+
+    private static string[] FindUnlistedFiles(
+        string targetDirectory,
+        IReadOnlyCollection<string> packagePaths,
+        IReadOnlyList<string> mirroredDirectories)
+    {
+        HashSet<string> listedPaths = new(packagePaths, StringComparer.OrdinalIgnoreCase);
+        List<string> unlistedPaths = [];
+        foreach (string directory in mirroredDirectories)
+        {
+            string normalizedDirectory = NormalizeMirroredDirectory(directory);
+            string directoryPath = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, normalizedDirectory);
+            if (!Directory.Exists(directoryPath)
+                || (File.GetAttributes(directoryPath) & FileAttributes.ReparsePoint) != 0)
+            {
+                continue;
+            }
+
+            foreach (string filePath in EnumerateFilesWithoutReparsePoints(directoryPath))
+            {
+                string relativePath = Path.GetRelativePath(targetDirectory, filePath).Replace('\\', '/');
+                if (!listedPaths.Contains(relativePath))
+                {
+                    unlistedPaths.Add(relativePath);
+                }
+            }
+        }
+
+        return [.. unlistedPaths.Order(StringComparer.OrdinalIgnoreCase)];
+    }
+
+    private static IEnumerable<string> EnumerateFilesWithoutReparsePoints(string rootDirectory)
+    {
+        Stack<string> pendingDirectories = new();
+        pendingDirectories.Push(rootDirectory);
+        EnumerationOptions options = new()
+        {
+            AttributesToSkip = 0,
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = false,
+            ReturnSpecialDirectories = false,
+        };
+
+        while (pendingDirectories.TryPop(out string? directory))
+        {
+            foreach (string path in Directory.EnumerateFileSystemEntries(directory, "*", options))
+            {
+                FileAttributes attributes = File.GetAttributes(path);
+                if ((attributes & FileAttributes.ReparsePoint) != 0)
+                {
+                    continue;
+                }
+                if ((attributes & FileAttributes.Directory) != 0)
+                {
+                    pendingDirectories.Push(path);
+                }
+                else
+                {
+                    yield return path;
+                }
+            }
+        }
+    }
+
+    private static void DeleteEmptyDirectories(string targetDirectory, IReadOnlyList<string> mirroredDirectories)
+    {
+        foreach (string directory in mirroredDirectories)
+        {
+            string normalizedDirectory = NormalizeMirroredDirectory(directory);
+            string directoryPath = GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, normalizedDirectory);
+            if (!Directory.Exists(directoryPath)
+                || (File.GetAttributes(directoryPath) & FileAttributes.ReparsePoint) != 0)
+            {
+                continue;
+            }
+
+            string[] directories = EnumerateDirectoriesWithoutReparsePoints(directoryPath)
+                .OrderByDescending(path => path.Length)
+                .ToArray();
+            foreach (string path in directories)
+            {
+                if (!Directory.EnumerateFileSystemEntries(path).Any())
+                {
+                    Directory.Delete(path);
+                }
+            }
+        }
+    }
+
+    private static IEnumerable<string> EnumerateDirectoriesWithoutReparsePoints(string rootDirectory)
+    {
+        Stack<string> pendingDirectories = new();
+        pendingDirectories.Push(rootDirectory);
+        EnumerationOptions options = new()
+        {
+            AttributesToSkip = 0,
+            IgnoreInaccessible = false,
+            RecurseSubdirectories = false,
+            ReturnSpecialDirectories = false,
+        };
+
+        while (pendingDirectories.TryPop(out string? directory))
+        {
+            foreach (string path in Directory.EnumerateDirectories(directory, "*", options))
+            {
+                if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                {
+                    continue;
+                }
+                pendingDirectories.Push(path);
+                yield return path;
+            }
+        }
+    }
+
+    private static string NormalizeMirroredDirectory(string directory)
+    {
+        string normalized = GameUpdatePathPolicy.NormalizeSyntax(directory).TrimEnd('/');
+        if (normalized.Contains('/', StringComparison.Ordinal))
+        {
+            throw new InvalidDataException($"同期対象フォルダーが不正です: {directory}");
+        }
+        return normalized;
     }
 
     private async Task DownloadAndVerifyAsync(
@@ -576,21 +736,24 @@ public sealed class GameUpdateService
         Uri ManifestUri,
         string StorageDirectoryName,
         Func<string, string, string, bool> PackageMatches,
-        Func<string, string> NormalizePath)
+        Func<string, string> NormalizePath,
+        IReadOnlyList<string> MirroredDirectories)
     {
         public static UpdateChannel Game { get; } = new(
             "TaikoDive",
             DefaultManifestUri,
             "game-updates",
             GameUpdatePackageNaming.Matches,
-            GameUpdatePathPolicy.NormalizeAndValidate);
+            GameUpdatePathPolicy.NormalizeAndValidate,
+            []);
 
         public static UpdateChannel Assets { get; } = new(
             "TaikoDive Asset",
             new Uri("https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/assets-stable/assets-update-manifest.json"),
             "asset-updates",
             AssetUpdatePackageNaming.Matches,
-            AssetUpdatePathPolicy.NormalizeAndValidate);
+            AssetUpdatePathPolicy.NormalizeAndValidate,
+            ["Texture", "Sound"]);
     }
 
 }
