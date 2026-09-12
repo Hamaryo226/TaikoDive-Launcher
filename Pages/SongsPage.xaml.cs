@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -12,21 +13,89 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class SongsPage : Page
 {
+    private const double NarrowLayoutThreshold = 1100;
+
     private IReadOnlyList<SongGenre> _genres = [];
+    private ObservableCollection<OrderedSong> _songs = [];
     private bool _isBusy;
+    private bool _isLoadingSongs;
+    private bool _isUpdatingGenres;
+    private bool? _isNarrowLayout;
+    private CancellationTokenSource? _songLoadCancellation;
+    private SongOrderSaveRequest? _pendingSongOrderSave;
+    private bool _songOrderSaveWorkerRunning;
 
     private App AppInstance => (App)Application.Current;
 
     public SongsPage()
     {
         InitializeComponent();
+        SongOrderList.ItemsSource = _songs;
         Loaded += SongsPage_Loaded;
     }
 
     private async void SongsPage_Loaded(object sender, RoutedEventArgs e)
     {
+        UpdateLayoutState(ActualWidth);
         await SynchronizeRedirectedSongsAssetsAsync();
         ReloadGenres();
+    }
+
+    private void SongsPage_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateLayoutState(e.NewSize.Width);
+
+    private void UpdateLayoutState(double width)
+    {
+        bool narrow = width < NarrowLayoutThreshold;
+        if (_isNarrowLayout == narrow)
+        {
+            return;
+        }
+
+        _isNarrowLayout = narrow;
+        PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
+
+        Grid.SetColumn(SongCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(SongCommandBar, narrow ? 1 : 0);
+        SongCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        Grid.SetColumn(PathCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(PathCommandBar, narrow ? 2 : 0);
+        PathCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+
+        GenreColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(0.85, GridUnitType.Star);
+        OrderColumn.Width = narrow ? new GridLength(0) : new GridLength(1.55, GridUnitType.Star);
+        DropColumn.Width = narrow ? new GridLength(0) : new GridLength(1.1, GridUnitType.Star);
+        GenreRow.Height = narrow ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        OrderRow.Height = narrow ? GridLength.Auto : new GridLength(0);
+        DropRow.Height = narrow ? GridLength.Auto : new GridLength(0);
+
+        Grid.SetColumn(GenreSurface, 0);
+        Grid.SetRow(GenreSurface, 0);
+        Grid.SetColumn(OrderSurface, narrow ? 0 : 1);
+        Grid.SetRow(OrderSurface, narrow ? 1 : 0);
+        Grid.SetColumn(DropZone, narrow ? 0 : 2);
+        Grid.SetRow(DropZone, narrow ? 2 : 0);
+        DropZone.MinHeight = narrow ? 180 : 280;
+        GenreSurface.Height = narrow ? 300 : double.NaN;
+        OrderSurface.Height = narrow ? 520 : double.NaN;
+        DropZone.Height = narrow ? 220 : double.NaN;
+
+        ContentScroller.VerticalScrollBarVisibility = narrow
+            ? ScrollBarVisibility.Auto
+            : ScrollBarVisibility.Hidden;
+        ContentScroller.VerticalScrollMode = narrow ? ScrollMode.Enabled : ScrollMode.Disabled;
+        ContentGrid.Height = narrow ? double.NaN : Math.Max(0, ContentScroller.ActualHeight);
+        if (!narrow)
+        {
+            ContentScroller.ChangeView(null, 0, null, disableAnimation: true);
+        }
+    }
+
+    private void ContentScroller_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_isNarrowLayout == false && Math.Abs(ContentGrid.Height - e.NewSize.Height) >= 0.5)
+        {
+            ContentGrid.Height = e.NewSize.Height;
+        }
     }
 
     private async Task SynchronizeRedirectedSongsAssetsAsync()
@@ -74,18 +143,203 @@ public sealed partial class SongsPage : Page
             ShowStatus(InfoBarSeverity.Error, $"ジャンルを読み込めませんでした: {ex.Message}");
         }
 
-        GenreList.ItemsSource = _genres;
-        GenreList.SelectedItem = _genres.FirstOrDefault(genre =>
-            string.Equals(genre.DirectoryPath, selectedPath, StringComparison.OrdinalIgnoreCase));
-        if (GenreList.SelectedItem is null)
+        _isUpdatingGenres = true;
+        try
         {
-            GenreList.SelectedIndex = _genres.Count > 0 ? 0 : -1;
+            GenreList.ItemsSource = _genres;
+            GenreList.SelectedItem = _genres.FirstOrDefault(genre =>
+                string.Equals(genre.DirectoryPath, selectedPath, StringComparison.OrdinalIgnoreCase));
+            if (GenreList.SelectedItem is null)
+            {
+                GenreList.SelectedIndex = _genres.Count > 0 ? 0 : -1;
+            }
+        }
+        finally
+        {
+            _isUpdatingGenres = false;
         }
         GenreSummaryText.Text = installation is null
             ? "TaikoDive.exeの配置を確認してください。"
-            : $"{installation.SongsDirectory} から {_genres.Count} 件を読み込みました。";
+            : $"{_genres.Count}件のジャンルを読み込みました。";
         EmptyGenresText.Visibility = _genres.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        LoadSelectedGenreSongs();
         UpdateSongsPathStatus();
+    }
+
+    private void GenreList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_isUpdatingGenres)
+        {
+            LoadSelectedGenreSongs();
+        }
+    }
+
+    private async void LoadSelectedGenreSongs()
+    {
+        _songLoadCancellation?.Cancel();
+        _songLoadCancellation?.Dispose();
+        CancellationTokenSource cancellation = new();
+        _songLoadCancellation = cancellation;
+        _songs = [];
+        SongOrderList.ItemsSource = _songs;
+        UpdateMoveSongButtons();
+        if (GenreList.SelectedItem is not SongGenre genre)
+        {
+            SongOrderSummaryText.Text = "ジャンルを選択してください。";
+            EmptySongsText.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        _isLoadingSongs = true;
+        SongOrderList.IsEnabled = false;
+        SongOrderSummaryText.Text = $"「{genre.Name}」の楽曲を読み込んでいます。";
+        try
+        {
+            IReadOnlyList<OrderedSong> songs = await Task.Run(
+                () => SongOrderService.LoadSongs(genre),
+                cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            if (GenreList.SelectedItem is not SongGenre selectedGenre
+                || !string.Equals(selectedGenre.DirectoryPath, genre.DirectoryPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            _songs = new ObservableCollection<OrderedSong>(songs);
+            SongOrderList.ItemsSource = _songs;
+            SongOrderSummaryText.Text = _songs.Count == 0
+                ? $"「{genre.Name}」には並べ替え可能なTJA譜面がありません。"
+                : $"「{genre.Name}」の{_songs.Count}曲。ドラッグまたは上下ボタンで自動保存されます。";
+            EmptySongsText.Visibility = _songs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SongOrderSummaryText.Text = "楽曲を読み込めませんでした。";
+            EmptySongsText.Visibility = Visibility.Visible;
+            ShowStatus(InfoBarSeverity.Error, $"楽曲を読み込めませんでした: {ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_songLoadCancellation, cancellation))
+            {
+                _isLoadingSongs = false;
+                SongOrderList.IsEnabled = !_isBusy;
+                UpdateMoveSongButtons();
+            }
+        }
+    }
+
+    private void SongOrderList_SelectionChanged(object sender, SelectionChangedEventArgs e) => UpdateMoveSongButtons();
+
+    private void SongOrderList_DragItemsCompleted(ListViewBase sender, DragItemsCompletedEventArgs args)
+    {
+        if (args.DropResult != DataPackageOperation.None)
+        {
+            UpdateMoveSongButtons();
+            QueueSongOrderSave();
+        }
+    }
+
+    private void MoveSongUpButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SongOrderList.SelectedItem is OrderedSong song)
+        {
+            int index = _songs.IndexOf(song);
+            if (index > 0)
+            {
+                _songs.Move(index, index - 1);
+                SongOrderList.SelectedItem = song;
+                UpdateMoveSongButtons();
+                QueueSongOrderSave();
+            }
+        }
+    }
+
+    private void MoveSongDownButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (SongOrderList.SelectedItem is OrderedSong song)
+        {
+            int index = _songs.IndexOf(song);
+            if (index >= 0 && index < _songs.Count - 1)
+            {
+                _songs.Move(index, index + 1);
+                SongOrderList.SelectedItem = song;
+                UpdateMoveSongButtons();
+                QueueSongOrderSave();
+            }
+        }
+    }
+
+    private void UpdateMoveSongButtons()
+    {
+        int selectedIndex = SongOrderList.SelectedItem is OrderedSong song ? _songs.IndexOf(song) : -1;
+        bool canMove = !_isBusy && !_isLoadingSongs;
+        MoveSongUpButton.IsEnabled = canMove && selectedIndex > 0;
+        MoveSongDownButton.IsEnabled = canMove && selectedIndex >= 0 && selectedIndex < _songs.Count - 1;
+    }
+
+    private void QueueSongOrderSave()
+    {
+        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
+        if (_isBusy || installation is null || GenreList.SelectedItem is not SongGenre genre)
+        {
+            return;
+        }
+
+        _pendingSongOrderSave = new SongOrderSaveRequest(installation, genre, _songs.ToArray());
+        if (!_songOrderSaveWorkerRunning)
+        {
+            _ = ProcessSongOrderSavesAsync();
+        }
+    }
+
+    private async Task ProcessSongOrderSavesAsync()
+    {
+        _songOrderSaveWorkerRunning = true;
+        try
+        {
+            while (_pendingSongOrderSave is SongOrderSaveRequest request)
+            {
+                _pendingSongOrderSave = null;
+                OperationResult result = await SongOrderService.SaveOrderAsync(
+                    request.Installation,
+                    request.Genre,
+                    request.Songs);
+                if (_pendingSongOrderSave is not null)
+                {
+                    continue;
+                }
+
+                bool sameGenre = GenreList.SelectedItem is SongGenre selectedGenre
+                    && string.Equals(selectedGenre.DirectoryPath, request.Genre.DirectoryPath, StringComparison.OrdinalIgnoreCase);
+                if (result.Succeeded)
+                {
+                    if (sameGenre)
+                    {
+                        SongOrderSummaryText.Text = $"「{request.Genre.Name}」の{request.Songs.Count}曲。保存済みです。";
+                    }
+                }
+                else
+                {
+                    ShowStatus(InfoBarSeverity.Error, result.Message);
+                    if (sameGenre)
+                    {
+                        LoadSelectedGenreSongs();
+                    }
+                }
+            }
+        }
+        finally
+        {
+            _songOrderSaveWorkerRunning = false;
+            if (_pendingSongOrderSave is not null)
+            {
+                _ = ProcessSongOrderSavesAsync();
+            }
+        }
     }
 
     private void UpdateSongsPathStatus()
@@ -445,8 +699,10 @@ public sealed partial class SongsPage : Page
         BusyRing.IsActive = busy;
         BusyRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         DropZone.IsHitTestVisible = !busy;
+        SongOrderList.IsEnabled = !busy && !_isLoadingSongs;
         SongCommandBar.IsEnabled = !busy;
         PathCommandBar.IsEnabled = !busy && AppInstance.Context.Installation is not null;
+        UpdateMoveSongButtons();
     }
 
     private void ResetDropZone() => DropZone.BorderThickness = new Thickness(1);
@@ -457,4 +713,9 @@ public sealed partial class SongsPage : Page
         StatusBar.Message = message;
         StatusBar.IsOpen = true;
     }
+
+    private sealed record SongOrderSaveRequest(
+        TaikoDiveInstallation Installation,
+        SongGenre Genre,
+        IReadOnlyList<OrderedSong> Songs);
 }

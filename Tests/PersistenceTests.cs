@@ -449,6 +449,71 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task SongOrderLoadsUtf8AndShiftJisTitlesAndPersistsDragOrder()
+    {
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        string firstFolder = Path.Combine(genrePath, "first");
+        string secondFolder = Path.Combine(genrePath, "second");
+        Directory.CreateDirectory(firstFolder);
+        Directory.CreateDirectory(secondFolder);
+        await File.WriteAllTextAsync(Path.Combine(firstFolder, "first.tja"), "TITLE:First Song\n#START", new UTF8Encoding(false));
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        await File.WriteAllTextAsync(Path.Combine(secondFolder, "second.tja"), "TITLE:二曲目\n#START", Encoding.GetEncoding(932));
+        SongGenre genre = new("00 ポップス", genrePath);
+
+        IReadOnlyList<OrderedSong> initial = SongOrderService.LoadSongs(genre);
+        OrderedSong first = initial.Single(song => song.Title == "First Song");
+        OrderedSong second = initial.Single(song => song.Title == "二曲目");
+        OperationResult saved = await SongOrderService.SaveOrderWithoutProcessCheckAsync(
+            temporary.Installation,
+            genre,
+            [second, first]);
+
+        Assert.IsTrue(saved.Succeeded, saved.Message);
+        CollectionAssert.AreEqual(
+            new[] { "second/second.tja", "first/first.tja" },
+            await File.ReadAllLinesAsync(Path.Combine(genrePath, SongOrderService.OrderFileName)));
+        CollectionAssert.AreEqual(
+            new[] { "二曲目", "First Song" },
+            SongOrderService.LoadSongs(genre).Select(song => song.Title).ToArray());
+    }
+
+    [TestMethod]
+    public async Task SongOrderBacksUpExistingOrderAndRejectsStaleSongList()
+    {
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "01 アニメ");
+        Directory.CreateDirectory(genrePath);
+        string firstPath = Path.Combine(genrePath, "first.tja");
+        string secondPath = Path.Combine(genrePath, "second.tja");
+        await File.WriteAllTextAsync(firstPath, "TITLE:First");
+        await File.WriteAllTextAsync(secondPath, "TITLE:Second");
+        SongGenre genre = new("01 アニメ", genrePath);
+        IReadOnlyList<OrderedSong> songs = SongOrderService.LoadSongs(genre);
+
+        OperationResult firstSave = await SongOrderService.SaveOrderWithoutProcessCheckAsync(
+            temporary.Installation,
+            genre,
+            songs);
+        OperationResult secondSave = await SongOrderService.SaveOrderWithoutProcessCheckAsync(
+            temporary.Installation,
+            genre,
+            songs.Reverse().ToArray());
+        File.Delete(secondPath);
+        OperationResult staleSave = await SongOrderService.SaveOrderWithoutProcessCheckAsync(
+            temporary.Installation,
+            genre,
+            songs);
+
+        Assert.IsTrue(firstSave.Succeeded, firstSave.Message);
+        Assert.IsTrue(secondSave.Succeeded, secondSave.Message);
+        Assert.IsTrue(File.Exists(Path.Combine(genrePath, SongOrderService.OrderFileName) + ".launcher.bak"));
+        Assert.IsFalse(staleSave.Succeeded);
+        StringAssert.Contains(staleSave.Message, "再読み込み");
+    }
+
+    [TestMethod]
     public async Task SongImportDecodesLegacyJapaneseFilesAtArchiveRoot()
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
