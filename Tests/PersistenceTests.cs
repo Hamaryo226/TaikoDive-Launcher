@@ -449,6 +449,31 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task SongImportDecodesLegacyJapaneseFilesAtArchiveRoot()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        using TemporaryInstallation temporary = new();
+        string genrePath = Path.Combine(temporary.Installation.SongsDirectory, "00 ポップス");
+        Directory.CreateDirectory(genrePath);
+        string songName = "きょういくばんぐみのテーマ";
+        string zipPath = Path.Combine(temporary.RootDirectory, songName + ".zip");
+        CreateZip(
+            zipPath,
+            Encoding.GetEncoding(932),
+            ($"{songName}.tja", $"TITLE:{songName}\nWAVE:{songName}.ogg"),
+            ($"{songName}.ogg", "audio"));
+        SongGenre genre = SongImportService.LoadGenres(temporary.Installation).Single();
+
+        SongImportResult result = await SongImportService.ImportAsync(temporary.Installation, zipPath, genre);
+
+        Assert.IsTrue(result.Succeeded, result.Message);
+        Assert.IsNotNull(result.DestinationPath);
+        Assert.AreEqual(songName, Path.GetFileName(result.DestinationPath));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, songName + ".tja")));
+        Assert.IsTrue(File.Exists(Path.Combine(result.DestinationPath, songName + ".ogg")));
+    }
+
+    [TestMethod]
     public async Task SongImportRejectsPathTraversalAndCleansTemporaryFiles()
     {
         using TemporaryInstallation temporary = new();

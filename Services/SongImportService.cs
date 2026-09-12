@@ -53,6 +53,8 @@ public static class SongImportService
         string temporaryDirectory = Path.Combine(genreDirectory, $".launcher-import-{Guid.NewGuid():N}");
         try
         {
+            // Windows向けの日本語ZIPには、UTF-8フラグを付けずCP932でファイル名を保存するものがある。
+            // UTF-8フラグ付きのエントリはZipArchive側でUTF-8が優先されるため、CP932は従来形式のフォールバックになる。
             using ZipArchive archive = ZipFile.Open(zipPath, ZipArchiveMode.Read, LegacyJapaneseZipEncoding);
             List<ZipArchiveEntry> fileEntries = archive.Entries
                 .Where(entry => !string.IsNullOrEmpty(entry.Name))
