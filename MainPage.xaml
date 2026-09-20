@@ -28,6 +28,9 @@
                     <SymbolIcon Symbol="Contact" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="着せ替え" Tag="character-3d">
+                <NavigationViewItem.Icon><SymbolIcon Symbol="Edit" /></NavigationViewItem.Icon>
+            </NavigationViewItem>
             <NavigationViewItem Content="楽曲" Tag="songs">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE8D6;" />
