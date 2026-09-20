@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="TaikoDiveLauncher.Pages.Character3DPage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+ <Grid Padding="20" RowSpacing="12">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <StackPanel Spacing="4">
+   <TextBlock Text="どんちゃんの着せ替え" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap"/>
+   <TextBlock Text="ユーザー別に3Dキャラの衣装と色を変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
+   <CommandBar HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">
+    <AppBarButton x:Name="SaveButton" Icon="Save" Label="保存" Click="Save_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+    <AppBarButton Icon="Refresh" Label="再読み込み" Click="Reload_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+   </CommandBar>
+  </StackPanel>
+  <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True"/>
+  <ScrollViewer x:Name="Editor" Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+   <StackPanel Spacing="16" MaxWidth="640" HorizontalAlignment="Stretch">
+    <ComboBox x:Name="UserBox" Header="設定するユーザー" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Value" SelectionChanged="UserChanged"/>
+    <TextBlock Text="共通設定は未設定ユーザーの初期値です。ユーザー番号はプロフィールと対応し、左右の太鼓とは独立しています。3Dの有効状態とモデルフォルダーは共通設定で変更します。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <ToggleSwitch x:Name="EnabledSwitch" Header="3Dキャラを使用" Toggled="Changed"/>
+    <TextBox x:Name="ModelsPathBox" Header="モデルフォルダー" PlaceholderText="Models/Donchan" TextChanged="Changed"/>
+    <Button Content="フォルダーの衣装一覧を読み込む" Click="ReadCatalog_Click"/>
+    <TextBlock Text="導入済みの Models/Donchan、または PyTaikoGreen の Models フォルダーを指定できます。頭と体を組み合わせるか、全身きぐるみを選んでください。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+    <ToggleSwitch x:Name="CostumeSwitch" Header="全身きぐるみを使用" Toggled="ModeChanged"/>
+    <ComboBox x:Name="HeadBox" Header="あたま" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
+    <ComboBox x:Name="BodyBox" Header="からだ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
+    <ComboBox x:Name="CostumeBox" Header="全身きぐるみ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
+    <StackPanel Orientation="Horizontal" Spacing="12">
+     <Image x:Name="HeadIcon" Width="80" Height="80" AutomationProperties.Name="あたまの衣装アイコン"/>
+     <Image x:Name="BodyIcon" Width="80" Height="80" AutomationProperties.Name="からだの衣装アイコン"/>
+     <Image x:Name="CostumeIcon" Width="80" Height="80" AutomationProperties.Name="全身きぐるみのアイコン"/>
+    </StackPanel>
+    <TextBlock Text="部位ごとの色" Style="{StaticResource SubtitleTextBlockStyle}"/>
+    <Button x:Name="BodyColorButton" Tag="body" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+    <Button x:Name="LimbsColorButton" Tag="limbs" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+    <Button x:Name="FaceColorButton" Tag="face" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+    <Button x:Name="RimColorButton" Tag="rim" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+    <Button Content="色を標準に戻す" Click="ResetColors_Click"/>
+    <TextBlock Text="色変更に対応した部分だけに適用します。衣装固有の模様や素材の色は変わりません。3Dキャラ対応版の TaikoDive が必要です。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+   </StackPanel>
+  </ScrollViewer>
+ </Grid>
+</Page>
