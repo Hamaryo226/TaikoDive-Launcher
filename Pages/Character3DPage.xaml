@@ -22,7 +22,10 @@
    <Grid.RowDefinitions><RowDefinition x:Name="PreviewRow" Height="*"/><RowDefinition x:Name="EditorRow" Height="0"/></Grid.RowDefinitions>
    <Grid x:Name="PreviewPanel" RowSpacing="8">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <TextBlock Text="プレビュー" Style="{StaticResource SubtitleTextBlockStyle}"/>
+    <StackPanel Spacing="8">
+     <ToggleSwitch x:Name="AnimationSwitch" Header="アニメーション" IsOn="False" Toggled="AnimationModeChanged"/>
+     <ComboBox x:Name="AnimationBox" Header="再生する動き" IsEnabled="False" HorizontalAlignment="Stretch" SelectionChanged="AnimationChanged"/>
+    </StackPanel>
     <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="12" Padding="16" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
      <Grid>
       <Image x:Name="PreviewImage" Stretch="Uniform" AutomationProperties.Name="選択した衣装と配色の3Dプレビュー"/>
@@ -31,7 +34,10 @@
     </Border>
     <StackPanel Grid.Row="2" Spacing="6">
      <TextBlock x:Name="PreviewStatus" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite"/>
-     <Button Content="プレビューを更新" Click="Preview_Click"/>
+     <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button x:Name="PlaybackButton" Content="一時停止" Click="Playback_Click" IsEnabled="False" Visibility="Collapsed"/>
+      <Button Content="プレビューを更新" Click="Preview_Click"/>
+     </StackPanel>
     </StackPanel>
    </Grid>
    <ScrollViewer x:Name="Editor" Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -51,8 +57,6 @@
     <Button x:Name="LimbsColorButton" Tag="limbs" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button x:Name="FaceColorButton" Tag="face" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button x:Name="RimColorButton" Tag="rim" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
-    <TextBlock x:Name="ColorPickerHeading" Text="胴の色" Style="{StaticResource FieldLabelStyle}"/>
-    <ColorPicker x:Name="ColorEditor" IsAlphaEnabled="False" IsHexInputVisible="True" IsMoreButtonVisible="False" HorizontalAlignment="Stretch" ColorChanged="Picker_ColorChanged"/>
     <Button Content="色を標準に戻す" Click="ResetColors_Click"/>
     <TextBlock Text="衣装固有の模様や目・口の色は変わりません。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
       <Expander Header="モデルの参照先" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
