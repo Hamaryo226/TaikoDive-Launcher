@@ -16,6 +16,9 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private bool _loading = true;
     private int _selectedSlot;
     private bool _changingUser;
+    private readonly Character3DPreviewService _preview = new();
+    private CancellationTokenSource? _previewCancellation;
+    private bool _pageLoaded;
     public bool HasUnsavedChanges { get; private set; }
     public string UnsavedChangesName => "どんちゃんの着せ替え";
     private TaikoDiveInstallation? Installation => ((App)Application.Current).Context.Installation;
@@ -23,7 +26,8 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     public Character3DPage()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await LoadAsync();
+        Loaded += async (_, _) => { _pageLoaded = true; await LoadAsync(); };
+        Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); };
     }
 
     private async Task LoadAsync(int userSlot = 0)
@@ -39,8 +43,8 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             UserBox.ItemsSource = options;
             UserBox.SelectedValue = userSlot;
             _settings = await _store.LoadAsync(installation, userSlot == 0 ? null : userSlot);
-            EnabledSwitch.IsOn = _settings.Enabled; ModelsPathBox.Text = _settings.ModelsPath;
-            EnabledSwitch.IsEnabled = ModelsPathBox.IsEnabled = userSlot == 0;
+            ModelsPathBox.Text = _settings.ModelsPath;
+            ModelsPathBox.IsEnabled = userSlot == 0;
             CostumeSwitch.IsOn = _settings.UseCostume;
             LoadCatalog(); UpdateColors(); UpdateMode();
             HasUnsavedChanges = false; StatusBar.IsOpen = false;
@@ -48,6 +52,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         }
         catch (Exception ex) { ShowError(ex); }
         finally { _loading = false; }
+        if (Editor.IsEnabled) QueuePreview();
     }
 
     private async void UserChanged(object sender, SelectionChangedEventArgs e)
@@ -86,7 +91,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         UpdateIcons();
     }
 
-    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) HasUnsavedChanges = true; }
+    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; QueuePreview(); } }
     private void ModeChanged(object sender, RoutedEventArgs e) { if (HeadBox is null) return; UpdateMode(); Changed(sender, e); }
     private void UpdateMode()
     {
@@ -103,7 +108,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     }
     private void ReadSelections()
     {
-        _settings.Enabled = EnabledSwitch.IsOn; _settings.ModelsPath = ModelsPathBox.Text.Trim(); _settings.UseCostume = CostumeSwitch.IsOn;
+        _settings.Enabled = true; _settings.ModelsPath = ModelsPathBox.Text.Trim(); _settings.UseCostume = CostumeSwitch.IsOn;
         _settings.Head = HeadBox.SelectedValue as string ?? _settings.Head;
         _settings.Body = BodyBox.SelectedValue as string ?? _settings.Body;
         _settings.Costume = CostumeBox.SelectedValue as string ?? _settings.Costume;
@@ -115,14 +120,14 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
         if (Installation is not { } installation) return;
-        Editor.IsEnabled = false; SaveButton.IsEnabled = false;
+        Editor.IsEnabled = false; SaveButton.IsEnabled = false; UserBox.IsEnabled = false;
         try
         {
             ReadSelections(); await _store.SaveAsync(installation, _settings, _selectedSlot == 0 ? null : _selectedSlot); HasUnsavedChanges = false;
             StatusBar.Severity = InfoBarSeverity.Success; StatusBar.Message = "保存しました。次回のゲーム起動から反映されます。"; StatusBar.IsOpen = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; }
+        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; }
     }
     private async void Reload_Click(object sender, RoutedEventArgs e)
     {
@@ -161,11 +166,58 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         string hex = $"#{picker.Color.R:X2}{picker.Color.G:X2}{picker.Color.B:X2}";
         switch (key) { case "body": _settings.BodyColor = hex; break; case "limbs": _settings.LimbsColor = hex; break; case "face": _settings.FaceColor = hex; break; default: _settings.RimColor = hex; break; }
         HasUnsavedChanges = true; UpdateColors();
+        QueuePreview();
     }
     private void ResetColors_Click(object sender, RoutedEventArgs e)
     {
         var defaults = new Character3DSettings(); _settings.BodyColor = defaults.BodyColor; _settings.LimbsColor = defaults.LimbsColor;
         _settings.FaceColor = defaults.FaceColor; _settings.RimColor = defaults.RimColor; HasUnsavedChanges = true; UpdateColors();
+        QueuePreview();
+    }
+    private void Preview_Click(object sender, RoutedEventArgs e) => QueuePreview();
+
+    private async void QueuePreview()
+    {
+        if (_loading || !_pageLoaded || Installation is not { } installation) return;
+        _previewCancellation?.Cancel();
+        using var cancellation = new CancellationTokenSource();
+        _previewCancellation = cancellation;
+        PreviewImage.Source = null;
+        PreviewBusy.IsActive = true; PreviewBusy.Visibility = Visibility.Visible;
+        PreviewStatus.Text = "プレビューを作成しています…";
+        try
+        {
+            ReadSelections();
+            var snapshot = _settings with { };
+            await Task.Delay(350, cancellation.Token);
+            byte[] png = await _preview.RenderAsync(installation, snapshot, cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
+            using (var writer = new Windows.Storage.Streams.DataWriter(stream.GetOutputStreamAt(0)))
+            {
+                writer.WriteBytes(png);
+                await writer.StoreAsync();
+            }
+            stream.Seek(0);
+            var image = new BitmapImage();
+            await image.SetSourceAsync(stream);
+            cancellation.Token.ThrowIfCancellationRequested();
+            PreviewImage.Source = image;
+            PreviewStatus.Text = "保存前の衣装と配色です。変更すると自動更新します。";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!cancellation.IsCancellationRequested) PreviewStatus.Text = "プレビューを表示できません: " + ex.Message;
+        }
+        finally
+        {
+            if (ReferenceEquals(_previewCancellation, cancellation))
+            {
+                _previewCancellation = null;
+                PreviewBusy.IsActive = false; PreviewBusy.Visibility = Visibility.Collapsed;
+            }
+        }
     }
     private void ShowError(Exception ex) { StatusBar.Severity = InfoBarSeverity.Error; StatusBar.Message = ex.Message; StatusBar.IsOpen = true; }
 }

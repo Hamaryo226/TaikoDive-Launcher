@@ -28,7 +28,7 @@ public sealed class Character3DStore
         var colors = Merge(root["colors"] as JsonObject, profile?["colors"] as JsonObject);
         return new Character3DSettings
         {
-            Enabled = (bool?)root["enabled"] ?? false,
+            Enabled = true,
             ModelsPath = (string?)root["modelsPath"] ?? "Models/Donchan",
             UseCostume = (bool?)parts?["useCostume"] ?? false,
             Head = (string?)parts?["head"] ?? "0", Body = (string?)parts?["body"] ?? "0", Costume = (string?)parts?["costume"] ?? "0",
@@ -92,13 +92,13 @@ public sealed class Character3DStore
         string path = SettingsPath(installation);
         var root = await ReadAsync(path);
         if (userSlot.HasValue)
-            settings = settings with { Enabled = (bool?)root["enabled"] ?? false, ModelsPath = (string?)root["modelsPath"] ?? "Models/Donchan" };
+            settings = settings with { ModelsPath = (string?)root["modelsPath"] ?? "Models/Donchan" };
         foreach (string id in new[] { settings.Head, settings.Body, settings.Costume })
             if (!ValidId(id)) throw new InvalidDataException("衣装 ID が正しくありません。");
         string body = NormalizeColor(settings.BodyColor), limbs = NormalizeColor(settings.LimbsColor);
         string face = NormalizeColor(settings.FaceColor), rim = NormalizeColor(settings.RimColor);
         string modelRoot = ModelRoot(installation, settings.ModelsPath);
-        if (settings.Enabled)
+        // プレイヤーは3D専用なので、旧enabledの値にかかわらず検証する。
         {
             var required = new List<string> { "animations.glb", "face/face_000000.png" };
             if (settings.UseCostume) required.Add($"cos/{settings.Costume}.glb");
@@ -114,9 +114,9 @@ public sealed class Character3DStore
         }
         else
         {
-            root["enabled"] = settings.Enabled;
             root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? "Models/Donchan" : settings.ModelsPath.Trim();
         }
+        root["enabled"] = true; // 以前の3D対応本体とも互換を保つ。
         var parts = GetOrCreateObject(target, "parts");
         parts["useCostume"] = settings.UseCostume; parts["head"] = settings.Head; parts["body"] = settings.Body; parts["costume"] = settings.Costume;
         var colors = GetOrCreateObject(target, "colors");

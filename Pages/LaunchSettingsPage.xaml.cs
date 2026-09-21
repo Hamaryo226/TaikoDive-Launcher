@@ -94,9 +94,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             FontFallbackBox.Text = settings.FontFallback;
             CompressedSoundSwitch.IsOn = settings.UseCompressedSongSound;
             Texture16BitSwitch.IsOn = settings.ReduceTextureColorTo16bit;
-            CharaTexture16BitSwitch.IsOn = settings.ReduceCharaTextureColorTo16bit;
             BgTexture16BitSwitch.IsOn = settings.ReduceBgTextureColorTo16bit;
-            CharaFrameSkipBox.Value = settings.CharaAnimationFrameSkip;
             OnlinePortBox.Value = settings.OnlinePort;
             LastJoinAddressBox.Text = settings.LastJoinAddress;
             SetSettingsEnabled(true);
@@ -191,9 +189,9 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             FontFallback = FontFallbackBox.Text,
             UseCompressedSongSound = CompressedSoundSwitch.IsOn,
             ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
-            ReduceCharaTextureColorTo16bit = CharaTexture16BitSwitch.IsOn,
+            ReduceCharaTextureColorTo16bit = _loadedSettings?.ReduceCharaTextureColorTo16bit ?? false,
             ReduceBgTextureColorTo16bit = BgTexture16BitSwitch.IsOn,
-            CharaAnimationFrameSkip = double.IsNaN(CharaFrameSkipBox.Value) ? 3 : (int)Math.Round(CharaFrameSkipBox.Value),
+            CharaAnimationFrameSkip = _loadedSettings?.CharaAnimationFrameSkip ?? 3,
             OnlinePort = double.IsNaN(OnlinePortBox.Value) ? 22047 : (int)Math.Round(OnlinePortBox.Value),
             LastJoinAddress = LastJoinAddressBox.Text,
         };

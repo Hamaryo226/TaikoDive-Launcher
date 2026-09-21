@@ -5,12 +5,13 @@ namespace TaikoDiveLauncher.Services;
 
 public static class GameProcessService
 {
+    internal static readonly System.Collections.Concurrent.ConcurrentDictionary<int, byte> PreviewProcesses = new();
     public static bool IsRunning()
     {
         Process[] processes = Process.GetProcessesByName("TaikoDive");
         try
         {
-            return processes.Length > 0;
+            return processes.Any(process => !PreviewProcesses.ContainsKey(process.Id));
         }
         finally
         {

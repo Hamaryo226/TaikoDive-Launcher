@@ -106,15 +106,7 @@
                         <TextBlock Text="メモリ / 読み込み" Style="{StaticResource SectionTitleStyle}" />
                         <ToggleSwitch x:Name="CompressedSoundSwitch" Header="楽曲音声を圧縮したまま保持" />
                         <ToggleSwitch x:Name="Texture16BitSwitch" Header="一般テクスチャを16bit化" />
-                        <ToggleSwitch x:Name="CharaTexture16BitSwitch" Header="キャラテクスチャを16bit化" />
                         <ToggleSwitch x:Name="BgTexture16BitSwitch" Header="背景テクスチャを16bit化" />
-                        <NumberBox
-                            x:Name="CharaFrameSkipBox"
-                            Header="キャラアニメの読み込み間隔（1〜4）"
-                            Minimum="1"
-                            Maximum="4"
-                            SmallChange="1"
-                            SpinButtonPlacementMode="Compact" />
                         <TextBlock
                             Text="16bit化はRAMを節約しますが、グラデーションや白いキャラの色に差が出る場合があります。"
                             Style="{StaticResource PageSubtitleStyle}" />
