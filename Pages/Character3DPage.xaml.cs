@@ -16,6 +16,8 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private bool _loading = true;
     private int _selectedSlot;
     private bool _changingUser;
+    private string _colorTarget = "body";
+    private bool _updatingPicker;
     private readonly Character3DPreviewService _preview = new();
     private CancellationTokenSource? _previewCancellation;
     private bool _pageLoaded;
@@ -30,7 +32,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); };
     }
 
-    private async Task LoadAsync(int userSlot = 0)
+    private async Task LoadAsync(int userSlot = 0, bool restorePrevious = false)
     {
         _loading = true; Editor.IsEnabled = false; SaveButton.IsEnabled = false;
         try
@@ -42,12 +44,21 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             _selectedSlot = userSlot;
             UserBox.ItemsSource = options;
             UserBox.SelectedValue = userSlot;
-            _settings = await _store.LoadAsync(installation, userSlot == 0 ? null : userSlot);
+            _settings = restorePrevious
+                ? await _store.LoadPreviousAsync(installation, userSlot == 0 ? null : userSlot)
+                : await _store.LoadAsync(installation, userSlot == 0 ? null : userSlot);
+            if (restorePrevious)
+                _settings.ModelsPath = (await _store.LoadAsync(installation)).ModelsPath;
             ModelsPathBox.Text = _settings.ModelsPath;
             ModelsPathBox.IsEnabled = userSlot == 0;
             CostumeSwitch.IsOn = _settings.UseCostume;
             LoadCatalog(); UpdateColors(); UpdateMode();
-            HasUnsavedChanges = false; StatusBar.IsOpen = false;
+            HasUnsavedChanges = restorePrevious; StatusBar.IsOpen = restorePrevious;
+            if (restorePrevious)
+            {
+                StatusBar.Severity = InfoBarSeverity.Informational;
+                StatusBar.Message = "1つ前の衣装と色を復元しました。プレビューで確認して保存してください。";
+            }
             Editor.IsEnabled = true; SaveButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
@@ -138,6 +149,22 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         }
         await LoadAsync(_selectedSlot);
     }
+    private async void RestorePrevious_Click(object sender, RoutedEventArgs e)
+    {
+        if (Installation is not { } installation) return;
+        try
+        {
+            // バックアップが無い・壊れている場合は現在の編集を保持する。
+            await _store.LoadPreviousAsync(installation, _selectedSlot == 0 ? null : _selectedSlot);
+            if (HasUnsavedChanges)
+            {
+                var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "1つ前の保存を復元", Content = "編集中の衣装と色を、1つ前の保存内容に戻しますか？", PrimaryButtonText = "復元", CloseButtonText = "キャンセル", DefaultButton = ContentDialogButton.Close };
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+            }
+            await LoadAsync(_selectedSlot, restorePrevious: true);
+        }
+        catch (Exception ex) { ShowError(ex); }
+    }
     private static Color ParseColor(string value)
     {
         uint rgb = uint.Parse(value.AsSpan(1), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
@@ -155,18 +182,23 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         }
         Set(BodyColorButton, "胴", _settings.BodyColor); Set(LimbsColorButton, "手足", _settings.LimbsColor);
         Set(FaceColorButton, "顔", _settings.FaceColor); Set(RimColorButton, "ふち", _settings.RimColor);
+        _updatingPicker = true;
+        ColorEditor.Color = ParseColor(_colorTarget switch { "body" => _settings.BodyColor, "limbs" => _settings.LimbsColor, "face" => _settings.FaceColor, _ => _settings.RimColor });
+        _updatingPicker = false;
     }
-    private async void Color_Click(object sender, RoutedEventArgs e)
+    private void Color_Click(object sender, RoutedEventArgs e)
     {
-        string key = (string)((Button)sender).Tag;
-        string current = key switch { "body" => _settings.BodyColor, "limbs" => _settings.LimbsColor, "face" => _settings.FaceColor, _ => _settings.RimColor };
-        var picker = new ColorPicker { Color = ParseColor(current), IsAlphaEnabled = false, IsMoreButtonVisible = false, IsHexInputVisible = true };
-        var dialog = new ContentDialog { XamlRoot = XamlRoot, Title = "色を選ぶ", Content = picker, PrimaryButtonText = "適用", CloseButtonText = "キャンセル", DefaultButton = ContentDialogButton.Primary };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-        string hex = $"#{picker.Color.R:X2}{picker.Color.G:X2}{picker.Color.B:X2}";
-        switch (key) { case "body": _settings.BodyColor = hex; break; case "limbs": _settings.LimbsColor = hex; break; case "face": _settings.FaceColor = hex; break; default: _settings.RimColor = hex; break; }
-        HasUnsavedChanges = true; UpdateColors();
-        QueuePreview();
+        _colorTarget = (string)((Button)sender).Tag;
+        ColorPickerHeading.Text = (_colorTarget switch { "body" => "胴", "limbs" => "手足", "face" => "顔", _ => "ふち" }) + "の色";
+        UpdateColors();
+        ColorEditor.StartBringIntoView();
+    }
+    private void Picker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)
+    {
+        if (_loading || _updatingPicker) return;
+        string hex = $"#{args.NewColor.R:X2}{args.NewColor.G:X2}{args.NewColor.B:X2}";
+        switch (_colorTarget) { case "body": _settings.BodyColor = hex; break; case "limbs": _settings.LimbsColor = hex; break; case "face": _settings.FaceColor = hex; break; default: _settings.RimColor = hex; break; }
+        HasUnsavedChanges = true; UpdateColors(); QueuePreview();
     }
     private void ResetColors_Click(object sender, RoutedEventArgs e)
     {

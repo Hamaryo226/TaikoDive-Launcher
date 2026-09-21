@@ -9,7 +9,10 @@
    <TextBlock Text="ユーザー別に3Dキャラの衣装と色を変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
    <CommandBar HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">
     <AppBarButton x:Name="SaveButton" Icon="Save" Label="保存" Click="Save_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
-    <AppBarButton Icon="Refresh" Label="再読み込み" Click="Reload_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+    <AppBarButton Icon="Refresh" Label="保存済みに戻す" Click="Reload_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+    <CommandBar.SecondaryCommands>
+     <AppBarButton Icon="Undo" Label="1つ前の保存を復元" Click="RestorePrevious_Click"/>
+    </CommandBar.SecondaryCommands>
    </CommandBar>
   </StackPanel>
   <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True"/>
@@ -48,6 +51,8 @@
     <Button x:Name="LimbsColorButton" Tag="limbs" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button x:Name="FaceColorButton" Tag="face" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button x:Name="RimColorButton" Tag="rim" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
+    <TextBlock x:Name="ColorPickerHeading" Text="胴の色" Style="{StaticResource FieldLabelStyle}"/>
+    <ColorPicker x:Name="ColorEditor" IsAlphaEnabled="False" IsHexInputVisible="True" IsMoreButtonVisible="False" HorizontalAlignment="Stretch" ColorChanged="Picker_ColorChanged"/>
     <Button Content="色を標準に戻す" Click="ResetColors_Click"/>
     <TextBlock Text="衣装固有の模様や目・口の色は変わりません。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
       <Expander Header="モデルの参照先" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">

@@ -7,6 +7,19 @@ namespace TaikoDiveLauncher.Tests;
 [TestClass]
 public sealed class Character3DTests
 {
+    [TestMethod] public async Task RestorePreviousLoadsUserAppearanceWithoutWritingCurrentSettings()
+    {
+        var store = new Character3DStore(() => false);
+        await Assert.ThrowsAsync<FileNotFoundException>(() => store.LoadPreviousAsync(_installation, 1));
+        await store.SaveAsync(_installation, new() { Head = "3", FaceColor = "#112233" }, 1);
+        await store.SaveAsync(_installation, new() { Head = "4", FaceColor = "#445566" }, 1);
+        string current = await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation));
+        var previous = await store.LoadPreviousAsync(_installation, 1);
+        Assert.AreEqual("3", previous.Head);
+        Assert.AreEqual("#112233", previous.FaceColor);
+        Assert.AreEqual(current, await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation)));
+        Assert.AreEqual("4", (await store.LoadAsync(_installation, 1)).Head);
+    }
     [TestMethod] public async Task UserSettingsAreIndependentAndFallbackToCommonValues()
     {
         var store = new Character3DStore(() => false);

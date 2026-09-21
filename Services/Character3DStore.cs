@@ -20,9 +20,19 @@ public sealed class Character3DStore
         : new JsonObject();
 
     public async Task<Character3DSettings> LoadAsync(TaikoDiveInstallation installation, int? userSlot = null)
+        => await LoadFromPathAsync(SettingsPath(installation), userSlot);
+
+    public async Task<Character3DSettings> LoadPreviousAsync(TaikoDiveInstallation installation, int? userSlot = null)
+    {
+        string path = SettingsPath(installation) + ".launcher.bak";
+        if (!File.Exists(path)) throw new FileNotFoundException("前回の保存データはまだありません。設定を保存すると作成されます。");
+        return await LoadFromPathAsync(path, userSlot);
+    }
+
+    private static async Task<Character3DSettings> LoadFromPathAsync(string path, int? userSlot)
     {
         ValidateSlot(userSlot);
-        var root = await ReadAsync(SettingsPath(installation));
+        var root = await ReadAsync(path);
         var profile = userSlot.HasValue ? root["users"]?[userSlot.Value.ToString(CultureInfo.InvariantCulture)] as JsonObject : null;
         var parts = Merge(root["parts"] as JsonObject, profile?["parts"] as JsonObject);
         var colors = Merge(root["colors"] as JsonObject, profile?["colors"] as JsonObject);
