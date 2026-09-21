@@ -94,9 +94,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             FontFallbackBox.Text = settings.FontFallback;
             CompressedSoundSwitch.IsOn = settings.UseCompressedSongSound;
             Texture16BitSwitch.IsOn = settings.ReduceTextureColorTo16bit;
-            CharaTexture16BitSwitch.IsOn = settings.ReduceCharaTextureColorTo16bit;
             BgTexture16BitSwitch.IsOn = settings.ReduceBgTextureColorTo16bit;
-            CharaFrameSkipBox.Value = settings.CharaAnimationFrameSkip;
             OnlinePortBox.Value = settings.OnlinePort;
             LastJoinAddressBox.Text = settings.LastJoinAddress;
             SetSettingsEnabled(true);
@@ -191,9 +189,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             FontFallback = FontFallbackBox.Text,
             UseCompressedSongSound = CompressedSoundSwitch.IsOn,
             ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
-            ReduceCharaTextureColorTo16bit = CharaTexture16BitSwitch.IsOn,
             ReduceBgTextureColorTo16bit = BgTexture16BitSwitch.IsOn,
-            CharaAnimationFrameSkip = double.IsNaN(CharaFrameSkipBox.Value) ? 3 : (int)Math.Round(CharaFrameSkipBox.Value),
             OnlinePort = double.IsNaN(OnlinePortBox.Value) ? 22047 : (int)Math.Round(OnlinePortBox.Value),
             LastJoinAddress = LastJoinAddressBox.Text,
         };
@@ -224,9 +220,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             && left.FontFallback == right.FontFallback
             && left.UseCompressedSongSound == right.UseCompressedSongSound
             && left.ReduceTextureColorTo16bit == right.ReduceTextureColorTo16bit
-            && left.ReduceCharaTextureColorTo16bit == right.ReduceCharaTextureColorTo16bit
             && left.ReduceBgTextureColorTo16bit == right.ReduceBgTextureColorTo16bit
-            && left.CharaAnimationFrameSkip == right.CharaAnimationFrameSkip
             && left.OnlinePort == right.OnlinePort
             && left.LastJoinAddress == right.LastJoinAddress;
     }

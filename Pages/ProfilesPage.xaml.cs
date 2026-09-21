@@ -17,7 +17,6 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
     public bool HasUnsavedChanges => _activeProfile is not null
         && (NameBox.Text != _activeProfile.Name
             || TitleBox.Text != _activeProfile.Title
-            || (CharacterBox.SelectedValue as string ?? _activeProfile.CharaType) != _activeProfile.CharaType
             || (NamePlateBox.SelectedValue is int plateType ? plateType : _activeProfile.NamePlateType) != _activeProfile.NamePlateType);
 
     public string UnsavedChangesName => "プロフィール";
@@ -102,12 +101,9 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         SlotHeading.Text = $"{profile.Slot}P USER";
         NameBox.Text = profile.Name;
         TitleBox.Text = profile.Title;
-        CharacterBox.ItemsSource = _profileStore.GetCharacterOptions(installation, profile.CharaType);
-        CharacterBox.SelectedValue = profile.CharaType;
         NamePlateBox.ItemsSource = _profileStore.GetNamePlateOptions(installation, profile.NamePlateType);
         NamePlateBox.SelectedValue = profile.NamePlateType;
         _updatingEditor = false;
-        await CharacterPreview.ShowCharacterAsync(installation, profile.CharaType);
         await NamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
 
         _statisticsCancellation?.Cancel();
@@ -138,19 +134,6 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         }
     }
 
-    private async void CharacterBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_updatingEditor)
-        {
-            return;
-        }
-
-        if (CharacterBox.SelectedValue is string characterType && AppInstance.Context.Installation is { } installation)
-        {
-            await CharacterPreview.ShowCharacterAsync(installation, characterType);
-        }
-    }
-
     private async void NamePlateBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (_updatingEditor)
@@ -177,7 +160,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
             Slot = selected.Slot,
             Name = NameBox.Text,
             Title = TitleBox.Text,
-            CharaType = CharacterBox.SelectedValue as string ?? selected.CharaType,
+            CharaType = selected.CharaType,
             NamePlateType = NamePlateBox.SelectedValue is int plateType ? plateType : selected.NamePlateType,
             IsConfigured = true,
         };

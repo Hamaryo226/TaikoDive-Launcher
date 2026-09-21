@@ -14,6 +14,19 @@ namespace TaikoDiveLauncher.Tests;
 public sealed class PersistenceTests
 {
     [TestMethod]
+    public async Task RemovedCharacterSettingsAreDeletedWhileOtherKeysArePreserved()
+    {
+        using TemporaryInstallation temporary = new();
+        await File.WriteAllTextAsync(temporary.Installation.GameSettingsPath,
+            "{\"CharaAnimationFrameSkip\":4,\"reduceCharaTextureColorTo16bit\":true,\"future\":42}");
+        var store = new GameSettingsStore(() => false);
+        await store.SaveAsync(temporary.Installation, await store.LoadAsync(temporary.Installation));
+        var root = JsonNode.Parse(await File.ReadAllTextAsync(temporary.Installation.GameSettingsPath))!.AsObject();
+        Assert.IsFalse(root.ContainsKey("CharaAnimationFrameSkip"));
+        Assert.IsFalse(root.ContainsKey("reduceCharaTextureColorTo16bit"));
+        Assert.AreEqual(42, (int)root["future"]!);
+    }
+    [TestMethod]
     public async Task UserProfileSavePreservesCommentsUnknownKeysEncodingAndNewlines()
     {
         using TemporaryInstallation temporary = new();

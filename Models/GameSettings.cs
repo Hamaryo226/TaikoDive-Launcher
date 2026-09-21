@@ -46,9 +46,7 @@ public sealed class GameSettings
 
     public bool ReduceTextureColorTo16bit { get; set; }
 
-    public int CharaAnimationFrameSkip { get; set; } = 3;
 
-    public bool ReduceCharaTextureColorTo16bit { get; set; }
 
     public bool ReduceBgTextureColorTo16bit { get; set; }
 

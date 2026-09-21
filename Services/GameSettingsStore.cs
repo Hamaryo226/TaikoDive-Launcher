@@ -51,8 +51,6 @@ public sealed class GameSettingsStore
             FontDomCasual = GetString(root, "fontDomCasual", "Dom Casual"),
             FontFallback = GetString(root, "fontFallback", "Comic Sans MS"),
             ReduceTextureColorTo16bit = GetBoolean(root, "reduceTextureColorTo16bit", false),
-            CharaAnimationFrameSkip = Math.Clamp(GetInteger(root, "charaAnimationFrameSkip", 3), 1, 4),
-            ReduceCharaTextureColorTo16bit = GetBoolean(root, "reduceCharaTextureColorTo16bit", false),
             ReduceBgTextureColorTo16bit = GetBoolean(root, "reduceBgTextureColorTo16bit", false),
             UseCompressedSongSound = GetBoolean(root, "useCompressedSongSound", true),
             OnlinePort = Math.Clamp(GetInteger(root, "onlinePort", 22047), 1, 65535),
@@ -91,8 +89,10 @@ public sealed class GameSettingsStore
         Set(root, "fontDomCasual", settings.FontDomCasual);
         Set(root, "fontFallback", settings.FontFallback);
         Set(root, "reduceTextureColorTo16bit", settings.ReduceTextureColorTo16bit);
-        Set(root, "charaAnimationFrameSkip", Math.Clamp(settings.CharaAnimationFrameSkip, 1, 4));
-        Set(root, "reduceCharaTextureColorTo16bit", settings.ReduceCharaTextureColorTo16bit);
+        foreach (string key in root.Select(p => p.Key).Where(key =>
+            key.Equals("charaAnimationFrameSkip", StringComparison.OrdinalIgnoreCase) ||
+            key.Equals("reduceCharaTextureColorTo16bit", StringComparison.OrdinalIgnoreCase)).ToArray())
+            root.Remove(key);
         Set(root, "reduceBgTextureColorTo16bit", settings.ReduceBgTextureColorTo16bit);
         Set(root, "useCompressedSongSound", settings.UseCompressedSongSound);
         Set(root, "onlinePort", Math.Clamp(settings.OnlinePort, 1, 65535));

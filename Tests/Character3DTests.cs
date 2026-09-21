@@ -7,6 +7,19 @@ namespace TaikoDiveLauncher.Tests;
 [TestClass]
 public sealed class Character3DTests
 {
+    [TestMethod] public async Task RestorePreviousLoadsUserAppearanceWithoutWritingCurrentSettings()
+    {
+        var store = new Character3DStore(() => false);
+        await Assert.ThrowsAsync<FileNotFoundException>(() => store.LoadPreviousAsync(_installation, 1));
+        await store.SaveAsync(_installation, new() { Head = "3", FaceColor = "#112233" }, 1);
+        await store.SaveAsync(_installation, new() { Head = "4", FaceColor = "#445566" }, 1);
+        string current = await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation));
+        var previous = await store.LoadPreviousAsync(_installation, 1);
+        Assert.AreEqual("3", previous.Head);
+        Assert.AreEqual("#112233", previous.FaceColor);
+        Assert.AreEqual(current, await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation)));
+        Assert.AreEqual("4", (await store.LoadAsync(_installation, 1)).Head);
+    }
     [TestMethod] public async Task UserSettingsAreIndependentAndFallbackToCommonValues()
     {
         var store = new Character3DStore(() => false);
@@ -23,7 +36,7 @@ public sealed class Character3DTests
         Assert.AreEqual("3", savedFirst.Head); Assert.AreEqual("#ABCDEF", savedFirst.BodyColor);
         Assert.AreEqual("8", ninth.Costume); Assert.AreEqual("#FEDCBA", ninth.LimbsColor);
         Assert.AreEqual("7", untouched.Head); Assert.AreEqual("#123456", untouched.BodyColor);
-        Assert.IsFalse(savedFirst.Enabled); Assert.AreEqual("Models/Donchan", savedFirst.ModelsPath);
+        Assert.IsTrue(savedFirst.Enabled); Assert.AreEqual("Models/Donchan", savedFirst.ModelsPath);
         await store.SaveAsync(_installation, new() { BodyColor = "#101010" });
         Assert.AreEqual("#ABCDEF", (await store.LoadAsync(_installation, 1)).BodyColor);
         Assert.AreEqual("#101010", (await store.LoadAsync(_installation, 2)).BodyColor);
@@ -59,6 +72,11 @@ public sealed class Character3DTests
         _root = Path.Combine(Path.GetTempPath(), "TaikoDive-Character3D-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_root, "Info"));
         _installation = new(_root);
+        Asset("animations.glb"); Asset("face/face_000000.png");
+        for (int i = 0; i <= 12; i++)
+        {
+            Asset($"head/{i}.glb"); Asset($"body/{i}.glb"); Asset($"cos/{i}.glb");
+        }
     }
     [TestCleanup] public void Cleanup() => Directory.Delete(_root, true);
     private void Asset(string file)
@@ -97,7 +115,7 @@ public sealed class Character3DTests
         await Assert.ThrowsAsync<FileNotFoundException>(() => store.SaveAsync(_installation, settings));
         Assert.IsTrue((await store.LoadAsync(_installation)).UseCostume);
         settings.Enabled = false;
-        await store.SaveAsync(_installation, settings);
+        await Assert.ThrowsAsync<FileNotFoundException>(() => store.SaveAsync(_installation, settings));
     }
 
     [TestMethod] public async Task RunningGameAndInvalidInputDoNotOverwriteSettings()
@@ -115,7 +133,9 @@ public sealed class Character3DTests
         string root = Character3DStore.ModelRoot(_installation, "Models/Donchan");
         File.WriteAllText(Path.Combine(root, "costume_names.json"), "{\"head\":{\"3\":{\"name\":\"ねこ\"},\"4\":{\"name\":\"未導入\"}}}");
         var list = new Character3DStore(() => false).GetOptions(root, "head", "9");
-        CollectionAssert.AreEqual(new[] { "9", "0", "3" }, list.Select(x => x.Id).ToArray());
-        StringAssert.Contains(list[2].Label, "ねこ"); StringAssert.Contains(list[0].Label, "未配置");
+        Assert.AreEqual(13, list.Count);
+        StringAssert.Contains(list.Single(x => x.Id == "3").Label, "ねこ");
+        var missing = new Character3DStore(() => false).GetOptions(root, "head", "99");
+        StringAssert.Contains(missing[0].Label, "未配置");
     }
 }
