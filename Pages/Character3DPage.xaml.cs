@@ -18,9 +18,17 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private bool _changingUser;
     private string _colorTarget = "body";
     private bool _updatingPicker;
+    private readonly ColorPicker ColorEditor = new() { IsAlphaEnabled = false, IsHexInputVisible = true, IsMoreButtonVisible = false };
+    private readonly TextBlock ColorPickerHeading = new();
+    private readonly Flyout _colorFlyout = new();
     private readonly Character3DPreviewService _preview = new();
     private CancellationTokenSource? _previewCancellation;
     private bool _pageLoaded;
+    private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(20) };
+    private readonly System.Diagnostics.Stopwatch _animationClock = new();
+    private IReadOnlyList<BitmapImage> _animationFrames = Array.Empty<BitmapImage>();
+    private double _animationDuration = 1;
+    private bool _playing = true;
     public bool HasUnsavedChanges { get; private set; }
     public string UnsavedChangesName => "どんちゃんの着せ替え";
     private TaikoDiveInstallation? Installation => ((App)Application.Current).Context.Installation;
@@ -28,12 +36,18 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     public Character3DPage()
     {
         InitializeComponent();
+        var colorContent = new StackPanel { Spacing = 8 };
+        colorContent.Children.Add(ColorPickerHeading); colorContent.Children.Add(ColorEditor);
+        _colorFlyout.Content = colorContent;
+        ColorEditor.ColorChanged += Picker_ColorChanged;
         Loaded += async (_, _) => { _pageLoaded = true; await LoadAsync(); };
-        Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); };
+        _animationTimer.Tick += (_, _) => ShowAnimationFrame();
+        Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); _colorFlyout.Hide(); StopAnimation(); };
     }
 
     private async Task LoadAsync(int userSlot = 0, bool restorePrevious = false)
     {
+        _colorFlyout.Hide();
         _loading = true; Editor.IsEnabled = false; SaveButton.IsEnabled = false;
         try
         {
@@ -96,6 +110,10 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     {
         if (Installation is not { } installation) return;
         string root = Character3DStore.ModelRoot(installation, ModelsPathBox.Text);
+        string selectedAnimation = AnimationBox.SelectedItem as string ?? "don_normal";
+        var animations = CharacterAnimationCatalog.Read(root);
+        AnimationBox.ItemsSource = animations;
+        AnimationBox.SelectedItem = animations.Contains(selectedAnimation) ? selectedAnimation : animations[0];
         HeadBox.ItemsSource = _store.GetOptions(root, "head", _settings.Head); HeadBox.SelectedValue = _settings.Head;
         BodyBox.ItemsSource = _store.GetOptions(root, "body", _settings.Body); BodyBox.SelectedValue = _settings.Body;
         CostumeBox.ItemsSource = _store.GetOptions(root, "cos", _settings.Costume); CostumeBox.SelectedValue = _settings.Costume;
@@ -126,7 +144,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     }
     private void ReadCatalog_Click(object sender, RoutedEventArgs e)
     {
-        try { ReadSelections(); LoadCatalog(); } catch (Exception ex) { ShowError(ex); }
+        try { _preview.ClearStaticCache(); ReadSelections(); LoadCatalog(); QueuePreview(); } catch (Exception ex) { ShowError(ex); }
     }
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -191,7 +209,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         _colorTarget = (string)((Button)sender).Tag;
         ColorPickerHeading.Text = (_colorTarget switch { "body" => "胴", "limbs" => "手足", "face" => "顔", _ => "ふち" }) + "の色";
         UpdateColors();
-        ColorEditor.StartBringIntoView();
+        _colorFlyout.ShowAt((Button)sender);
     }
     private void Picker_ColorChanged(ColorPicker sender, ColorChangedEventArgs args)
     {
@@ -206,7 +224,38 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         _settings.FaceColor = defaults.FaceColor; _settings.RimColor = defaults.RimColor; HasUnsavedChanges = true; UpdateColors();
         QueuePreview();
     }
-    private void Preview_Click(object sender, RoutedEventArgs e) => QueuePreview();
+    private void Preview_Click(object sender, RoutedEventArgs e) { _preview.ClearStaticCache(); QueuePreview(); }
+    private void AnimationModeChanged(object sender, RoutedEventArgs e)
+    {
+        if (AnimationBox is null || PlaybackButton is null) return;
+        AnimationBox.IsEnabled = AnimationSwitch.IsOn;
+        PlaybackButton.Visibility = AnimationSwitch.IsOn ? Visibility.Visible : Visibility.Collapsed;
+        QueuePreview();
+    }
+    private void AnimationChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loading && AnimationSwitch.IsOn && AnimationBox.SelectedItem is string) QueuePreview();
+    }
+    private void StopAnimation(bool clearImage = true)
+    {
+        _animationTimer.Stop(); _animationClock.Reset();
+        _animationFrames = Array.Empty<BitmapImage>();
+        if (clearImage) PreviewImage.Source = null;
+        PlaybackButton.IsEnabled = false;
+    }
+    private void ShowAnimationFrame()
+    {
+        if (_animationFrames.Count == 0) return;
+        int index = (int)(_animationClock.Elapsed.TotalSeconds % _animationDuration / _animationDuration * _animationFrames.Count);
+        PreviewImage.Source = _animationFrames[Math.Min(index, _animationFrames.Count - 1)];
+    }
+    private void Playback_Click(object sender, RoutedEventArgs e)
+    {
+        _playing = !_playing;
+        PlaybackButton.Content = _playing ? "一時停止" : "再生";
+        if (_playing) { _animationClock.Start(); _animationTimer.Start(); }
+        else { _animationClock.Stop(); _animationTimer.Stop(); }
+    }
 
     private async void QueuePreview()
     {
@@ -214,16 +263,23 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         _previewCancellation?.Cancel();
         using var cancellation = new CancellationTokenSource();
         _previewCancellation = cancellation;
-        PreviewImage.Source = null;
+        StopAnimation(clearImage: false);
         PreviewBusy.IsActive = true; PreviewBusy.Visibility = Visibility.Visible;
         PreviewStatus.Text = "プレビューを作成しています…";
         try
         {
             ReadSelections();
             var snapshot = _settings with { };
-            await Task.Delay(350, cancellation.Token);
-            byte[] png = await _preview.RenderAsync(installation, snapshot, cancellation.Token);
+            bool animate = AnimationSwitch.IsOn;
+            string animation = AnimationBox.SelectedItem as string ?? "don_normal";
+            await Task.Delay(animate ? 350 : 100, cancellation.Token);
+            var preview = animate
+                ? await _preview.RenderAnimationAsync(installation, snapshot, animation, cancellation.Token)
+                : new CharacterAnimationPreview(new[] { await _preview.RenderAsync(installation, snapshot, cancellation.Token) }, 1);
             cancellation.Token.ThrowIfCancellationRequested();
+            var frames = new List<BitmapImage>(preview.Frames.Count);
+            foreach (byte[] png in preview.Frames)
+            {
             using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
             using (var writer = new Windows.Storage.Streams.DataWriter(stream.GetOutputStreamAt(0)))
             {
@@ -234,13 +290,18 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             var image = new BitmapImage();
             await image.SetSourceAsync(stream);
             cancellation.Token.ThrowIfCancellationRequested();
-            PreviewImage.Source = image;
-            PreviewStatus.Text = "保存前の衣装と配色です。変更すると自動更新します。";
+            frames.Add(image);
+            }
+            _animationFrames = frames; _animationDuration = preview.Duration;
+            PlaybackButton.IsEnabled = animate;
+            ShowAnimationFrame();
+            if (animate && _playing) { _animationClock.Start(); _animationTimer.Start(); }
+            PreviewStatus.Text = animate ? $"{animation} · {preview.Duration:F2}秒 · ループ再生（モデル本来の速度）" : "静止画 · 保存前の衣装と配色";
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            if (!cancellation.IsCancellationRequested) PreviewStatus.Text = "プレビューを表示できません: " + ex.Message;
+            if (!cancellation.IsCancellationRequested) { PreviewImage.Source = null; PreviewStatus.Text = "プレビューを表示できません: " + ex.Message; }
         }
         finally
         {
