@@ -62,6 +62,7 @@
     <PackageReference Include="Microsoft.WindowsAppSDK.InteractiveExperiences" Version="2.1.6" />
     <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="2.4.0" />
     <PackageReference Include="SharpCompress" Version="0.50.4" />
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <AssemblyMetadata Include="TaikoDiveGamePackageKey" Value="$(GamePackageKey)" />
     <AssemblyMetadata Include="TaikoDiveGamePackageKeyId" Value="$(GamePackageKeyId)" />
   </ItemGroup>

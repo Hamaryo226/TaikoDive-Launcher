@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
+using Windows.Storage.Streams;
 
 namespace TaikoDiveLauncher.Pages;
 
@@ -10,6 +12,9 @@ public sealed partial class HomePage : Page
 {
     private readonly GameSettingsStore _settingsStore = new();
     private readonly UserProfileStore _profileStore = new();
+    private readonly Character3DStore _characterStore = new();
+    private readonly Character3DPreviewService _characterPreview = new();
+    private CancellationTokenSource? _previewCancellation;
 
     private App AppInstance => (App)Application.Current;
 
@@ -17,6 +22,7 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += HomePage_Loaded;
+        Unloaded += (_, _) => _previewCancellation?.Cancel();
     }
 
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
@@ -26,6 +32,11 @@ public sealed partial class HomePage : Page
 
     private async Task RefreshAsync(bool showConfirmation = false)
     {
+        _previewCancellation?.Cancel();
+        _previewCancellation?.Dispose();
+        _previewCancellation = null;
+        DonPreviewImage.Source = null;
+        DonPreviewStatus.Text = string.Empty;
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         OpenFolderButton.IsEnabled = installation is not null;
         LaunchButton.IsEnabled = installation is not null;
@@ -52,6 +63,10 @@ public sealed partial class HomePage : Page
             UserProfile profile = profilesTask.Result[0];
             GameSettings settings = settingsTask.Result;
             PrimaryProfileText.Text = $"{profile.Name}  /  {profile.Title}";
+            await HomeNamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
+            await HomeNamePlatePreview.SetTextAsync(installation, profile.Name, profile.Title);
+            _previewCancellation = new CancellationTokenSource();
+            _ = LoadDonPreviewAsync(installation, _previewCancellation.Token);
             string windowMode = settings.FullScreen
                 ? "フルスクリーン"
                 : settings.BorderlessWindow ? "ボーダーレス" : "ウィンドウ";
@@ -70,6 +85,45 @@ public sealed partial class HomePage : Page
             PrimaryProfileText.Text = "読み取りエラー";
             GameSummaryText.Text = "読み取りエラー";
             ShowStatus(InfoBarSeverity.Error, ex.Message);
+        }
+    }
+
+    private async Task LoadDonPreviewAsync(TaikoDiveInstallation installation, CancellationToken cancellationToken)
+    {
+        DonPreviewBusy.IsActive = true;
+        DonPreviewBusy.Visibility = Visibility.Visible;
+        DonPreviewStatus.Text = "プレビューを作成しています…";
+        try
+        {
+            Character3DSettings saved = await _characterStore.LoadAsync(installation, 1);
+            byte[] png = await _characterPreview.RenderAsync(installation, saved, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            using InMemoryRandomAccessStream stream = new();
+            using (DataWriter writer = new(stream.GetOutputStreamAt(0)))
+            {
+                writer.WriteBytes(png);
+                await writer.StoreAsync();
+            }
+            stream.Seek(0);
+            BitmapImage image = new();
+            await image.SetSourceAsync(stream);
+            cancellationToken.ThrowIfCancellationRequested();
+            DonPreviewImage.Source = image;
+            DonPreviewStatus.Text = "1Pの保存済み衣装と色";
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+                DonPreviewStatus.Text = $"どんちゃんを表示できません: {ex.Message}";
+        }
+        finally
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                DonPreviewBusy.IsActive = false;
+                DonPreviewBusy.Visibility = Visibility.Collapsed;
+            }
         }
     }
 

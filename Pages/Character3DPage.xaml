@@ -5,6 +5,7 @@
  <Grid Padding="20" RowSpacing="12">
   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
   <StackPanel Spacing="4">
+   <Button Content="← プロフィールに戻る" Click="BackToProfile_Click" HorizontalAlignment="Left" />
    <TextBlock Text="どんちゃんの着せ替え" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap"/>
    <TextBlock Text="ユーザー別に3Dキャラの衣装と色を変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
    <CommandBar HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">

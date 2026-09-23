@@ -14,7 +14,7 @@ public sealed class UserProfile
 
     public bool IsConfigured { get; set; }
 
-    public string DisplayLabel => IsConfigured ? $"{Slot}P  {Name}" : $"{Slot}P  未設定";
+    public string DisplayLabel => IsConfigured ? $"{Slot}.  {Name}" : $"{Slot}.  未設定";
 }
 
 public sealed record StringOption(string Value, string Label);

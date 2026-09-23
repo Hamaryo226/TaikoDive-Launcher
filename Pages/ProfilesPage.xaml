@@ -32,7 +32,7 @@
                 HorizontalAlignment="Right"
                 Background="Transparent"
                 DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
+                <AppBarButton Click="ReloadButton_Click" Label="" Style="{StaticResource VisibleAppBarButtonStyle}" AutomationProperties.Name="再読み込み" ToolTipService.ToolTip="再読み込み">
                     <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
                 </AppBarButton>
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
@@ -60,7 +60,7 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock Margin="8,4" Text="プロフィール一覧" Style="{StaticResource FieldLabelStyle}" />
-                    <ListView
+                    <ListBox
                         x:Name="ProfileList"
                         Grid.Row="1"
                         MinHeight="220"
@@ -68,7 +68,7 @@
                         AutomationProperties.Name="ユーザープロフィール一覧"
                         SelectionChanged="ProfileList_SelectionChanged"
                         SelectionMode="Single">
-                        <ListView.ItemTemplate>
+                        <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="models:UserProfile">
                                 <TextBlock
                                     Padding="8,6"
@@ -76,8 +76,8 @@
                                     Text="{x:Bind DisplayLabel}"
                                     TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 
@@ -87,48 +87,21 @@
                 HorizontalScrollBarVisibility="Disabled"
                 VerticalScrollBarVisibility="Auto">
                 <StackPanel HorizontalAlignment="Stretch" Spacing="20">
-                    <TextBlock x:Name="SlotHeading" Text="1P USER" Style="{StaticResource SectionTitleStyle}" />
-
-                    <Grid x:Name="ProfileForm" ColumnSpacing="16" RowSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition x:Name="FormPrimaryColumn" Width="*" />
-                            <ColumnDefinition x:Name="FormSecondaryColumn" Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <TextBox x:Name="NameBox" Header="名前" MaxLength="32" PlaceholderText="どんちゃん" />
-                        <TextBox x:Name="TitleBox" Grid.Column="1" Header="称号" MaxLength="64" PlaceholderText="ドンだーデビュー" />
-                        <TextBlock Grid.Row="1" Text="衣装と色は「着せ替え」で変更できます。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        <ComboBox
-                            x:Name="NamePlateBox"
-                            Grid.Row="1"
-                            Grid.Column="1"
-                            Header="ネームプレート"
-                            DisplayMemberPath="Label"
-                            SelectedValuePath="Value"
-                            SelectionChanged="NamePlateBox_SelectionChanged" />
-                    </Grid>
-
-                    <Grid x:Name="PreviewGrid" ColumnSpacing="16" RowSpacing="16">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition x:Name="PreviewPrimaryColumn" Width="*" />
-                            <ColumnDefinition x:Name="PreviewSecondaryColumn" Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Border x:Name="NamePlatePreviewSurface" Grid.ColumnSpan="2" Style="{StaticResource QuietSurfaceStyle}">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="ネームプレート · アニメーション" Style="{StaticResource FieldLabelStyle}" />
-                                <controls:NamePlateAnimationView x:Name="NamePlatePreview" />
-                            </StackPanel>
-                        </Border>
-                    </Grid>
+                    <TextBlock x:Name="SlotHeading" Text="1. USER" Style="{StaticResource SectionTitleStyle}" />
+                    <StackPanel Spacing="12">
+                        <TextBox x:Name="NameBox" Header="名前" MaxLength="32" PlaceholderText="どんちゃん" TextChanged="ProfileText_Changed" />
+                        <TextBox x:Name="TitleBox" Header="称号" MaxLength="64" PlaceholderText="ドンだーデビュー" TextChanged="ProfileText_Changed" />
+                        <Button Content="このユーザーの着せ替えと色を変更" Click="EditCharacter_Click" HorizontalAlignment="Left" />
+                    </StackPanel>
+                    <Border Style="{StaticResource QuietSurfaceStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="ネームプレート · アニメーション" Style="{StaticResource FieldLabelStyle}" />
+                            <ComboBox x:Name="NamePlateBox" Header="ネームプレート" DisplayMemberPath="Label"
+                                      SelectedValuePath="Value" HorizontalAlignment="Stretch"
+                                      SelectionChanged="NamePlateBox_SelectionChanged" />
+                            <controls:NamePlateAnimationView x:Name="NamePlatePreview" />
+                        </StackPanel>
+                    </Border>
 
                     <Border Style="{StaticResource QuietSurfaceStyle}">
                         <Grid ColumnSpacing="20">
@@ -171,26 +144,6 @@
                             <Setter Target="ProfileList.MinHeight" Value="140" />
                             <Setter Target="EditorSurface.(Grid.Column)" Value="0" />
                             <Setter Target="EditorSurface.(Grid.Row)" Value="1" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-                <VisualStateGroup x:Name="FormWidthStates">
-                    <VisualState x:Name="FormWideState">
-                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="660" /></VisualState.StateTriggers>
-                    </VisualState>
-                    <VisualState x:Name="FormNarrowState">
-                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
-                        <VisualState.Setters>
-                            <Setter Target="FormPrimaryColumn.Width" Value="*" />
-                            <Setter Target="FormSecondaryColumn.Width" Value="0" />
-                            <Setter Target="TitleBox.(Grid.Column)" Value="0" />
-                            <Setter Target="TitleBox.(Grid.Row)" Value="1" />
-                            <Setter Target="NamePlateBox.(Grid.Column)" Value="0" />
-                            <Setter Target="NamePlateBox.(Grid.Row)" Value="3" />
-                            <Setter Target="PreviewPrimaryColumn.Width" Value="*" />
-                            <Setter Target="PreviewSecondaryColumn.Width" Value="0" />
-                            <Setter Target="NamePlatePreviewSurface.(Grid.Column)" Value="0" />
-                            <Setter Target="NamePlatePreviewSurface.(Grid.Row)" Value="1" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>

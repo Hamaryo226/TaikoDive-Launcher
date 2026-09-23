@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Globalization;
@@ -15,6 +16,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private Character3DSettings _settings = new();
     private bool _loading = true;
     private int _selectedSlot;
+    private int _requestedSlot = 1;
     private bool _changingUser;
     private string _colorTarget = "body";
     private bool _updatingPicker;
@@ -40,7 +42,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         colorContent.Children.Add(ColorPickerHeading); colorContent.Children.Add(ColorEditor);
         _colorFlyout.Content = colorContent;
         ColorEditor.ColorChanged += Picker_ColorChanged;
-        Loaded += async (_, _) => { _pageLoaded = true; await LoadAsync(); };
+        Loaded += async (_, _) => { _pageLoaded = true; await LoadAsync(_requestedSlot); };
         _animationTimer.Tick += (_, _) => ShowAnimationFrame();
         Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); _colorFlyout.Hide(); StopAnimation(); };
     }
@@ -166,6 +168,28 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
         }
         await LoadAsync(_selectedSlot);
+    }
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is int slot && slot is >= 1 and <= 9) _requestedSlot = slot;
+    }
+
+    private async void BackToProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (HasUnsavedChanges)
+        {
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot, Title = "変更を保存していません",
+                Content = "着せ替えと色の変更を破棄してプロフィールに戻りますか？",
+                PrimaryButtonText = "破棄して戻る", CloseButtonText = "編集に戻る",
+                DefaultButton = ContentDialogButton.Close,
+            };
+            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        }
+        Frame.Navigate(typeof(ProfilesPage), _selectedSlot);
     }
     private async void RestorePrevious_Click(object sender, RoutedEventArgs e)
     {
