@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Animation;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Pages;
 
@@ -7,8 +8,14 @@ namespace TaikoDiveLauncher;
 
 public sealed partial class MainPage : Page
 {
+    private static readonly string[] NavigationOrder =
+        ["home", "profiles", "songs", "input-settings", "settings", "launcher-settings"];
+
     private NavigationViewItem? _currentNavigationItem;
     private bool _suppressSelectionChanged;
+    private string _currentTag = "home";
+
+    public static MainPage? Current { get; private set; }
 
     public MainPage()
     {
@@ -19,6 +26,7 @@ public sealed partial class MainPage : Page
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
+        Current = this;
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
         ((App)Application.Current).Context.Updates.StateChanged += Updates_StateChanged;
         _suppressSelectionChanged = true;
@@ -32,6 +40,22 @@ public sealed partial class MainPage : Page
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)
     {
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
+        if (ReferenceEquals(Current, this))
+        {
+            Current = null;
+        }
+    }
+
+    public void NavigateTo(string tag)
+    {
+        NavigationViewItem? target = ShellNavigation.MenuItems
+            .Concat(ShellNavigation.FooterMenuItems)
+            .OfType<NavigationViewItem>()
+            .FirstOrDefault(item => item.Tag as string == tag);
+        if (target is not null)
+        {
+            ShellNavigation.SelectedItem = target;
+        }
     }
 
     private async void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -106,8 +130,14 @@ public sealed partial class MainPage : Page
 
         if (ContentFrame.CurrentSourcePageType != pageType)
         {
-            ContentFrame.Navigate(pageType);
+            SlideNavigationTransitionEffect effect =
+                Array.IndexOf(NavigationOrder, tag) >= Array.IndexOf(NavigationOrder, _currentTag)
+                    ? SlideNavigationTransitionEffect.FromRight
+                    : SlideNavigationTransitionEffect.FromLeft;
+            ContentFrame.Navigate(pageType, null, new SlideNavigationTransitionInfo { Effect = effect });
         }
+
+        _currentTag = tag;
     }
 
     private void Updates_StateChanged(object? sender, EventArgs e)
