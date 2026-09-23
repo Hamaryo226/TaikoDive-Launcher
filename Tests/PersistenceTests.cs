@@ -1006,8 +1006,10 @@ public sealed class PersistenceTests
             "Songs/09 段位道場.7z",
             AssetUpdatePathPolicy.NormalizeAndValidate("Songs/09 段位道場.7z"));
         Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/User.ini"));
-        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/Chara/Don/Chara.png"));
-        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("info/chara/Don/Chara.png"));
+        Assert.AreEqual("Info/Chara/Model/animations.glb", AssetUpdatePathPolicy.NormalizeAndValidate("Info/Chara/Model/animations.glb"));
+        Assert.AreEqual("info/chara/Model/body/0.glb", AssetUpdatePathPolicy.NormalizeAndValidate("info/chara/Model/body/0.glb"));
+        Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("Info/Chara3D.json"));
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdatePathPolicy.NormalizeAndValidate("Info/Chara3D.json"));
         Assert.ThrowsExactly<InvalidDataException>(() => AssetUpdatePathPolicy.NormalizeAndValidate("../outside.png"));
     }
 

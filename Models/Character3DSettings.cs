@@ -3,7 +3,7 @@ namespace TaikoDiveLauncher.Models;
 public sealed record Character3DSettings
 {
     public bool Enabled { get; set; } = true;
-    public string ModelsPath { get; set; } = "Models/Donchan";
+    public string ModelsPath { get; set; } = "Info/Chara/Model";
     public bool UseCostume { get; set; }
     public string Head { get; set; } = "0";
     public string Body { get; set; } = "0";

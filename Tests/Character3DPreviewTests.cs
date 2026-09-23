@@ -12,9 +12,9 @@ public class Character3DPreviewTests
     {
         string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var installation = new TaikoDiveInstallation(root);
-        var settings = new Character3DSettings { ModelsPath = "Info/Chara/Models", Head = "52", Body = "4", UseCostume = true, Costume = "123", BodyColor = "#123456", LimbsColor = "#ABCDEF", FaceColor = "#112233", RimColor = "#445566" };
+        var settings = new Character3DSettings { ModelsPath = "Info/Chara/Model", Head = "52", Body = "4", UseCostume = true, Costume = "123", BodyColor = "#123456", LimbsColor = "#ABCDEF", FaceColor = "#112233", RimColor = "#445566" };
         var request = JsonNode.Parse(Character3DPreviewService.CreateRequest(installation, settings))!;
-        Assert.AreEqual(Path.Combine(root, "Info", "Chara", "Models"), (string?)request["modelsPath"]);
+        Assert.AreEqual(Path.Combine(root, "Info", "Chara", "Model"), (string?)request["modelsPath"]);
         Assert.AreEqual("52", (string?)request["parts"]!["head"]);
         Assert.AreEqual("123", (string?)request["parts"]!["costume"]);
         Assert.IsTrue((bool)request["parts"]!["useCostume"]!);
