@@ -13,7 +13,7 @@ public sealed class Character3DStore
     internal Character3DStore(Func<bool> isRunning) => _isRunning = isRunning;
     public static string SettingsPath(TaikoDiveInstallation installation) => Path.Combine(installation.BuildDirectory, "Info", "Chara3D.json");
     public static string ModelRoot(TaikoDiveInstallation installation, string path) =>
-        Path.GetFullPath(string.IsNullOrWhiteSpace(path) ? "Models/Donchan" : path, installation.BuildDirectory);
+        Path.GetFullPath(string.IsNullOrWhiteSpace(path) ? "Info/Chara/Model" : path, installation.BuildDirectory);
 
     private static async Task<JsonObject> ReadAsync(string path) => File.Exists(path)
         ? JsonNode.Parse(await File.ReadAllTextAsync(path)) as JsonObject ?? throw new InvalidDataException("Chara3D.json の形式が正しくありません。")
@@ -39,7 +39,7 @@ public sealed class Character3DStore
         return new Character3DSettings
         {
             Enabled = true,
-            ModelsPath = (string?)root["modelsPath"] ?? "Models/Donchan",
+            ModelsPath = (string?)root["modelsPath"] ?? "Info/Chara/Model",
             UseCostume = (bool?)parts?["useCostume"] ?? false,
             Head = (string?)parts?["head"] ?? "0", Body = (string?)parts?["body"] ?? "0", Costume = (string?)parts?["costume"] ?? "0",
             BodyColor = NormalizeColor((string?)colors?["body"] ?? "#00A7BE"),
@@ -102,7 +102,7 @@ public sealed class Character3DStore
         string path = SettingsPath(installation);
         var root = await ReadAsync(path);
         if (userSlot.HasValue)
-            settings = settings with { ModelsPath = (string?)root["modelsPath"] ?? "Models/Donchan" };
+            settings = settings with { ModelsPath = (string?)root["modelsPath"] ?? "Info/Chara/Model" };
         foreach (string id in new[] { settings.Head, settings.Body, settings.Costume })
             if (!ValidId(id)) throw new InvalidDataException("衣装 ID が正しくありません。");
         string body = NormalizeColor(settings.BodyColor), limbs = NormalizeColor(settings.LimbsColor);
@@ -124,7 +124,7 @@ public sealed class Character3DStore
         }
         else
         {
-            root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? "Models/Donchan" : settings.ModelsPath.Trim();
+            root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? "Info/Chara/Model" : settings.ModelsPath.Trim();
         }
         root["enabled"] = true; // 以前の3D対応本体とも互換を保つ。
         var parts = GetOrCreateObject(target, "parts");

@@ -130,6 +130,7 @@ internal static class GameUpdatePathPolicy
     [
         "Setting.json",
         "Info/User.ini",
+        "Info/Chara3D.json",
         "TaikoDive.Launcher.exe",
         "Log.txt",
     ];
@@ -183,13 +184,13 @@ internal static class AssetUpdatePathPolicy
     [
         "Setting.json",
         "Info/User.ini",
+        "Info/Chara3D.json",
         "TaikoDive.Launcher.exe",
         "Log.txt",
     ];
 
     private static readonly string[] ProtectedDirectories =
     [
-        "Info/Chara/",
         "Info/ScoreData/",
         "Info/TaikoDiveLauncher/",
         "Replay/",

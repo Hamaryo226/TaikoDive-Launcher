@@ -6,7 +6,7 @@
 
 - `src/`自体は含めず、その中の相対パスをTaikoDiveの`build/`直下へ適用する
 - 例: `src/Texture/Title.png` → `build/Texture/Title.png`
-- `src/Info/Chara/`以下、`src/Info/User.ini`、`Setting.json`、スコア、リプレイ、スクリーンショット、ログ、ランチャー本体はパッケージから除外する
+- `src/Info/Chara/`以下は配布して上書きする。`src/Info/Chara3D.json`、`src/Info/User.ini`、`Setting.json`、スコア、リプレイ、スクリーンショット、ログ、ランチャー本体はパッケージから除外する
 - Assetリポジトリが管理する`src/Songs/`内の公式ファイルは`build/Songs/`へ適用するが、それ以外の既存曲ファイルは削除しない
 - 更新時は内部マニフェストと`build/Texture/`、`build/Sound/`を比較し、Assetリポジトリに存在しないファイルをバックアップ後に削除する
 - `build/Songs/`と`build/Info/`は比較・削除の対象にしない

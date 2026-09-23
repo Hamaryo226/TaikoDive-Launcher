@@ -36,7 +36,7 @@ public sealed class Character3DTests
         Assert.AreEqual("3", savedFirst.Head); Assert.AreEqual("#ABCDEF", savedFirst.BodyColor);
         Assert.AreEqual("8", ninth.Costume); Assert.AreEqual("#FEDCBA", ninth.LimbsColor);
         Assert.AreEqual("7", untouched.Head); Assert.AreEqual("#123456", untouched.BodyColor);
-        Assert.IsTrue(savedFirst.Enabled); Assert.AreEqual("Models/Donchan", savedFirst.ModelsPath);
+        Assert.IsTrue(savedFirst.Enabled); Assert.AreEqual("Info/Chara/Model", savedFirst.ModelsPath);
         await store.SaveAsync(_installation, new() { BodyColor = "#101010" });
         Assert.AreEqual("#ABCDEF", (await store.LoadAsync(_installation, 1)).BodyColor);
         Assert.AreEqual("#101010", (await store.LoadAsync(_installation, 2)).BodyColor);
@@ -81,7 +81,7 @@ public sealed class Character3DTests
     [TestCleanup] public void Cleanup() => Directory.Delete(_root, true);
     private void Asset(string file)
     {
-        string path = Path.Combine(_root, "Models", "Donchan", file);
+        string path = Path.Combine(_root, "Info", "Chara", "Model", file);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, [0]);
     }
 
@@ -130,7 +130,7 @@ public sealed class Character3DTests
     [TestMethod] public void CatalogUsesExistingFilesNamesAndMissingSelection()
     {
         Asset("head/0.glb"); Asset("head/3.glb"); Asset("head/invalid.glb");
-        string root = Character3DStore.ModelRoot(_installation, "Models/Donchan");
+        string root = Character3DStore.ModelRoot(_installation, "Info/Chara/Model");
         File.WriteAllText(Path.Combine(root, "costume_names.json"), "{\"head\":{\"3\":{\"name\":\"ねこ\"},\"4\":{\"name\":\"未導入\"}}}");
         var list = new Character3DStore(() => false).GetOptions(root, "head", "9");
         Assert.AreEqual(13, list.Count);

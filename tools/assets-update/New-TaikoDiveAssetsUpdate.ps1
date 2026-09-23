@@ -73,11 +73,11 @@ $payloadPath = Join-Path $temporaryRoot 'payload.bin'
 $protectedFiles = @(
     'Setting.json',
     'Info/User.ini',
+    'Info/Chara3D.json',
     'TaikoDive.Launcher.exe',
     'Log.txt'
 )
 $protectedPrefixes = @(
-    'Info/Chara/',
     'Info/ScoreData/',
     'Info/TaikoDiveLauncher/',
     'Replay/',

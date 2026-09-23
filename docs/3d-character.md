@@ -32,7 +32,7 @@
 ```json
 {
   "enabled": true,
-  "modelsPath": "Models/Donchan",
+  "modelsPath": "Info/Chara/Model",
   "parts": { "useCostume": false, "head": "0", "body": "0", "costume": "0" },
   "colors": { "body": "#00A7BE", "limbs": "#FFF6DE", "face": "#FF4125", "rim": "#FFF6DE" },
   "users": {
