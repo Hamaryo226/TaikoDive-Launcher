@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text.Json;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -8,6 +9,7 @@ using TaikoDiveLauncher.Services;
 using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
+using Windows.Storage.Streams;
 
 namespace TaikoDiveLauncher.Controls;
 
@@ -19,6 +21,10 @@ public sealed partial class NamePlateAnimationView : UserControl
     private readonly List<VisualElement> _visuals = [];
     private Aup2Animation? _animation;
     private int _loadVersion;
+    private int _textVersion;
+    private NamePlateTextBitmap? _nameBitmap;
+    private NamePlateTextBitmap? _titleBitmap;
+    private string? _loadedBasePath;
 
     public NamePlateAnimationView()
     {
@@ -37,11 +43,23 @@ public sealed partial class NamePlateAnimationView : UserControl
         AnimationStage.Children.Clear();
         EmptyMessage.Visibility = Visibility.Collapsed;
 
+        string baseSheetPath = Path.Combine(installation.BuildDirectory, "Texture", "NamePlate", "0.png");
+        if (File.Exists(baseSheetPath) && _loadedBasePath != baseSheetPath)
+        {
+            var layers = await Task.Run(() => NamePlateTextRenderer.RenderBaseLayers(baseSheetPath));
+            if (loadVersion != _loadVersion) return;
+            BackgroundImage.Source = await DecodePngAsync(layers.Background);
+            if (loadVersion != _loadVersion) return;
+            PlayerNumberImage.Source = await DecodePngAsync(layers.Number);
+            _loadedBasePath = baseSheetPath;
+        }
+
         string plateDirectory = Path.Combine(installation.NamePlateDirectory, namePlateType.ToString("00"));
         if (!Directory.Exists(plateDirectory))
         {
             plateDirectory = Path.Combine(installation.NamePlateDirectory, namePlateType.ToString());
         }
+        ApplyPlatePosition(plateDirectory);
 
         string animationPath = Path.Combine(plateDirectory, "Anime.aup2");
         if (File.Exists(animationPath))
@@ -67,6 +85,36 @@ public sealed partial class NamePlateAnimationView : UserControl
         }
 
         EmptyMessage.Visibility = Visibility.Visible;
+    }
+
+    public async Task SetTextAsync(TaikoDiveInstallation installation, string name, string title)
+    {
+        int version = ++_textVersion;
+        var rendered = await Task.Run(() => NamePlateTextRenderer.Render(installation, name, title));
+        if (version != _textVersion) return;
+        BitmapImage nameSource = await DecodePngAsync(rendered.Name.Png);
+        if (version != _textVersion) return;
+        BitmapImage titleSource = await DecodePngAsync(rendered.Title.Png);
+        if (version != _textVersion) return;
+        _nameBitmap = rendered.Name;
+        _titleBitmap = rendered.Title;
+        NameImage.Source = nameSource;
+        TitleImage.Source = titleSource;
+        PlaceText();
+    }
+
+    private static async Task<BitmapImage> DecodePngAsync(byte[] png)
+    {
+        using InMemoryRandomAccessStream stream = new();
+        using (DataWriter writer = new(stream.GetOutputStreamAt(0)))
+        {
+            writer.WriteBytes(png);
+            await writer.StoreAsync();
+        }
+        stream.Seek(0);
+        BitmapImage image = new();
+        await image.SetSourceAsync(stream);
+        return image;
     }
 
     private async Task ShowAnimationAsync(Aup2Animation animation, int loadVersion)
@@ -153,6 +201,45 @@ public sealed partial class NamePlateAnimationView : UserControl
         AnimationStage.Clip = new RectangleGeometry { Rect = new Rect(0, 0, width, height) };
     }
 
+    private void ApplyPlatePosition(string plateDirectory)
+    {
+        double adjustX = 0, adjustY = 0;
+        string configPath = Path.Combine(plateDirectory, "PlateConfig.json");
+        if (File.Exists(configPath))
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(File.ReadAllText(configPath));
+                JsonElement root = document.RootElement;
+                if (root.TryGetProperty("adjustX", out JsonElement x)) adjustX = x.GetDouble();
+                if (root.TryGetProperty("adjustY", out JsonElement y)) adjustY = y.GetDouble();
+            }
+            catch (JsonException) { }
+        }
+        AnimationStage.Margin = new Thickness(19 + adjustX, 52 + adjustY, 0, 0);
+    }
+
+    private void PlaceText()
+    {
+        // 本体の tDrawNamePlateCore の配置値。帯の左上をプレビュー中央へ合わせる。
+        double originX = 7;
+        double originY = 0;
+        if (_nameBitmap is { } name)
+        {
+            NameImage.Width = name.Width * name.ScaleX;
+            NameImage.Height = name.Height;
+            Canvas.SetLeft(NameImage, originX + 181 - (int)(NameImage.Width / 2));
+            Canvas.SetTop(NameImage, originY + 56);
+        }
+        if (_titleBitmap is { } title)
+        {
+            TitleImage.Width = title.Width * title.ScaleX;
+            TitleImage.Height = title.Height * title.ScaleY;
+            Canvas.SetLeft(TitleImage, originX + 185 - (int)(TitleImage.Width / 2));
+            Canvas.SetTop(TitleImage, originY + 52 - TitleImage.Height / 2);
+        }
+    }
+
     private void Start()
     {
         if (!IsLoaded || _animation is null)
@@ -173,10 +260,16 @@ public sealed partial class NamePlateAnimationView : UserControl
     private void ReleasePreview()
     {
         _loadVersion++;
+        _textVersion++;
         Stop();
         _animation = null;
         _visuals.Clear();
         AnimationStage.Children.Clear();
+        NameImage.Source = null;
+        TitleImage.Source = null;
+        BackgroundImage.Source = null;
+        PlayerNumberImage.Source = null;
+        _loadedBasePath = null;
     }
 
     private void Timer_Tick(object? sender, object e)

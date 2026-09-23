@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 
@@ -13,6 +14,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
     private bool _updatingEditor;
     private bool _restoringProfileSelection;
     private UserProfile? _activeProfile;
+    private int _requestedSlot = 1;
 
     public bool HasUnsavedChanges => _activeProfile is not null
         && (NameBox.Text != _activeProfile.Name
@@ -30,9 +32,15 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         Unloaded += ProfilesPage_Unloaded;
     }
 
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        if (e.Parameter is int slot && slot is >= 1 and <= 9) _requestedSlot = slot;
+    }
+
     private async void ProfilesPage_Loaded(object sender, RoutedEventArgs e)
     {
-        await ReloadAsync();
+        await ReloadAsync(_requestedSlot);
     }
 
     private void ProfilesPage_Unloaded(object sender, RoutedEventArgs e)
@@ -98,13 +106,14 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
 
         _activeProfile = profile;
         _updatingEditor = true;
-        SlotHeading.Text = $"{profile.Slot}P USER";
+        SlotHeading.Text = $"{profile.Slot}. USER";
         NameBox.Text = profile.Name;
         TitleBox.Text = profile.Title;
         NamePlateBox.ItemsSource = _profileStore.GetNamePlateOptions(installation, profile.NamePlateType);
         NamePlateBox.SelectedValue = profile.NamePlateType;
         _updatingEditor = false;
         await NamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
+        await UpdateNamePlateTextAsync(installation);
 
         _statisticsCancellation?.Cancel();
         _statisticsCancellation?.Dispose();
@@ -145,6 +154,25 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         {
             await NamePlatePreview.ShowNamePlateAsync(installation, plateType);
         }
+    }
+
+    private async void ProfileText_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_updatingEditor || NamePlatePreview is null || AppInstance.Context.Installation is not { } installation) return;
+        await UpdateNamePlateTextAsync(installation);
+    }
+
+    private async Task UpdateNamePlateTextAsync(TaikoDiveInstallation installation)
+    {
+        try { await NamePlatePreview.SetTextAsync(installation, NameBox.Text, TitleBox.Text); }
+        catch (Exception ex) { ShowStatus(InfoBarSeverity.Error, $"ネームプレートの文字を描画できません: {ex.Message}"); }
+    }
+
+    private async void EditCharacter_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProfileList.SelectedItem is not UserProfile profile) return;
+        if (HasUnsavedChanges && !await ConfirmDiscardChangesAsync()) return;
+        Frame.Navigate(typeof(Character3DPage), profile.Slot);
     }
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)

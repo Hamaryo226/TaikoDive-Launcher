@@ -97,7 +97,6 @@ public sealed partial class MainPage : Page
         Type pageType = tag switch
         {
             "profiles" => typeof(ProfilesPage),
-            "character-3d" => typeof(Character3DPage),
             "songs" => typeof(SongsPage),
             "input-settings" => typeof(InputSettingsPage),
             "settings" => typeof(LaunchSettingsPage),
