@@ -27,6 +27,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
 
     private readonly GameSettingsStore _settingsStore = new();
     private GameSettings? _loadedSettings;
+    private bool _updatingControls;
 
     public bool HasUnsavedChanges => _loadedSettings is not null
         && !SettingsEqual(_loadedSettings, ReadSettings());
@@ -38,7 +39,67 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     public LaunchSettingsPage()
     {
         InitializeComponent();
+        RegisterLiveFeedbackHandlers();
         Loaded += LaunchSettingsPage_Loaded;
+    }
+
+    private void RegisterLiveFeedbackHandlers()
+    {
+        foreach (ToggleSwitch toggle in new[]
+        {
+            FullScreenSwitch, BorderlessSwitch, VerticalSyncSwitch, TitleShowSwitch,
+            CollaboBackSwitch, GuestModeSwitch, TwoPlayerModeSwitch, SaveReplaySwitch,
+            FreePlaySwitch, CompressedSoundSwitch, Texture16BitSwitch, BgTexture16BitSwitch,
+        })
+        {
+            toggle.Toggled += (_, _) => UpdateLiveSettingsSummary();
+        }
+
+        foreach (ComboBox combo in new[] { ResolutionBox, BackgroundMovieLayoutBox, SoundTypeBox })
+        {
+            combo.SelectionChanged += (_, _) => UpdateLiveSettingsSummary();
+        }
+
+        foreach (Slider slider in new[] { MasterVolumeSlider, MusicVolumeSlider, SoundEffectVolumeSlider })
+        {
+            slider.ValueChanged += (_, _) => UpdateLiveSettingsSummary();
+        }
+
+        foreach (NumberBox number in new[] { SoundBufferBox, OnlinePortBox })
+        {
+            number.ValueChanged += (_, _) => UpdateLiveSettingsSummary();
+        }
+
+        foreach (TextBox box in new[]
+        {
+            FontOedoBox, FontDFGothicBox, FontSeuratBox, FontDomCasualBox,
+            FontFallbackBox, LastJoinAddressBox,
+        })
+        {
+            box.TextChanged += (_, _) => UpdateLiveSettingsSummary();
+        }
+    }
+
+    private void UpdateLiveSettingsSummary()
+    {
+        if (_updatingControls)
+        {
+            return;
+        }
+
+        if (_loadedSettings is null)
+        {
+            LiveSettingsSummaryText.Text = "設定を読み込むと、変更内容をここで確認できます。";
+            return;
+        }
+
+        GameSettings settings = ReadSettings();
+        string displayMode = settings.FullScreen ? "全画面" : settings.BorderlessWindow ? "ボーダーレス" : "ウィンドウ";
+        string resolution = ResolutionBox.SelectedItem is ResolutionOption selected
+            ? selected.Label
+            : $"幅 {settings.ScreenWidth}px";
+        string saveState = SettingsEqual(_loadedSettings, settings) ? "保存済み" : "未保存";
+        LiveSettingsSummaryText.Text = $"{displayMode} · {resolution} · 音量 {settings.MasterVolume}% / {settings.MusicVolume}% / {settings.SoundEffectVolume}% · {saveState}";
     }
 
     private async void LaunchSettingsPage_Loaded(object sender, RoutedEventArgs e)
@@ -53,12 +114,15 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         if (installation is null)
         {
+            _loadedSettings = null;
             SetSettingsEnabled(false);
+            UpdateLiveSettingsSummary();
             ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 
         SetBusy(true);
+        _updatingControls = true;
         try
         {
             GameSettings settings = await _settingsStore.LoadAsync(installation);
@@ -102,11 +166,14 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         }
         catch (Exception ex)
         {
+            _loadedSettings = null;
             SetSettingsEnabled(false);
             ShowStatus(InfoBarSeverity.Error, ex.Message);
         }
         finally
         {
+            _updatingControls = false;
+            UpdateLiveSettingsSummary();
             SetBusy(false);
         }
     }
@@ -126,6 +193,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         {
             await _settingsStore.SaveAsync(installation, settings);
             _loadedSettings = settings;
+            UpdateLiveSettingsSummary();
             ShowStatus(InfoBarSeverity.Success, "起動構成を保存しました。変更は次回のゲーム起動から反映されます。");
         }
         catch (Exception ex)

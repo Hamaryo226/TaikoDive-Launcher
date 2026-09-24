@@ -14,6 +14,7 @@
         <StackPanel Spacing="6">
             <TextBlock Text="ランチャー設定" Style="{StaticResource PageTitleStyle}" />
             <TextBlock Text="表示テーマとTaikoDive起動後の動作を設定します。" Style="{StaticResource PageSubtitleStyle}" />
+            <TextBlock x:Name="LauncherPreferenceSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
         </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />

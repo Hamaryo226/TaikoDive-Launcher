@@ -234,12 +234,18 @@
                             </AppBarButton>
                         </CommandBar>
                     </Grid>
-                    <TextBlock
-                        x:Name="SongOrderSummaryText"
-                        Grid.Row="1"
-                        Style="{StaticResource PageSubtitleStyle}"
-                        Text="ジャンルを選択してください。"
-                        TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="1" Spacing="4">
+                        <TextBlock
+                            x:Name="SongOrderSummaryText"
+                            Style="{StaticResource PageSubtitleStyle}"
+                            Text="ジャンルを選択してください。"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="SelectedSongText"
+                            Style="{StaticResource FieldLabelStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+                    </StackPanel>
                     <Grid Grid.Row="2">
                         <ListView
                             x:Name="SongOrderList"

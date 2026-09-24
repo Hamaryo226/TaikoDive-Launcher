@@ -8,6 +8,7 @@
    <Button Content="← プロフィールに戻る" Click="BackToProfile_Click" HorizontalAlignment="Left" />
    <TextBlock Text="どんちゃんの着せ替え" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap"/>
    <TextBlock Text="ユーザー別に3Dキャラの衣装と色を変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
+   <TextBlock x:Name="EditStateText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
    <CommandBar HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">
     <AppBarButton x:Name="SaveButton" Icon="Save" Label="保存" Click="Save_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
     <AppBarButton Icon="Refresh" Label="保存済みに戻す" Click="Reload_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>

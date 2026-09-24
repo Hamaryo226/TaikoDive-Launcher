@@ -279,6 +279,10 @@ public sealed partial class SongsPage : Page
         bool canMove = !_isBusy && !_isLoadingSongs;
         MoveSongUpButton.IsEnabled = canMove && selectedIndex > 0;
         MoveSongDownButton.IsEnabled = canMove && selectedIndex >= 0 && selectedIndex < _songs.Count - 1;
+        SelectedSongText.Visibility = selectedIndex >= 0 ? Visibility.Visible : Visibility.Collapsed;
+        SelectedSongText.Text = selectedIndex >= 0
+            ? $"選択中: {selectedIndex + 1}/{_songs.Count}曲目 · {_songs[selectedIndex].RelativePath}"
+            : string.Empty;
     }
 
     private void QueueSongOrderSave()

@@ -81,6 +81,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         if (installation is null)
         {
             SetEnabled(false);
+            BindingSummaryText.Text = "入力を編集するにはゲームの配置を確認してください。";
             ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
@@ -97,6 +98,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         catch (Exception ex)
         {
             SetEnabled(false);
+            BindingSummaryText.Text = "入力設定を読み込めませんでした。";
             ShowStatus(InfoBarSeverity.Error, ex.Message);
         }
         finally
@@ -118,6 +120,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         {
             await _store.SaveAsync(installation, _bindings);
             HasUnsavedChanges = false;
+            UpdateBindingSummary();
             ShowStatus(InfoBarSeverity.Success, "入力設定を保存しました。次回のTaikoDive起動から反映されます。");
         }
         catch (Exception ex)
@@ -279,8 +282,8 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
             return;
         }
 
-        RefreshRows();
         HasUnsavedChanges = true;
+        RefreshRows();
         ShowStatus(
             InfoBarSeverity.Informational,
             $"{selected.Label} を1件削除しました。ほかの割り当ては保持しています。保存すると反映されます。");
@@ -331,8 +334,8 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
 
         PlayerInputBindings player = GetPlayer(row.Player);
         InputBindingsEditor.AddKeyboard(player, row.Slot, keyCode);
-        RefreshRows();
         HasUnsavedChanges = true;
+        RefreshRows();
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.KeyLabel(keyCode)} を追加しました。保存すると反映されます。");
     }
 
@@ -346,8 +349,8 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
 
         PlayerInputBindings player = GetPlayer(row.Player);
         InputBindingsEditor.AddController(player, row.Slot, input);
-        RefreshRows();
         HasUnsavedChanges = true;
+        RefreshRows();
         ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.ControllerLabel(input)} を追加しました。保存すると反映されます。");
     }
 
@@ -378,6 +381,20 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
             row.HasKeyboardBindings = keys.Length > 0;
             row.HasControllerBindings = controllers.Length > 0;
         }
+
+        UpdateBindingSummary();
+    }
+
+    private void UpdateBindingSummary()
+    {
+        static string DescribePlayer(PlayerInputBindings player, int number)
+        {
+            int keyboard = Enumerable.Range(0, 4).Sum(slot => player.GetKeys(slot).Length);
+            int controller = Enumerable.Range(0, 4).Sum(slot => player.GetControllers(slot).Length);
+            return $"{number}P: キー{keyboard}件・コントローラー{controller}件";
+        }
+
+        BindingSummaryText.Text = $"{DescribePlayer(_bindings.Player1, 1)} / {DescribePlayer(_bindings.Player2, 2)} · {(HasUnsavedChanges ? "未保存" : "保存済み")}";
     }
 
     private void RefreshControllerStatus()
