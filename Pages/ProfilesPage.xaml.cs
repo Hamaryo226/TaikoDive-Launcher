@@ -56,6 +56,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         {
             ProfileList.ItemsSource = null;
             SetEditorEnabled(false);
+            EditFeedbackText.Text = "プロフィールを表示するにはゲームの配置を確認してください。";
             ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
@@ -73,6 +74,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         catch (Exception ex)
         {
             SetEditorEnabled(false);
+            EditFeedbackText.Text = "プロフィールを読み込めませんでした。";
             ShowStatus(InfoBarSeverity.Error, ex.Message);
         }
         finally
@@ -112,6 +114,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         NamePlateBox.ItemsSource = _profileStore.GetNamePlateOptions(installation, profile.NamePlateType);
         NamePlateBox.SelectedValue = profile.NamePlateType;
         _updatingEditor = false;
+        UpdateEditFeedback();
         await NamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
         await UpdateNamePlateTextAsync(installation);
 
@@ -152,6 +155,7 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
 
         if (NamePlateBox.SelectedValue is int plateType && AppInstance.Context.Installation is { } installation)
         {
+            UpdateEditFeedback();
             await NamePlatePreview.ShowNamePlateAsync(installation, plateType);
         }
     }
@@ -159,7 +163,15 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
     private async void ProfileText_Changed(object sender, TextChangedEventArgs e)
     {
         if (_updatingEditor || NamePlatePreview is null || AppInstance.Context.Installation is not { } installation) return;
+        UpdateEditFeedback();
         await UpdateNamePlateTextAsync(installation);
+    }
+
+    private void UpdateEditFeedback()
+    {
+        EditFeedbackText.Text = _activeProfile is null
+            ? "プロフィールを選択してください。"
+            : $"ユーザー {_activeProfile.Slot} · 名前 {NameBox.Text.Length}/32文字 · 称号 {TitleBox.Text.Length}/64文字 · {(HasUnsavedChanges ? "未保存" : "保存済み")}";
     }
 
     private async Task UpdateNamePlateTextAsync(TaikoDiveInstallation installation)

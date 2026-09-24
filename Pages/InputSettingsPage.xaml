@@ -105,6 +105,7 @@
                 <TextBlock
                     Text="TaikoDiveで叩くキーと外部コントローラー入力を割り当てます。"
                     Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="BindingSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">

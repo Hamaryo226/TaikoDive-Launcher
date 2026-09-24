@@ -1,8 +1,5 @@
 {
   "profiles": {
-    "TaikoDiveLauncher (Package)": {
-      "commandName": "MsixPackage"
-    },
     "TaikoDiveLauncher (Unpackaged)": {
       "commandName": "Project"
     }

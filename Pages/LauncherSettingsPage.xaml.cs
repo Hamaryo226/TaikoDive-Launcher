@@ -74,6 +74,7 @@ public sealed partial class LauncherSettingsPage : Page
 
         bool previousValue = AppInstance.Context.Preferences.CloseAfterLaunch;
         AppInstance.Context.Preferences.CloseAfterLaunch = CloseAfterLaunchSwitch.IsOn;
+        UpdatePreferencesSummary();
         try
         {
             await AppInstance.Context.SavePreferencesAsync();
@@ -85,6 +86,7 @@ public sealed partial class LauncherSettingsPage : Page
             _isLoading = true;
             CloseAfterLaunchSwitch.IsOn = previousValue;
             _isLoading = false;
+            UpdatePreferencesSummary();
             ShowStatus(InfoBarSeverity.Error, $"起動動作を保存できませんでした: {ex.Message}");
         }
     }
@@ -101,6 +103,18 @@ public sealed partial class LauncherSettingsPage : Page
             : "ダークモード。ホワイトモードへ切り替え";
         AutomationProperties.SetName(ThemeToggleButton, accessibleName);
         ToolTipService.SetToolTip(ThemeToggleButton, accessibleName);
+        UpdatePreferencesSummary();
+    }
+
+    private void UpdatePreferencesSummary()
+    {
+        string theme = string.Equals(AppInstance.Context.Preferences.Theme, "Light", StringComparison.OrdinalIgnoreCase)
+            ? "ライト"
+            : "ダーク";
+        string afterLaunch = AppInstance.Context.Preferences.CloseAfterLaunch
+            ? "ゲーム起動後に終了"
+            : "ゲーム中もランチャーを表示";
+        LauncherPreferenceSummaryText.Text = $"現在: {theme} · {afterLaunch}（変更時に保存）";
     }
 
     private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)

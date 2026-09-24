@@ -25,6 +25,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="プロフィール" Style="{StaticResource PageTitleStyle}" />
                 <TextBlock Text="ユーザーを選び、名前・称号・ネームプレートを編集します。" Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="EditFeedbackText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar
                 x:Name="ProfileCommandBar"

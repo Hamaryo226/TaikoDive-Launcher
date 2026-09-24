@@ -24,6 +24,7 @@
                 <TextBlock
                     Text="TaikoDiveの画面・サウンド・読み込み設定を編集します。"
                     Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">

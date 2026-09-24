@@ -78,7 +78,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             Editor.IsEnabled = true; SaveButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { _loading = false; }
+        finally { _loading = false; UpdateEditState(); }
         if (Editor.IsEnabled) QueuePreview();
     }
 
@@ -122,7 +122,14 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         UpdateIcons();
     }
 
-    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; QueuePreview(); } }
+    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; UpdateEditState(); QueuePreview(); } }
+    private void UpdateEditState()
+    {
+        string user = _selectedSlot == 0 ? "共通設定" : $"ユーザー {_selectedSlot}";
+        EditStateText.Text = Editor.IsEnabled
+            ? $"{user} · {(HasUnsavedChanges ? "未保存の変更あり" : "保存済み")} · プレビューは操作に合わせて更新"
+            : "設定を読み込めませんでした。";
+    }
     private void ModeChanged(object sender, RoutedEventArgs e) { if (HeadBox is null) return; UpdateMode(); Changed(sender, e); }
     private void UpdateMode()
     {
@@ -158,7 +165,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             StatusBar.Severity = InfoBarSeverity.Success; StatusBar.Message = "保存しました。次回のゲーム起動から反映されます。"; StatusBar.IsOpen = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; }
+        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; UpdateEditState(); }
     }
     private async void Reload_Click(object sender, RoutedEventArgs e)
     {
