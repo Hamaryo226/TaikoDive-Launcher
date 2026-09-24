@@ -3,6 +3,7 @@
     x:Class="TaikoDiveLauncher.Pages.LaunchSettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:TaikoDiveLauncher.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -25,6 +26,7 @@
                     Text="TaikoDiveの画面・サウンド・読み込み設定を編集します。"
                     Style="{StaticResource PageSubtitleStyle}" />
                 <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
+                <controls:PageNavigationBar Margin="0,8,0,0" CurrentTag="settings" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">

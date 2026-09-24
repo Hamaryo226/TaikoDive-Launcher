@@ -1,13 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.Storage.Streams;
-using Windows.System;
-using Windows.UI.ViewManagement;
 
 namespace TaikoDiveLauncher.Pages;
 
@@ -17,9 +13,6 @@ public sealed partial class HomePage : Page
     private readonly Character3DStore _characterStore = new();
     private readonly Character3DPreviewService _characterPreview = new();
     private CancellationTokenSource? _previewCancellation;
-    private readonly UISettings _uiSettings = new();
-    private readonly DispatcherTimer _comboResetTimer = new() { Interval = TimeSpan.FromSeconds(1.5) };
-    private int _combo;
 
     private App AppInstance => (App)Application.Current;
 
@@ -27,13 +20,7 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += HomePage_Loaded;
-        Unloaded += (_, _) =>
-        {
-            _previewCancellation?.Cancel();
-            _comboResetTimer.Stop();
-        };
-        KeyDown += HomePage_KeyDown;
-        _comboResetTimer.Tick += ComboResetTimer_Tick;
+        Unloaded += (_, _) => _previewCancellation?.Cancel();
     }
 
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
@@ -153,7 +140,6 @@ public sealed partial class HomePage : Page
 
     private async void LaunchButton_Click(object sender, RoutedEventArgs e)
     {
-        HitDrum(isDon: true);
         OperationResult result = AppInstance.Context.LaunchGame();
         if (!result.Succeeded)
         {
@@ -180,83 +166,6 @@ public sealed partial class HomePage : Page
         {
             MainPage.Current?.NavigateTo(tag);
         }
-    }
-
-    private void LaunchButton_PointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        PlayStoryboard("DonHitStoryboard");
-    }
-
-    private void DrumFace_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        e.Handled = true;
-        DrumArea.Focus(FocusState.Pointer);
-        HitDrum(isDon: true);
-    }
-
-    private void DrumRim_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        e.Handled = true;
-        DrumArea.Focus(FocusState.Pointer);
-        HitDrum(isDon: false);
-    }
-
-    private void HomePage_KeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (e.KeyStatus.WasKeyDown)
-        {
-            return;
-        }
-
-        bool drumFocused = ReferenceEquals(e.OriginalSource, DrumArea);
-        switch (e.Key)
-        {
-            case VirtualKey.Space or VirtualKey.Enter when drumFocused:
-            case VirtualKey.F:
-            case VirtualKey.J:
-                HitDrum(isDon: true);
-                e.Handled = true;
-                break;
-            case VirtualKey.D:
-            case VirtualKey.K:
-                HitDrum(isDon: false);
-                e.Handled = true;
-                break;
-        }
-    }
-
-    private void HitDrum(bool isDon)
-    {
-        PlayStoryboard(isDon ? "DonHitStoryboard" : "KaHitStoryboard");
-        _combo++;
-        _comboResetTimer.Stop();
-        _comboResetTimer.Start();
-        if (_combo < 2)
-        {
-            return;
-        }
-
-        ComboText.Text = $"{_combo} コンボ";
-        ComboText.Opacity = 1;
-        PlayStoryboard("ComboPopStoryboard");
-    }
-
-    private void ComboResetTimer_Tick(object? sender, object e)
-    {
-        _comboResetTimer.Stop();
-        _combo = 0;
-        ComboText.Opacity = 0;
-    }
-
-    private void PlayStoryboard(string key)
-    {
-        if (!_uiSettings.AnimationsEnabled || Resources[key] is not Storyboard storyboard)
-        {
-            return;
-        }
-
-        storyboard.Stop();
-        storyboard.Begin();
     }
 
     private void SetHeroStatus(bool ready, string text)

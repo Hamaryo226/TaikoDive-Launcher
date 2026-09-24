@@ -3,6 +3,7 @@
     x:Class="TaikoDiveLauncher.Pages.InputSettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:TaikoDiveLauncher.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:models="using:TaikoDiveLauncher.Models"
@@ -106,6 +107,7 @@
                     Text="TaikoDiveで叩くキーと外部コントローラー入力を割り当てます。"
                     Style="{StaticResource PageSubtitleStyle}" />
                 <TextBlock x:Name="BindingSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
+                <controls:PageNavigationBar Margin="0,8,0,0" CurrentTag="input-settings" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
