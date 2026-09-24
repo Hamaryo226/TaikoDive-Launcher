@@ -24,3 +24,5 @@ public sealed record IntOption(int Value, string Label);
 public sealed record ResolutionOption(int Width, string Label);
 
 public sealed record UserStatistics(int ScoreCount, int ReplayCount, string FolderPath);
+
+public sealed record RecentSong(string Title, DateTime PlayedAt);
