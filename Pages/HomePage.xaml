@@ -485,10 +485,7 @@
                                 TextAlignment="Center"
                                 TextWrapping="Wrap" />
                         </Grid>
-                        <controls:NamePlateAnimationView
-                            x:Name="HomeNamePlatePreview"
-                            Grid.Row="2"
-                            HorizontalAlignment="Center" />
+                        <controls:NamePlateAnimationView x:Name="HomeNamePlatePreview" Grid.Row="2" />
                     </Grid>
                 </Border>
 
