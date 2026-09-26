@@ -9,10 +9,22 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <Page.Resources>
+        <Storyboard x:Name="HeroGradientAnimation">
+            <DoubleAnimation
+                Storyboard.TargetName="HeroGradientOverlay"
+                Storyboard.TargetProperty="Opacity"
+                From="0"
+                To="1"
+                Duration="0:0:16"
+                AutoReverse="True"
+                RepeatBehavior="Forever" />
+        </Storyboard>
+    </Page.Resources>
+
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid x:Name="LayoutRoot" Padding="32,24,32,40" RowSpacing="24">
+        <Grid x:Name="LayoutRoot" Padding="32,24,32,40" RowSpacing="24" SizeChanged="LayoutRoot_SizeChanged">
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -25,13 +37,25 @@
 
             <Grid
                 x:Name="HeroGrid"
-                Padding="36,32"
                 Background="{ThemeResource HeroBackgroundBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="1"
-                CornerRadius="12">
-                <StackPanel VerticalAlignment="Center" Spacing="10">
+                CornerRadius="16">
+                <Grid x:Name="HeroTextureLayer" IsHitTestVisible="False" Opacity="{ThemeResource HeroTextureOpacity}">
+                    <Border x:Name="HeroBaseBorder" CornerRadius="16">
+                        <Border.Background>
+                            <ImageBrush ImageSource="ms-appx:///Assets/HeroGradientA.jpg" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                    <Border x:Name="HeroGradientOverlay" CornerRadius="16" Opacity="0">
+                        <Border.Background>
+                            <ImageBrush ImageSource="ms-appx:///Assets/HeroGradientB.jpg" Stretch="UniformToFill" />
+                        </Border.Background>
+                    </Border>
+                </Grid>
+                <StackPanel x:Name="HeroContent" Margin="36,32" VerticalAlignment="Center" Spacing="10">
                     <Border
+                        x:Name="HeroStatusBadge"
                         HorizontalAlignment="Left"
                         Padding="10,4"
                         Background="{ThemeResource HeroChipBackgroundBrush}"
@@ -73,12 +97,12 @@
                                 <ResourceDictionary.ThemeDictionaries>
                                     <ResourceDictionary x:Key="Light">
                                         <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF1EC" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FFE0D6" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#E9F9FF" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#CCEEF9" />
                                         <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#40FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonForeground" Color="#B02A16" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#B02A16" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#8C1F0F" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#093F58" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#093F58" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#062F43" />
                                         <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#CCFFFFFF" />
                                         <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
                                         <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
@@ -87,12 +111,12 @@
                                     </ResourceDictionary>
                                     <ResourceDictionary x:Key="Dark">
                                         <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#FFF1EC" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#FFE0D6" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#E9F9FF" />
+                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#CCEEF9" />
                                         <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#40FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonForeground" Color="#B02A16" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#B02A16" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#8C1F0F" />
+                                        <SolidColorBrush x:Key="ButtonForeground" Color="#093F58" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#093F58" />
+                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#062F43" />
                                         <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#CCFFFFFF" />
                                         <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
                                         <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
@@ -131,112 +155,7 @@
                 IsClosable="False"
                 IsOpen="False" />
 
-            <Grid
-                x:Name="QuickActionsGrid"
-                Grid.Row="2"
-                ColumnSpacing="12"
-                RowSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition x:Name="QuickActionColumn3" Width="*" />
-                    <ColumnDefinition x:Name="QuickActionColumn4" Width="*" />
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Button
-                    x:Name="ProfilesTile"
-                    Grid.Column="0"
-                    controls:HoverLift.IsEnabled="True"
-                    AutomationProperties.Name="プロフィール"
-                    Click="QuickActionButton_Click"
-                    Style="{StaticResource QuickActionTileStyle}"
-                    Tag="profiles">
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Background="{ThemeResource TaikoDonBrush}" Style="{StaticResource QuickActionIconStyle}">
-                            <FontIcon FontSize="18" Foreground="{ThemeResource TaikoOnAccentBrush}" Glyph="&#xE77B;" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="プロフィール" Style="{StaticResource QuickActionTitleStyle}" />
-                            <TextBlock Text="名前・称号・着せ替え" Style="{StaticResource QuickActionDescriptionStyle}" />
-                        </StackPanel>
-                    </Grid>
-                </Button>
-                <Button
-                    x:Name="SongsTile"
-                    Grid.Column="1"
-                    controls:HoverLift.IsEnabled="True"
-                    AutomationProperties.Name="楽曲"
-                    Click="QuickActionButton_Click"
-                    Style="{StaticResource QuickActionTileStyle}"
-                    Tag="songs">
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Background="{ThemeResource TaikoKaBrush}" Style="{StaticResource QuickActionIconStyle}">
-                            <FontIcon FontSize="18" Foreground="{ThemeResource TaikoOnAccentBrush}" Glyph="&#xE8D6;" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="楽曲" Style="{StaticResource QuickActionTitleStyle}" />
-                            <TextBlock Text="追加と並べ替え" Style="{StaticResource QuickActionDescriptionStyle}" />
-                        </StackPanel>
-                    </Grid>
-                </Button>
-                <Button
-                    x:Name="InputTile"
-                    Grid.Column="2"
-                    controls:HoverLift.IsEnabled="True"
-                    AutomationProperties.Name="入力設定"
-                    Click="QuickActionButton_Click"
-                    Style="{StaticResource QuickActionTileStyle}"
-                    Tag="input-settings">
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Background="{ThemeResource TaikoDonBrush}" Style="{StaticResource QuickActionIconStyle}">
-                            <FontIcon FontSize="18" Foreground="{ThemeResource TaikoOnAccentBrush}" Glyph="&#xE765;" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="入力設定" Style="{StaticResource QuickActionTitleStyle}" />
-                            <TextBlock Text="キーとコントローラー" Style="{StaticResource QuickActionDescriptionStyle}" />
-                        </StackPanel>
-                    </Grid>
-                </Button>
-                <Button
-                    x:Name="LaunchSettingsTile"
-                    Grid.Column="3"
-                    controls:HoverLift.IsEnabled="True"
-                    AutomationProperties.Name="起動構成"
-                    Click="QuickActionButton_Click"
-                    Style="{StaticResource QuickActionTileStyle}"
-                    Tag="settings">
-                    <Grid ColumnSpacing="12">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Background="{ThemeResource TaikoKaBrush}" Style="{StaticResource QuickActionIconStyle}">
-                            <FontIcon FontSize="18" Foreground="{ThemeResource TaikoOnAccentBrush}" Glyph="&#xE713;" />
-                        </Border>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                            <TextBlock Text="起動構成" Style="{StaticResource QuickActionTitleStyle}" />
-                            <TextBlock Text="画面・サウンド" Style="{StaticResource QuickActionDescriptionStyle}" />
-                        </StackPanel>
-                    </Grid>
-                </Button>
-            </Grid>
-
-            <Grid x:Name="SummaryGrid" Grid.Row="3" ColumnSpacing="16" RowSpacing="16">
+            <Grid x:Name="SummaryGrid" Grid.Row="2" ColumnSpacing="16" RowSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="SummaryPrimaryColumn" Width="380" />
                     <ColumnDefinition x:Name="SummarySecondaryColumn" Width="*" />
@@ -354,35 +273,6 @@
                     </StackPanel>
                 </Border>
             </Grid>
-
-            <VisualStateManager.VisualStateGroups>
-                <VisualStateGroup>
-                    <VisualState x:Name="WideState">
-                        <VisualState.StateTriggers>
-                            <AdaptiveTrigger MinWindowWidth="820" />
-                        </VisualState.StateTriggers>
-                    </VisualState>
-                    <VisualState x:Name="NarrowState">
-                        <VisualState.StateTriggers>
-                            <AdaptiveTrigger MinWindowWidth="0" />
-                        </VisualState.StateTriggers>
-                        <VisualState.Setters>
-                            <Setter Target="LayoutRoot.Padding" Value="16,20,16,32" />
-                            <Setter Target="HeroGrid.Padding" Value="20,20" />
-                            <Setter Target="QuickActionColumn3.Width" Value="0" />
-                            <Setter Target="QuickActionColumn4.Width" Value="0" />
-                            <Setter Target="InputTile.(Grid.Column)" Value="0" />
-                            <Setter Target="InputTile.(Grid.Row)" Value="1" />
-                            <Setter Target="LaunchSettingsTile.(Grid.Column)" Value="1" />
-                            <Setter Target="LaunchSettingsTile.(Grid.Row)" Value="1" />
-                            <Setter Target="SummaryPrimaryColumn.Width" Value="*" />
-                            <Setter Target="SummarySecondaryColumn.Width" Value="0" />
-                            <Setter Target="ActivitySurface.(Grid.Column)" Value="0" />
-                            <Setter Target="ActivitySurface.(Grid.Row)" Value="1" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateManager.VisualStateGroups>
         </Grid>
     </ScrollViewer>
 </Page>

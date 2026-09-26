@@ -34,7 +34,15 @@ public sealed partial class MainPage : Page
         _suppressSelectionChanged = false;
         _currentNavigationItem = HomeItem;
         Navigate("home");
+        InstallationBanner.IsOpen = ((App)Application.Current).Context.Installation is null;
         UpdateUpdateBanner();
+    }
+
+    private void MainPage_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        AlertsPanel.Margin = e.NewSize.Width < 820
+            ? new Thickness(12, 56, 12, 0)
+            : new Thickness(12, 8, 12, 0);
     }
 
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)

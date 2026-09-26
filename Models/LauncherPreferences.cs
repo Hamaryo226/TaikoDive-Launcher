@@ -6,6 +6,8 @@ public sealed class LauncherPreferences
 
     public string Theme { get; set; } = "Dark";
 
+    public string HomeBannerStyle { get; set; } = "Ocean";
+
     public WindowPlacementPreferences? WindowPlacement { get; set; }
 }
 

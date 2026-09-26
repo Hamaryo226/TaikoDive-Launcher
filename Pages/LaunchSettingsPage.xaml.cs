@@ -43,6 +43,23 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         Loaded += LaunchSettingsPage_Loaded;
     }
 
+    private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool narrow = e.NewSize.Width < 820;
+        PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
+        Grid.SetColumn(SaveCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(SaveCommandBar, narrow ? 1 : 0);
+        SaveCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        SettingsPrimaryColumn.Width = new GridLength(1, GridUnitType.Star);
+        SettingsSecondaryColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(AudioSurface, narrow ? 0 : 1);
+        Grid.SetRow(AudioSurface, narrow ? 1 : 0);
+        Grid.SetRow(PerformanceSurface, narrow ? 2 : 1);
+        Grid.SetRow(FontSurface, narrow ? 3 : 2);
+        Grid.SetColumn(OnlineSurface, narrow ? 0 : 1);
+        Grid.SetRow(OnlineSurface, narrow ? 4 : 2);
+    }
+
     private void RegisterLiveFeedbackHandlers()
     {
         foreach (ToggleSwitch toggle in new[]
@@ -117,7 +134,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             _loadedSettings = null;
             SetSettingsEnabled(false);
             UpdateLiveSettingsSummary();
-            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
+            StatusBar.IsOpen = false;
             return;
         }
 
@@ -182,7 +199,6 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     {
         if (AppInstance.Context.Installation is not { } installation)
         {
-            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 

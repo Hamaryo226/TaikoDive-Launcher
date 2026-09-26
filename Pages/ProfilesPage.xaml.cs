@@ -32,6 +32,27 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         Unloaded += ProfilesPage_Unloaded;
     }
 
+    private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool narrow = e.NewSize.Width < 820;
+        PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
+        Grid.SetColumn(ProfileCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(ProfileCommandBar, narrow ? 1 : 0);
+        ProfileCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        ProfileColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(260);
+        EditorColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        ProfileRow.Height = narrow ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
+        EditorRow.Height = narrow ? GridLength.Auto : new GridLength(0);
+        ProfileRail.MaxHeight = narrow ? 220 : double.PositiveInfinity;
+        ProfileList.MinHeight = narrow ? 140 : 220;
+        PageScroller.VerticalScrollMode = narrow ? ScrollMode.Enabled : ScrollMode.Disabled;
+        PageScroller.VerticalScrollBarVisibility = narrow ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+        EditorSurface.VerticalScrollMode = narrow ? ScrollMode.Disabled : ScrollMode.Enabled;
+        EditorSurface.VerticalScrollBarVisibility = narrow ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
+        Grid.SetColumn(EditorSurface, narrow ? 0 : 1);
+        Grid.SetRow(EditorSurface, narrow ? 1 : 0);
+    }
+
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
@@ -56,8 +77,8 @@ public sealed partial class ProfilesPage : Page, IUnsavedChangesAware
         {
             ProfileList.ItemsSource = null;
             SetEditorEnabled(false);
-            EditFeedbackText.Text = "プロフィールを表示するにはゲームの配置を確認してください。";
-            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
+            EditFeedbackText.Text = string.Empty;
+            StatusBar.IsOpen = false;
             return;
         }
 

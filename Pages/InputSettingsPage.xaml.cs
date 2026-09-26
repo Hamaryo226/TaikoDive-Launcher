@@ -81,8 +81,8 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         if (installation is null)
         {
             SetEnabled(false);
-            BindingSummaryText.Text = "入力を編集するにはゲームの配置を確認してください。";
-            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
+            BindingSummaryText.Text = string.Empty;
+            StatusBar.IsOpen = false;
             return;
         }
 
@@ -111,7 +111,6 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     {
         if (AppInstance.Context.Installation is not { } installation)
         {
-            ShowStatus(InfoBarSeverity.Warning, "ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
             return;
         }
 

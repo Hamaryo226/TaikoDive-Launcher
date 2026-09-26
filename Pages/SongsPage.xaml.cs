@@ -54,9 +54,6 @@ public sealed partial class SongsPage : Page
         _isNarrowLayout = narrow;
         PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
 
-        Grid.SetColumn(SongCommandBar, narrow ? 0 : 1);
-        Grid.SetRow(SongCommandBar, narrow ? 1 : 0);
-        SongCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
         Grid.SetColumn(PathCommandBar, narrow ? 0 : 1);
         Grid.SetRow(PathCommandBar, narrow ? 2 : 0);
         PathCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
@@ -159,7 +156,7 @@ public sealed partial class SongsPage : Page
             _isUpdatingGenres = false;
         }
         GenreSummaryText.Text = installation is null
-            ? "TaikoDive.exeの配置を確認してください。"
+            ? string.Empty
             : $"{_genres.Count}件のジャンルを読み込みました。";
         EmptyGenresText.Visibility = _genres.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         LoadSelectedGenreSongs();
@@ -351,8 +348,8 @@ public sealed partial class SongsPage : Page
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         if (installation is null)
         {
-            CurrentSongsPathText.Text = "TaikoDive.exeが見つかりません";
-            SongsPathModeText.Text = "ランチャーをTaikoDive.exeと同じフォルダーへ配置してください。";
+            CurrentSongsPathText.Text = "—";
+            SongsPathModeText.Text = string.Empty;
             RestoreSongsButton.Visibility = Visibility.Collapsed;
             PathCommandBar.IsEnabled = false;
             return;
@@ -471,7 +468,6 @@ public sealed partial class SongsPage : Page
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         if (installation is null)
         {
-            ShowStatus(InfoBarSeverity.Warning, "TaikoDive.Launcher.exeをTaikoDive.exeと同じフォルダーへ配置してください。");
             return;
         }
 
@@ -633,7 +629,6 @@ public sealed partial class SongsPage : Page
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         if (installation is null)
         {
-            ShowStatus(InfoBarSeverity.Warning, "TaikoDive.Launcher.exeをTaikoDive.exeと同じフォルダーへ配置してください。");
             return;
         }
 

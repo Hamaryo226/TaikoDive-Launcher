@@ -1,9 +1,11 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.Storage.Streams;
+using Windows.UI.ViewManagement;
 
 namespace TaikoDiveLauncher.Pages;
 
@@ -20,12 +22,46 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += HomePage_Loaded;
-        Unloaded += (_, _) => _previewCancellation?.Cancel();
+        Unloaded += (_, _) =>
+        {
+            _previewCancellation?.Cancel();
+            HeroGradientAnimation.Stop();
+        };
     }
 
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
+        ApplyBannerStyle();
+        if (new UISettings().AnimationsEnabled)
+        {
+            HeroGradientAnimation.Begin();
+        }
         await RefreshAsync();
+    }
+
+    private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool narrow = e.NewSize.Width < 820;
+        LayoutRoot.Padding = narrow ? new Thickness(16, 20, 16, 32) : new Thickness(32, 24, 32, 40);
+        HeroContent.Margin = narrow ? new Thickness(20) : new Thickness(36, 32, 36, 32);
+        SummaryPrimaryColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(380);
+        SummarySecondaryColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(ActivitySurface, narrow ? 0 : 1);
+        Grid.SetRow(ActivitySurface, narrow ? 1 : 0);
+    }
+
+    private void ApplyBannerStyle()
+    {
+        string name = AppInstance.Context.Preferences.HomeBannerStyle switch
+        {
+            "Violet" => "HeroGradientViolet",
+            "Sunset" => "HeroGradientSunset",
+            _ => "HeroGradient",
+        };
+        ((ImageBrush)HeroBaseBorder.Background).ImageSource =
+            new BitmapImage(new Uri($"ms-appx:///Assets/{name}A.jpg"));
+        ((ImageBrush)HeroGradientOverlay.Background).ImageSource =
+            new BitmapImage(new Uri($"ms-appx:///Assets/{name}B.jpg"));
     }
 
     private async Task RefreshAsync()
@@ -42,12 +78,14 @@ public sealed partial class HomePage : Page
 
         if (installation is null)
         {
-            SetHeroStatus(ready: false, "配置を確認してください");
-            ShowStatus(InfoBarSeverity.Warning, "このフォルダーに TaikoDive.exe がありません。ランチャーをゲーム本体の隣へ移動してください。");
+            HeroStatusBadge.Visibility = Visibility.Collapsed;
+            StatusBar.IsOpen = false;
             return;
         }
 
-        SetHeroStatus(ready: true, "準備完了");
+        HeroStatusBadge.Visibility = Visibility.Visible;
+        HeroStatusText.Text = "準備完了";
+        HeroStatusIcon.Glyph = "\uE73E";
 
         try
         {
@@ -158,20 +196,6 @@ public sealed partial class HomePage : Page
         {
             AppInstance.Exit();
         }
-    }
-
-    private void QuickActionButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement { Tag: string tag })
-        {
-            MainPage.Current?.NavigateTo(tag);
-        }
-    }
-
-    private void SetHeroStatus(bool ready, string text)
-    {
-        HeroStatusText.Text = text;
-        HeroStatusIcon.Glyph = ready ? "\uE73E" : "\uE7BA";
     }
 
     private void ShowStatus(InfoBarSeverity severity, string message)
