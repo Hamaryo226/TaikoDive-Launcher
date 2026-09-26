@@ -42,9 +42,31 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         colorContent.Children.Add(ColorPickerHeading); colorContent.Children.Add(ColorEditor);
         _colorFlyout.Content = colorContent;
         ColorEditor.ColorChanged += Picker_ColorChanged;
-        Loaded += async (_, _) => { _pageLoaded = true; await LoadAsync(_requestedSlot); };
+        Loaded += async (_, _) => { _pageLoaded = true; UpdateLayoutState(PageRoot.ActualWidth); await LoadAsync(_requestedSlot); };
         _animationTimer.Tick += (_, _) => ShowAnimationFrame();
         Unloaded += (_, _) => { _pageLoaded = false; _previewCancellation?.Cancel(); _colorFlyout.Hide(); StopAnimation(); };
+    }
+
+    private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+        => UpdateLayoutState(e.NewSize.Width);
+
+    private void UpdateLayoutState(double width)
+    {
+        bool narrow = width < 820;
+        PageRoot.Padding = narrow ? new Thickness(16) : new Thickness(20);
+        Grid.SetColumn(CharacterCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(CharacterCommandBar, narrow ? 1 : 0);
+        CharacterCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
+        PreviewColumn.Width = new GridLength(1, GridUnitType.Star);
+        EditorColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        PreviewRow.Height = narrow ? new GridLength(260) : new GridLength(1, GridUnitType.Star);
+        EditorRow.Height = narrow ? GridLength.Auto : new GridLength(0);
+        ContentScroller.VerticalScrollMode = narrow ? ScrollMode.Enabled : ScrollMode.Disabled;
+        ContentScroller.VerticalScrollBarVisibility = narrow ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+        Editor.VerticalScrollMode = narrow ? ScrollMode.Disabled : ScrollMode.Enabled;
+        Editor.VerticalScrollBarVisibility = narrow ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto;
+        Grid.SetColumn(Editor, narrow ? 0 : 1);
+        Grid.SetRow(Editor, narrow ? 1 : 0);
     }
 
     private async Task LoadAsync(int userSlot = 0, bool restorePrevious = false)
@@ -53,7 +75,11 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         _loading = true; Editor.IsEnabled = false; SaveButton.IsEnabled = false;
         try
         {
-            if (Installation is not { } installation) throw new InvalidOperationException("ランチャーを TaikoDive.exe と同じフォルダーへ配置してください。");
+            if (Installation is not { } installation)
+            {
+                StatusBar.IsOpen = false;
+                return;
+            }
             var profiles = await new UserProfileStore().LoadAsync(installation);
             var options = new System.Collections.Generic.List<IntOption> { new(0, "共通設定（未設定ユーザーの初期値）") };
             options.AddRange(profiles.Select(p => new IntOption(p.Slot, $"ユーザー {p.Slot} · {(p.IsConfigured ? p.Name : "未設定")}")));
@@ -78,7 +104,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             Editor.IsEnabled = true; SaveButton.IsEnabled = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { _loading = false; }
+        finally { _loading = false; UpdateEditState(); }
         if (Editor.IsEnabled) QueuePreview();
     }
 
@@ -122,7 +148,14 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         UpdateIcons();
     }
 
-    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; QueuePreview(); } }
+    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; UpdateEditState(); QueuePreview(); } }
+    private void UpdateEditState()
+    {
+        string user = _selectedSlot == 0 ? "共通設定" : $"ユーザー {_selectedSlot}";
+        EditStateText.Text = Editor.IsEnabled
+            ? $"{user} · {(HasUnsavedChanges ? "未保存の変更あり" : "保存済み")} · プレビューは操作に合わせて更新"
+            : string.Empty;
+    }
     private void ModeChanged(object sender, RoutedEventArgs e) { if (HeadBox is null) return; UpdateMode(); Changed(sender, e); }
     private void UpdateMode()
     {
@@ -158,7 +191,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             StatusBar.Severity = InfoBarSeverity.Success; StatusBar.Message = "保存しました。次回のゲーム起動から反映されます。"; StatusBar.IsOpen = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; }
+        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; UpdateEditState(); }
     }
     private async void Reload_Click(object sender, RoutedEventArgs e)
     {

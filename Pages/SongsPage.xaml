@@ -14,30 +14,10 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="HeaderGrid" RowSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <StackPanel Spacing="6">
-                <TextBlock Text="楽曲" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="Songsの保存場所、楽曲の追加、ゲーム内の曲順を管理します。" Style="{StaticResource PageSubtitleStyle}" />
-            </StackPanel>
-            <CommandBar
-                x:Name="SongCommandBar"
-                Grid.Column="1"
-                HorizontalAlignment="Right"
-                Background="Transparent"
-                DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="ジャンルを再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
-                </AppBarButton>
-            </CommandBar>
-        </Grid>
+        <StackPanel Spacing="6">
+            <TextBlock Text="楽曲" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="Songsの保存場所、楽曲の追加、ゲーム内の曲順を管理します。" Style="{StaticResource PageSubtitleStyle}" />
+        </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
@@ -167,7 +147,25 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="ジャンル" Style="{StaticResource SectionTitleStyle}" />
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center" Text="ジャンル" Style="{StaticResource SectionTitleStyle}" />
+                        <CommandBar
+                            x:Name="SongCommandBar"
+                            Grid.Column="1"
+                            Background="Transparent"
+                            DefaultLabelPosition="Collapsed">
+                            <AppBarButton
+                                Click="ReloadButton_Click"
+                                Label="ジャンルを再読み込み"
+                                ToolTipService.ToolTip="ジャンルを再読み込み">
+                                <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
+                            </AppBarButton>
+                        </CommandBar>
+                    </Grid>
                     <TextBlock
                         x:Name="GenreSummaryText"
                         Grid.Row="1"
@@ -234,12 +232,18 @@
                             </AppBarButton>
                         </CommandBar>
                     </Grid>
-                    <TextBlock
-                        x:Name="SongOrderSummaryText"
-                        Grid.Row="1"
-                        Style="{StaticResource PageSubtitleStyle}"
-                        Text="ジャンルを選択してください。"
-                        TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="1" Spacing="4">
+                        <TextBlock
+                            x:Name="SongOrderSummaryText"
+                            Style="{StaticResource PageSubtitleStyle}"
+                            Text="ジャンルを選択してください。"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            x:Name="SelectedSongText"
+                            Style="{StaticResource FieldLabelStyle}"
+                            TextWrapping="Wrap"
+                            Visibility="Collapsed" />
+                    </StackPanel>
                     <Grid Grid.Row="2">
                         <ListView
                             x:Name="SongOrderList"

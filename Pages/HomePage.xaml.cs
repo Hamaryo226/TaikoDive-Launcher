@@ -1,16 +1,16 @@
-using System.Diagnostics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.Storage.Streams;
+using Windows.UI.ViewManagement;
 
 namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class HomePage : Page
 {
-    private readonly GameSettingsStore _settingsStore = new();
     private readonly UserProfileStore _profileStore = new();
     private readonly Character3DStore _characterStore = new();
     private readonly Character3DPreviewService _characterPreview = new();
@@ -22,77 +22,126 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += HomePage_Loaded;
-        Unloaded += (_, _) => _previewCancellation?.Cancel();
+        Unloaded += (_, _) =>
+        {
+            _previewCancellation?.Cancel();
+            HeroGradientAnimation.Stop();
+        };
     }
 
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
+        ApplyBannerStyle();
+        if (new UISettings().AnimationsEnabled)
+        {
+            HeroGradientAnimation.Begin();
+        }
         await RefreshAsync();
     }
 
-    private async Task RefreshAsync(bool showConfirmation = false)
+    private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        bool narrow = e.NewSize.Width < 820;
+        LayoutRoot.Padding = narrow ? new Thickness(16, 20, 16, 32) : new Thickness(32, 24, 32, 40);
+        HeroContent.Margin = narrow ? new Thickness(20) : new Thickness(36, 32, 36, 32);
+        SummaryPrimaryColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(380);
+        SummarySecondaryColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(ActivitySurface, narrow ? 0 : 1);
+        Grid.SetRow(ActivitySurface, narrow ? 1 : 0);
+    }
+
+    private void ApplyBannerStyle()
+    {
+        string name = AppInstance.Context.Preferences.HomeBannerStyle switch
+        {
+            "Violet" => "HeroGradientViolet",
+            "Sunset" => "HeroGradientSunset",
+            _ => "HeroGradient",
+        };
+        ((ImageBrush)HeroBaseBorder.Background).ImageSource =
+            new BitmapImage(new Uri($"ms-appx:///Assets/{name}A.jpg"));
+        ((ImageBrush)HeroGradientOverlay.Background).ImageSource =
+            new BitmapImage(new Uri($"ms-appx:///Assets/{name}B.jpg"));
+    }
+
+    private async Task RefreshAsync()
     {
         _previewCancellation?.Cancel();
         _previewCancellation?.Dispose();
         _previewCancellation = null;
         DonPreviewImage.Source = null;
-        DonPreviewStatus.Text = string.Empty;
+        SetDonPreviewStatus(string.Empty);
+        RecentSongsList.ItemsSource = null;
+        RecentSongsEmptyText.Visibility = Visibility.Collapsed;
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
-        OpenFolderButton.IsEnabled = installation is not null;
         LaunchButton.IsEnabled = installation is not null;
 
         if (installation is null)
         {
-            InstallStateText.Text = "配置を確認してください";
-            InstallPathText.Text = TaikoDiveInstallation.ApplicationDirectory;
-            PrimaryProfileText.Text = "—";
-            GameSummaryText.Text = "—";
-            ShowStatus(InfoBarSeverity.Warning, "このフォルダーに TaikoDive.exe がありません。ランチャーをゲーム本体の隣へ移動してください。");
+            HeroStatusBadge.Visibility = Visibility.Collapsed;
+            StatusBar.IsOpen = false;
             return;
         }
 
-        InstallStateText.Text = "準備完了";
-        InstallPathText.Text = installation.BuildDirectory;
+        HeroStatusBadge.Visibility = Visibility.Visible;
+        HeroStatusText.Text = "準備完了";
+        HeroStatusIcon.Glyph = "\uE73E";
 
         try
         {
-            Task<IReadOnlyList<UserProfile>> profilesTask = _profileStore.LoadAsync(installation);
-            Task<GameSettings> settingsTask = _settingsStore.LoadAsync(installation);
-            await Task.WhenAll(profilesTask, settingsTask);
-
-            UserProfile profile = profilesTask.Result[0];
-            GameSettings settings = settingsTask.Result;
-            PrimaryProfileText.Text = $"{profile.Name}  /  {profile.Title}";
+            UserProfile profile = (await _profileStore.LoadAsync(installation))[0];
             await HomeNamePlatePreview.ShowNamePlateAsync(installation, profile.NamePlateType);
             await HomeNamePlatePreview.SetTextAsync(installation, profile.Name, profile.Title);
             _previewCancellation = new CancellationTokenSource();
             _ = LoadDonPreviewAsync(installation, _previewCancellation.Token);
-            string windowMode = settings.FullScreen
-                ? "フルスクリーン"
-                : settings.BorderlessWindow ? "ボーダーレス" : "ウィンドウ";
-            GameSummaryText.Text = $"{windowMode} · {settings.ScreenWidth} px · Master {settings.MasterVolume}% · {settings.SoundType}";
-            if (showConfirmation)
-            {
-                ShowStatus(InfoBarSeverity.Success, "TaikoDive.exe を確認しました。");
-            }
-            else
-            {
-                StatusBar.IsOpen = false;
-            }
+            _ = LoadRecentSongsAsync(installation, profile.Name, _previewCancellation.Token);
+            StatusBar.IsOpen = false;
         }
         catch (Exception ex)
         {
-            PrimaryProfileText.Text = "読み取りエラー";
-            GameSummaryText.Text = "読み取りエラー";
             ShowStatus(InfoBarSeverity.Error, ex.Message);
         }
+    }
+
+    private async Task LoadRecentSongsAsync(TaikoDiveInstallation installation, string userName, CancellationToken cancellationToken)
+    {
+        try
+        {
+            IReadOnlyList<RecentSong> songs = await _profileStore.GetRecentSongsAsync(installation, userName, 5, cancellationToken);
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                ShowRecentSongs(songs);
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                RecentSongsEmptyText.Text = $"プレイ履歴を読み取れません: {ex.Message}";
+                RecentSongsEmptyText.Visibility = Visibility.Visible;
+            }
+        }
+    }
+
+    private void ShowRecentSongs(IReadOnlyList<RecentSong> songs)
+    {
+        RecentSongsList.ItemsSource = songs.Select((song, index) => new RecentSongItem(index + 1, song.Title)).ToList();
+        RecentSongsEmptyText.Text = "まだプレイ履歴がありません。";
+        RecentSongsEmptyText.Visibility = songs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void SetDonPreviewStatus(string text)
+    {
+        DonPreviewStatus.Text = text;
+        DonPreviewStatus.Visibility = text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private async Task LoadDonPreviewAsync(TaikoDiveInstallation installation, CancellationToken cancellationToken)
     {
         DonPreviewBusy.IsActive = true;
         DonPreviewBusy.Visibility = Visibility.Visible;
-        DonPreviewStatus.Text = "プレビューを作成しています…";
+        SetDonPreviewStatus("プレビューを作成しています…");
         try
         {
             Character3DSettings saved = await _characterStore.LoadAsync(installation, 1);
@@ -109,13 +158,13 @@ public sealed partial class HomePage : Page
             await image.SetSourceAsync(stream);
             cancellationToken.ThrowIfCancellationRequested();
             DonPreviewImage.Source = image;
-            DonPreviewStatus.Text = "1Pの保存済み衣装と色";
+            SetDonPreviewStatus(string.Empty);
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
             if (!cancellationToken.IsCancellationRequested)
-                DonPreviewStatus.Text = $"どんちゃんを表示できません: {ex.Message}";
+                SetDonPreviewStatus($"どんちゃんを表示できません: {ex.Message}");
         }
         finally
         {
@@ -124,39 +173,6 @@ public sealed partial class HomePage : Page
                 DonPreviewBusy.IsActive = false;
                 DonPreviewBusy.Visibility = Visibility.Collapsed;
             }
-        }
-    }
-
-    private async void RefreshButton_Click(object sender, RoutedEventArgs e)
-    {
-        RefreshButton.IsEnabled = false;
-        ShowStatus(InfoBarSeverity.Informational, "配置を再確認しています…");
-
-        try
-        {
-            AppInstance.Context.RefreshInstallation();
-            await RefreshAsync(showConfirmation: true);
-        }
-        finally
-        {
-            RefreshButton.IsEnabled = true;
-        }
-    }
-
-    private void OpenFolderButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (AppInstance.Context.Installation is not { } installation)
-        {
-            return;
-        }
-
-        try
-        {
-            Process.Start(new ProcessStartInfo(installation.BuildDirectory) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            ShowStatus(InfoBarSeverity.Error, $"フォルダーを開けませんでした: {ex.Message}");
         }
     }
 
@@ -188,4 +204,15 @@ public sealed partial class HomePage : Page
         StatusBar.Message = message;
         StatusBar.IsOpen = true;
     }
+}
+
+public sealed partial class RecentSongItem(int rank, string title)
+{
+    public string RankText { get; } = rank.ToString();
+
+    public string Title { get; } = title;
+
+    public Visibility DonBadgeVisibility { get; } = rank % 2 == 1 ? Visibility.Visible : Visibility.Collapsed;
+
+    public Visibility KaBadgeVisibility { get; } = rank % 2 == 1 ? Visibility.Collapsed : Visibility.Visible;
 }

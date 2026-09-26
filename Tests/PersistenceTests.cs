@@ -1275,6 +1275,37 @@ public sealed class PersistenceTests
         }
     }
 
+    [TestMethod]
+    public async Task RecentSongsAreOrderedByLatestScoreWrite()
+    {
+        using TemporaryInstallation temporary = new();
+        string userFolder = Path.Combine(temporary.Installation.ScoreDirectory, "Player");
+        DateTime baseTime = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        string[] songs = ["Old Song", "Newest Song", "Middle Song"];
+        int[] minutes = [0, 20, 10];
+        for (int index = 0; index < songs.Length; index++)
+        {
+            string scorePath = Path.Combine(userFolder, songs[index], "Score.dat");
+            Directory.CreateDirectory(Path.GetDirectoryName(scorePath)!);
+            await File.WriteAllBytesAsync(scorePath, [0]);
+            File.SetLastWriteTimeUtc(scorePath, baseTime.AddMinutes(minutes[index]));
+        }
+
+        IReadOnlyList<RecentSong> recent = await new UserProfileStore()
+            .GetRecentSongsAsync(temporary.Installation, "Player", 2, CancellationToken.None);
+
+        CollectionAssert.AreEqual(new[] { "Newest Song", "Middle Song" }, recent.Select(song => song.Title).ToArray());
+    }
+
+    [TestMethod]
+    public async Task RecentSongsAreEmptyWithoutScoreFolder()
+    {
+        using TemporaryInstallation temporary = new();
+        IReadOnlyList<RecentSong> recent = await new UserProfileStore()
+            .GetRecentSongsAsync(temporary.Installation, "Nobody", 5, CancellationToken.None);
+        Assert.AreEqual(0, recent.Count);
+    }
+
     private sealed class TemporaryInstallation : IDisposable
     {
         public TemporaryInstallation(string? executableSource = null)

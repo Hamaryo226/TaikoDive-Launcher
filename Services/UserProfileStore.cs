@@ -192,6 +192,48 @@ public sealed class UserProfileStore
         }, cancellationToken);
     }
 
+    /// <summary>
+    /// Returns the songs whose Score.dat was written most recently. The song title is taken
+    /// from the folder that holds each Score.dat.
+    /// </summary>
+    public Task<IReadOnlyList<RecentSong>> GetRecentSongsAsync(
+        TaikoDiveInstallation installation,
+        string userName,
+        int count,
+        CancellationToken cancellationToken)
+    {
+        return Task.Run<IReadOnlyList<RecentSong>>(() =>
+        {
+            string folder = Path.Combine(installation.ScoreDirectory, SanitizeFileName(userName));
+            if (!Directory.Exists(folder))
+            {
+                return [];
+            }
+
+            Dictionary<string, RecentSong> latestBySong = new(StringComparer.OrdinalIgnoreCase);
+            foreach (string scorePath in Directory.EnumerateFiles(folder, "Score.dat", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? songDirectory = Path.GetDirectoryName(scorePath);
+                if (songDirectory is null || string.Equals(songDirectory, folder, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                DateTime playedAt = File.GetLastWriteTimeUtc(scorePath);
+                if (!latestBySong.TryGetValue(songDirectory, out RecentSong? existing) || existing.PlayedAt < playedAt)
+                {
+                    latestBySong[songDirectory] = new RecentSong(Path.GetFileName(songDirectory), playedAt);
+                }
+            }
+
+            return latestBySong.Values
+                .OrderByDescending(song => song.PlayedAt)
+                .Take(count)
+                .ToList();
+        }, cancellationToken);
+    }
+
     private static int CountFiles(string folder, string pattern, CancellationToken cancellationToken)
     {
         int count = 0;

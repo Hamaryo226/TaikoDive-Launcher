@@ -1,6 +1,8 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 
@@ -8,6 +10,15 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class LauncherSettingsPage : Page
 {
+    private sealed record BannerStyleOption(string Label, string Value);
+
+    private static readonly BannerStyleOption[] BannerStyles =
+    [
+        new("オーシャン · シアン", "Ocean"),
+        new("オーロラ · バイオレット", "Violet"),
+        new("サンセット · コーラル", "Sunset"),
+    ];
+
     private bool _isLoading;
 
     private App AppInstance => (App)Application.Current;
@@ -23,6 +34,13 @@ public sealed partial class LauncherSettingsPage : Page
     {
         _isLoading = true;
         CloseAfterLaunchSwitch.IsOn = AppInstance.Context.Preferences.CloseAfterLaunch;
+        BannerStyleBox.ItemsSource = BannerStyles;
+        BannerStyleBox.SelectedValue = AppInstance.Context.Preferences.HomeBannerStyle;
+        if (BannerStyleBox.SelectedItem is null)
+        {
+            BannerStyleBox.SelectedIndex = 0;
+        }
+        UpdateBannerPreview();
         UpdateThemeButton();
         AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
         AppInstance.Context.Updates.StateChanged += Updates_StateChanged;
@@ -74,6 +92,7 @@ public sealed partial class LauncherSettingsPage : Page
 
         bool previousValue = AppInstance.Context.Preferences.CloseAfterLaunch;
         AppInstance.Context.Preferences.CloseAfterLaunch = CloseAfterLaunchSwitch.IsOn;
+        UpdatePreferencesSummary();
         try
         {
             await AppInstance.Context.SavePreferencesAsync();
@@ -85,8 +104,49 @@ public sealed partial class LauncherSettingsPage : Page
             _isLoading = true;
             CloseAfterLaunchSwitch.IsOn = previousValue;
             _isLoading = false;
+            UpdatePreferencesSummary();
             ShowStatus(InfoBarSeverity.Error, $"起動動作を保存できませんでした: {ex.Message}");
         }
+    }
+
+    private async void BannerStyleBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoading || BannerStyleBox.SelectedValue is not string selected)
+        {
+            return;
+        }
+
+        string previous = AppInstance.Context.Preferences.HomeBannerStyle;
+        AppInstance.Context.Preferences.HomeBannerStyle = selected;
+        UpdateBannerPreview();
+        UpdatePreferencesSummary();
+        try
+        {
+            await AppInstance.Context.SavePreferencesAsync();
+            StatusBar.IsOpen = false;
+        }
+        catch (Exception ex)
+        {
+            AppInstance.Context.Preferences.HomeBannerStyle = previous;
+            _isLoading = true;
+            BannerStyleBox.SelectedValue = previous;
+            _isLoading = false;
+            UpdateBannerPreview();
+            UpdatePreferencesSummary();
+            ShowStatus(InfoBarSeverity.Error, $"ホームバナーを保存できませんでした: {ex.Message}");
+        }
+    }
+
+    private void UpdateBannerPreview()
+    {
+        string name = BannerStyleBox.SelectedValue switch
+        {
+            "Violet" => "HeroGradientViolet",
+            "Sunset" => "HeroGradientSunset",
+            _ => "HeroGradient",
+        };
+        ((ImageBrush)BannerPreview.Background).ImageSource =
+            new BitmapImage(new Uri($"ms-appx:///Assets/{name}A.jpg"));
     }
 
     private void UpdateThemeButton()
@@ -101,6 +161,20 @@ public sealed partial class LauncherSettingsPage : Page
             : "ダークモード。ホワイトモードへ切り替え";
         AutomationProperties.SetName(ThemeToggleButton, accessibleName);
         ToolTipService.SetToolTip(ThemeToggleButton, accessibleName);
+        UpdatePreferencesSummary();
+    }
+
+    private void UpdatePreferencesSummary()
+    {
+        string theme = string.Equals(AppInstance.Context.Preferences.Theme, "Light", StringComparison.OrdinalIgnoreCase)
+            ? "ライト"
+            : "ダーク";
+        string afterLaunch = AppInstance.Context.Preferences.CloseAfterLaunch
+            ? "ゲーム起動後に終了"
+            : "ゲーム中もランチャーを表示";
+        string banner = BannerStyles.FirstOrDefault(option => option.Value == AppInstance.Context.Preferences.HomeBannerStyle)?.Label
+            ?? BannerStyles[0].Label;
+        LauncherPreferenceSummaryText.Text = $"現在: {theme} · {banner} · {afterLaunch}（変更時に保存）";
     }
 
     private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
@@ -216,8 +290,9 @@ public sealed partial class LauncherSettingsPage : Page
     private void UpdateGameUpdateControls()
     {
         GameUpdateService updates = AppInstance.Context.GameUpdates;
+        bool hasInstallation = AppInstance.Context.Installation is not null;
         CurrentGameVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
-        GameUpdateStatusText.Text = updates.StatusMessage;
+        GameUpdateStatusText.Text = hasInstallation ? updates.StatusMessage : string.Empty;
         GameUpdateDescriptionText.Text = FormatUpdateNotes(
             updates.LatestUpdate?.ReleaseNotes,
             updates.LatestUpdate is not null);
@@ -235,13 +310,13 @@ public sealed partial class LauncherSettingsPage : Page
             isBusy,
             updates.ProgressPercentage,
             "TaikoDive");
-        GameUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        GameUpdateStatusIcon.Visibility = isBusy || !hasInstallation ? Visibility.Collapsed : Visibility.Visible;
         GameUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
         GameUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CheckGameUpdateButton.IsEnabled = !isBusy;
-        InstallGameUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
+        CheckGameUpdateButton.IsEnabled = hasInstallation && !isBusy;
+        InstallGameUpdateButton.IsEnabled = hasInstallation && updates.State == GameUpdateState.Available;
         AutomationProperties.SetName(
             InstallGameUpdateButton,
             updates.State == GameUpdateState.Available
@@ -291,8 +366,9 @@ public sealed partial class LauncherSettingsPage : Page
     private void UpdateAssetUpdateControls()
     {
         GameUpdateService updates = AppInstance.Context.AssetUpdates;
+        bool hasInstallation = AppInstance.Context.Installation is not null;
         CurrentAssetVersionText.Text = $"現在のバージョン: v{updates.CurrentVersionText}";
-        AssetUpdateStatusText.Text = updates.StatusMessage;
+        AssetUpdateStatusText.Text = hasInstallation ? updates.StatusMessage : string.Empty;
         AssetUpdateDescriptionText.Text = FormatUpdateNotes(
             updates.LatestUpdate?.ReleaseNotes,
             updates.LatestUpdate is not null);
@@ -310,13 +386,13 @@ public sealed partial class LauncherSettingsPage : Page
             isBusy,
             updates.ProgressPercentage,
             "TaikoDive Asset");
-        AssetUpdateStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        AssetUpdateStatusIcon.Visibility = isBusy || !hasInstallation ? Visibility.Collapsed : Visibility.Visible;
         AssetUpdateStatusIcon.Symbol = GetStatusSymbol(updates.State);
         AssetUpdateAvailableBadge.Visibility = updates.State == GameUpdateState.Available
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CheckAssetUpdateButton.IsEnabled = !isBusy;
-        InstallAssetUpdateButton.IsEnabled = updates.State == GameUpdateState.Available;
+        CheckAssetUpdateButton.IsEnabled = hasInstallation && !isBusy;
+        InstallAssetUpdateButton.IsEnabled = hasInstallation && updates.State == GameUpdateState.Available;
         AutomationProperties.SetName(
             InstallAssetUpdateButton,
             updates.State == GameUpdateState.Available

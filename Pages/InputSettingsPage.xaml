@@ -105,18 +105,17 @@
                 <TextBlock
                     Text="TaikoDiveで叩くキーと外部コントローラー入力を割り当てます。"
                     Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="BindingSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon>
-                        <SymbolIcon Symbol="Refresh" />
-                    </AppBarButton.Icon>
-                </AppBarButton>
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
                 </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
+                </CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
 

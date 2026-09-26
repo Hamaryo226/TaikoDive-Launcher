@@ -6,7 +6,7 @@
     xmlns:controls="using:TaikoDiveLauncher.Controls"
     xmlns:models="using:TaikoDiveLauncher.Models">
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
+    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16" SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -25,6 +25,7 @@
             <StackPanel Spacing="6">
                 <TextBlock Text="プロフィール" Style="{StaticResource PageTitleStyle}" />
                 <TextBlock Text="ユーザーを選び、名前・称号・ネームプレートを編集します。" Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="EditFeedbackText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar
                 x:Name="ProfileCommandBar"
@@ -32,18 +33,25 @@
                 HorizontalAlignment="Right"
                 Background="Transparent"
                 DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="" Style="{StaticResource VisibleAppBarButtonStyle}" AutomationProperties.Name="再読み込み" ToolTipService.ToolTip="再読み込み">
-                    <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
-                </AppBarButton>
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon><SymbolIcon Symbol="Save" /></AppBarButton.Icon>
                 </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
+                </CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
-        <Grid x:Name="EditorGrid" Grid.Row="2" ColumnSpacing="20" RowSpacing="16">
+        <ScrollViewer
+            x:Name="PageScroller"
+            Grid.Row="2"
+            HorizontalContentAlignment="Stretch"
+            HorizontalScrollBarVisibility="Disabled"
+            VerticalScrollBarVisibility="Disabled"
+            VerticalScrollMode="Disabled">
+        <Grid x:Name="EditorGrid" ColumnSpacing="20" RowSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition x:Name="ProfileColumn" Width="260" />
                 <ColumnDefinition x:Name="EditorColumn" Width="*" />
@@ -123,32 +131,8 @@
                     <TextBlock x:Name="DataFolderText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
                 </StackPanel>
             </ScrollViewer>
-
-            <VisualStateManager.VisualStateGroups>
-                <VisualStateGroup x:Name="PageWidthStates">
-                    <VisualState x:Name="WideState">
-                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="860" /></VisualState.StateTriggers>
-                    </VisualState>
-                    <VisualState x:Name="NarrowState">
-                        <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
-                        <VisualState.Setters>
-                            <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
-                            <Setter Target="ProfileCommandBar.(Grid.Column)" Value="0" />
-                            <Setter Target="ProfileCommandBar.(Grid.Row)" Value="1" />
-                            <Setter Target="ProfileCommandBar.HorizontalAlignment" Value="Left" />
-                            <Setter Target="ProfileColumn.Width" Value="*" />
-                            <Setter Target="EditorColumn.Width" Value="0" />
-                            <Setter Target="ProfileRow.Height" Value="Auto" />
-                            <Setter Target="EditorRow.Height" Value="*" />
-                            <Setter Target="ProfileRail.MaxHeight" Value="220" />
-                            <Setter Target="ProfileList.MinHeight" Value="140" />
-                            <Setter Target="EditorSurface.(Grid.Column)" Value="0" />
-                            <Setter Target="EditorSurface.(Grid.Row)" Value="1" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateManager.VisualStateGroups>
         </Grid>
+        </ScrollViewer>
 
         <ProgressRing x:Name="BusyRing" Grid.Row="2" Width="32" Height="32" HorizontalAlignment="Center" VerticalAlignment="Center" IsActive="False" Visibility="Collapsed" />
     </Grid>

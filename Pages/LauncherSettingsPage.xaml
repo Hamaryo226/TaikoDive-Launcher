@@ -13,7 +13,8 @@
 
         <StackPanel Spacing="6">
             <TextBlock Text="ランチャー設定" Style="{StaticResource PageTitleStyle}" />
-            <TextBlock Text="表示テーマとTaikoDive起動後の動作を設定します。" Style="{StaticResource PageSubtitleStyle}" />
+            <TextBlock Text="表示、起動後の動作、アップデートを管理します。" Style="{StaticResource PageSubtitleStyle}" />
+            <TextBlock x:Name="LauncherPreferenceSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
         </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
@@ -23,35 +24,50 @@
             HorizontalContentAlignment="Stretch"
             HorizontalScrollBarVisibility="Disabled"
             VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="16">
-                <Border Style="{StaticResource QuietSurfaceStyle}">
-                    <Grid ColumnSpacing="20">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Spacing="6">
+            <StackPanel Spacing="24">
+                <Grid ColumnSpacing="16" RowSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition x:Name="PreferenceSecondColumn" Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border Style="{StaticResource QuietSurfaceStyle}">
+                        <StackPanel Spacing="12">
                             <TextBlock Text="テーマ" Style="{StaticResource SectionTitleStyle}" />
-                            <TextBlock
-                                Text="アイコンを押すとホワイトモードとダークモードが切り替わります。"
-                                Style="{StaticResource PageSubtitleStyle}" />
-                        </StackPanel>
+                            <TextBlock Text="画面全体の色を切り替えます。" Style="{StaticResource PageSubtitleStyle}" />
                         <Button
                             x:Name="ThemeToggleButton"
-                            Grid.Column="1"
-                            Width="48"
-                            Height="48"
-                            Padding="0"
-                            HorizontalAlignment="Right"
-                            VerticalAlignment="Center"
+                            HorizontalAlignment="Left"
                             Click="ThemeToggleButton_Click"
                             ToolTipService.ToolTip="テーマを切り替え">
-                            <FontIcon x:Name="ThemeIcon" FontSize="20" />
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon x:Name="ThemeIcon" FontSize="18" />
+                                <TextBlock Text="テーマを切り替え" />
+                            </StackPanel>
                         </Button>
-                    </Grid>
-                </Border>
+                            <ComboBox
+                                x:Name="BannerStyleBox"
+                                Header="ホームバナー"
+                                DisplayMemberPath="Label"
+                                SelectedValuePath="Value"
+                                HorizontalAlignment="Stretch"
+                                SelectionChanged="BannerStyleBox_SelectionChanged" />
+                            <Border
+                                x:Name="BannerPreview"
+                                Height="78"
+                                CornerRadius="8"
+                                AutomationProperties.Name="選択中のホームバナーのプレビュー">
+                                <Border.Background>
+                                    <ImageBrush ImageSource="ms-appx:///Assets/HeroGradientA.jpg" Stretch="UniformToFill" />
+                                </Border.Background>
+                            </Border>
+                        </StackPanel>
+                    </Border>
 
-                <Border Style="{StaticResource QuietSurfaceStyle}">
+                <Border x:Name="LaunchBehaviorSurface" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="14">
                         <TextBlock Text="起動動作" Style="{StaticResource SectionTitleStyle}" />
                         <ToggleSwitch
@@ -63,6 +79,14 @@
                             Style="{StaticResource PageSubtitleStyle}" />
                     </StackPanel>
                 </Border>
+                </Grid>
+
+                <StackPanel Spacing="4">
+                    <TextBlock Text="アップデート" Style="{StaticResource SectionTitleStyle}" />
+                    <TextBlock Text="ランチャー、ゲーム、素材を個別に確認・更新できます。" Style="{StaticResource PageSubtitleStyle}" />
+                </StackPanel>
+
+                <StackPanel Spacing="16">
 
                 <Border Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="12">
@@ -133,11 +157,15 @@
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 TextAlignment="Right" />
                         </Grid>
-                        <Grid ColumnSpacing="8">
+                        <Grid x:Name="LauncherUpdateActions" ColumnSpacing="8" RowSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition x:Name="LauncherActionSecondColumn" Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <Button
                                 x:Name="CheckUpdateButton"
                                 Click="CheckUpdateButton_Click">
@@ -231,11 +259,15 @@
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 TextAlignment="Right" />
                         </Grid>
-                        <Grid ColumnSpacing="8">
+                        <Grid x:Name="GameUpdateActions" ColumnSpacing="8" RowSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition x:Name="GameActionSecondColumn" Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <Button
                                 x:Name="CheckGameUpdateButton"
                                 Click="CheckGameUpdateButton_Click">
@@ -329,11 +361,15 @@
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 TextAlignment="Right" />
                         </Grid>
-                        <Grid ColumnSpacing="8">
+                        <Grid x:Name="AssetUpdateActions" ColumnSpacing="8" RowSpacing="8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition x:Name="AssetActionSecondColumn" Width="*" />
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
                             <Button
                                 x:Name="CheckAssetUpdateButton"
                                 Click="CheckAssetUpdateButton_Click">
@@ -357,18 +393,41 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
         <VisualStateManager.VisualStateGroups>
-            <VisualStateGroup>
-                <VisualState x:Name="WideState">
-                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="700" /></VisualState.StateTriggers>
+            <VisualStateGroup x:Name="PreferenceWidthStates">
+                <VisualState x:Name="PreferencesWideState">
+                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="820" /></VisualState.StateTriggers>
                 </VisualState>
-                <VisualState x:Name="NarrowState">
+                <VisualState x:Name="PreferencesNarrowState">
+                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="PreferenceSecondColumn.Width" Value="0" />
+                        <Setter Target="LaunchBehaviorSurface.(Grid.Column)" Value="0" />
+                        <Setter Target="LaunchBehaviorSurface.(Grid.Row)" Value="1" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+            <VisualStateGroup x:Name="CompactActionStates">
+                <VisualState x:Name="ActionsWideState">
+                    <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="820" /></VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="ActionsNarrowState">
                     <VisualState.StateTriggers><AdaptiveTrigger MinWindowWidth="0" /></VisualState.StateTriggers>
                     <VisualState.Setters>
                         <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
+                        <Setter Target="LauncherActionSecondColumn.Width" Value="0" />
+                        <Setter Target="GameActionSecondColumn.Width" Value="0" />
+                        <Setter Target="AssetActionSecondColumn.Width" Value="0" />
+                        <Setter Target="InstallUpdateButton.(Grid.Column)" Value="0" />
+                        <Setter Target="InstallUpdateButton.(Grid.Row)" Value="1" />
+                        <Setter Target="InstallGameUpdateButton.(Grid.Column)" Value="0" />
+                        <Setter Target="InstallGameUpdateButton.(Grid.Row)" Value="1" />
+                        <Setter Target="InstallAssetUpdateButton.(Grid.Column)" Value="0" />
+                        <Setter Target="InstallAssetUpdateButton.(Grid.Row)" Value="1" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>

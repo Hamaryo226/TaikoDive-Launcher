@@ -7,35 +7,38 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
+    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16" SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid>
+        <Grid x:Name="HeaderGrid" RowSpacing="8">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <StackPanel Spacing="6">
                 <TextBlock Text="起動構成" Style="{StaticResource PageTitleStyle}" />
                 <TextBlock
                     Text="TaikoDiveの画面・サウンド・読み込み設定を編集します。"
                     Style="{StaticResource PageSubtitleStyle}" />
+                <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
-            <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
-                <AppBarButton Click="ReloadButton_Click" Label="再読み込み" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon>
-                        <SymbolIcon Symbol="Refresh" />
-                    </AppBarButton.Icon>
-                </AppBarButton>
+            <CommandBar x:Name="SaveCommandBar" Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
                 </AppBarButton>
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
+                </CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
 
@@ -60,27 +63,90 @@
                 </Grid.RowDefinitions>
 
                 <Border x:Name="WindowSurface" Style="{StaticResource QuietSurfaceStyle}">
-                    <StackPanel Spacing="16">
+                    <StackPanel Spacing="10">
                         <TextBlock Text="画面" Style="{StaticResource SectionTitleStyle}" />
                         <ComboBox
                             x:Name="ResolutionBox"
                             Header="ウィンドウ解像度"
                             DisplayMemberPath="Label"
                             SelectedValuePath="Width" />
-                        <ToggleSwitch x:Name="FullScreenSwitch" Header="フルスクリーン" />
-                        <ToggleSwitch x:Name="BorderlessSwitch" Header="ボーダーレスウィンドウ" />
-                        <ToggleSwitch x:Name="VerticalSyncSwitch" Header="垂直同期" />
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="フルスクリーン" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="FullScreenSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="フルスクリーン" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ボーダーレスウィンドウ" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="BorderlessSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="ボーダーレスウィンドウ" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="垂直同期" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="VerticalSyncSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="垂直同期" />
+                        </Grid>
                         <ComboBox
                             x:Name="BackgroundMovieLayoutBox"
                             Header="背景ムービーの表示"
                             DisplayMemberPath="Label"
                             SelectedValuePath="Value" />
-                        <ToggleSwitch x:Name="TitleShowSwitch" Header="タイトル画面を表示" />
-                        <ToggleSwitch x:Name="GuestModeSwitch" Header="ゲストモード" />
-                        <ToggleSwitch x:Name="TwoPlayerModeSwitch" Header="2人プレイ" />
-                        <ToggleSwitch x:Name="SaveReplaySwitch" Header="ベストリプレイを保存" />
-                        <ToggleSwitch x:Name="FreePlaySwitch" Header="フリープレイ" />
-                        <ToggleSwitch x:Name="CollaboBackSwitch" Header="コラボ背景を表示" />
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="タイトル画面を表示" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="TitleShowSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="タイトル画面を表示" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ゲストモード" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="GuestModeSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="ゲストモード" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="2人プレイ" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="TwoPlayerModeSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="2人プレイ" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="ベストリプレイを保存" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="SaveReplaySwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="ベストリプレイを保存" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="フリープレイ" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="FreePlaySwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="フリープレイ" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="コラボ背景を表示" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="CollaboBackSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="コラボ背景を表示" />
+                        </Grid>
                     </StackPanel>
                 </Border>
 
@@ -102,11 +168,32 @@
                 </Border>
 
                 <Border x:Name="PerformanceSurface" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource QuietSurfaceStyle}">
-                    <StackPanel Spacing="16">
+                    <StackPanel Spacing="10">
                         <TextBlock Text="メモリ / 読み込み" Style="{StaticResource SectionTitleStyle}" />
-                        <ToggleSwitch x:Name="CompressedSoundSwitch" Header="楽曲音声を圧縮したまま保持" />
-                        <ToggleSwitch x:Name="Texture16BitSwitch" Header="一般テクスチャを16bit化" />
-                        <ToggleSwitch x:Name="BgTexture16BitSwitch" Header="背景テクスチャを16bit化" />
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="楽曲音声を圧縮したまま保持" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="CompressedSoundSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="楽曲音声を圧縮したまま保持" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="一般テクスチャを16bit化" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="Texture16BitSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="一般テクスチャを16bit化" />
+                        </Grid>
+                        <Grid MinHeight="40" ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="背景テクスチャを16bit化" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <ToggleSwitch x:Name="BgTexture16BitSwitch" Grid.Column="1" VerticalAlignment="Center" AutomationProperties.Name="背景テクスチャを16bit化" />
+                        </Grid>
                         <TextBlock
                             Text="16bit化はRAMを節約しますが、グラデーションや白いキャラの色に差が出る場合があります。"
                             Style="{StaticResource PageSubtitleStyle}" />
@@ -146,32 +233,6 @@
                             Style="{StaticResource PageSubtitleStyle}" />
                     </StackPanel>
                 </Border>
-
-                <VisualStateManager.VisualStateGroups>
-                    <VisualStateGroup>
-                        <VisualState x:Name="WideState">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="900" />
-                            </VisualState.StateTriggers>
-                        </VisualState>
-                        <VisualState x:Name="NarrowState">
-                            <VisualState.StateTriggers>
-                                <AdaptiveTrigger MinWindowWidth="0" />
-                            </VisualState.StateTriggers>
-                            <VisualState.Setters>
-                                <Setter Target="PageRoot.Padding" Value="16,16,16,28" />
-                                <Setter Target="SettingsPrimaryColumn.Width" Value="*" />
-                                <Setter Target="SettingsSecondaryColumn.Width" Value="0" />
-                                <Setter Target="AudioSurface.(Grid.Column)" Value="0" />
-                                <Setter Target="AudioSurface.(Grid.Row)" Value="1" />
-                                <Setter Target="PerformanceSurface.(Grid.Row)" Value="2" />
-                                <Setter Target="FontSurface.(Grid.Row)" Value="3" />
-                                <Setter Target="OnlineSurface.(Grid.Column)" Value="0" />
-                                <Setter Target="OnlineSurface.(Grid.Row)" Value="4" />
-                            </VisualState.Setters>
-                        </VisualState>
-                    </VisualStateGroup>
-                </VisualStateManager.VisualStateGroups>
             </Grid>
         </ScrollViewer>
 
