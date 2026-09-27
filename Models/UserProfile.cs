@@ -25,4 +25,29 @@ public sealed record ResolutionOption(int Width, string Label);
 
 public sealed record UserStatistics(int ScoreCount, int ReplayCount, string FolderPath);
 
-public sealed record RecentSong(string Title, DateTime PlayedAt);
+public sealed record RecentSong(string Title, DateTime PlayedAt, string ScorePath);
+
+public sealed class SongBestResult
+{
+    public required string Difficulty { get; init; }
+    public int Score { get; set; }
+    public double Gauge { get; set; }
+    public int Great { get; set; }
+    public int Good { get; set; }
+    public int Miss { get; set; }
+    public int RollCount { get; set; }
+    public int MaxCombo { get; set; }
+    public string Crown { get; set; } = "NoClear";
+    public string ScoreRank { get; set; } = "なし";
+
+    public bool HasRecord => Score > 0 || Great > 0 || Good > 0 || Miss > 0 || RollCount > 0
+        || Crown != "NoClear" || ScoreRank != "なし";
+
+    public string CrownLabel => Crown switch
+    {
+        "Clear" => "クリア",
+        "FullCombo" => "フルコンボ",
+        "DondaFullCombo" => "ドンダフルコンボ",
+        _ => "なし",
+    };
+}

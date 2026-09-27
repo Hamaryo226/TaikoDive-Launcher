@@ -1298,6 +1298,87 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task RecentSongsUseSongInfoTitleInsteadOfHashFolder()
+    {
+        using TemporaryInstallation temporary = new();
+        string songFolder = Path.Combine(temporary.Installation.ScoreDirectory, "Player", new string('A', 64));
+        Directory.CreateDirectory(songFolder);
+        await File.WriteAllBytesAsync(Path.Combine(songFolder, "Score.dat"), [0]);
+        await File.WriteAllTextAsync(Path.Combine(songFolder, "Song.txt"), "太鼓の楽曲\nSongs/楽曲/chart.tja\n", new UTF8Encoding(true));
+
+        IReadOnlyList<RecentSong> recent = await new UserProfileStore()
+            .GetRecentSongsAsync(temporary.Installation, "Player", 5, CancellationToken.None);
+
+        Assert.HasCount(1, recent);
+        Assert.AreEqual("太鼓の楽曲", recent[0].Title);
+    }
+
+    [TestMethod]
+    public async Task SongBestResultsReadEachDifficultyAndBestScoreBreakdown()
+    {
+        using TemporaryInstallation temporary = new();
+        string scorePath = Path.Combine(temporary.Installation.ScoreDirectory, "Player", "song", "Score.dat");
+        Directory.CreateDirectory(Path.GetDirectoryName(scorePath)!);
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        await File.WriteAllTextAsync(scorePath, """
+            {
+              "scores":
+              [
+                "Easy"
+                {
+                  Score=0
+                  Crown=NoClear
+                  ScoreRank=なし
+                },
+                "Normal"
+                {
+                  Score=876543
+                  Gauge=82.5
+                  Great=321
+                  Good=12
+                  Miss=3
+                  RollCount=45
+                  MaxCombo=250
+                  Crown=FullCombo
+                  ScoreRank=雅紫
+                  FutureValue=keep
+                },
+                "Hard"
+                {
+                  Score=0
+                },
+                "Oni"
+                {
+                  Score=0
+                },
+                "Edit"
+                {
+                  Score=0
+                }
+              ]
+            }
+            """, Encoding.GetEncoding(932));
+
+        IReadOnlyList<SongBestResult> results = await new UserProfileStore()
+            .GetSongBestResultsAsync(scorePath, CancellationToken.None);
+
+        Assert.HasCount(5, results);
+        Assert.IsFalse(results[0].HasRecord);
+        SongBestResult normal = results[1];
+        Assert.AreEqual("ふつう", normal.Difficulty);
+        Assert.AreEqual(876543, normal.Score);
+        Assert.AreEqual(82.5, normal.Gauge);
+        Assert.AreEqual(321, normal.Great);
+        Assert.AreEqual(12, normal.Good);
+        Assert.AreEqual(3, normal.Miss);
+        Assert.AreEqual(45, normal.RollCount);
+        Assert.AreEqual(250, normal.MaxCombo);
+        Assert.AreEqual("フルコンボ", normal.CrownLabel);
+        Assert.AreEqual("雅紫", normal.ScoreRank);
+        Assert.IsTrue(normal.HasRecord);
+    }
+
+    [TestMethod]
     public async Task RecentSongsAreEmptyWithoutScoreFolder()
     {
         using TemporaryInstallation temporary = new();
