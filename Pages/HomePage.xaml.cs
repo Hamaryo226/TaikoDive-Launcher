@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -126,9 +127,112 @@ public sealed partial class HomePage : Page
 
     private void ShowRecentSongs(IReadOnlyList<RecentSong> songs)
     {
-        RecentSongsList.ItemsSource = songs.Select((song, index) => new RecentSongItem(index + 1, song.Title)).ToList();
+        RecentSongsList.ItemsSource = songs.Select((song, index) => new RecentSongItem(index + 1, song)).ToList();
         RecentSongsEmptyText.Text = "まだプレイ履歴がありません。";
         RecentSongsEmptyText.Visibility = songs.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private async void RecentSong_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: RecentSong song })
+        {
+            return;
+        }
+
+        try
+        {
+            IReadOnlyList<SongBestResult> results = await _profileStore.GetSongBestResultsAsync(song.ScorePath, CancellationToken.None);
+            StackPanel content = new() { Spacing = 8 };
+            content.Children.Add(new TextBlock
+            {
+                Text = "難易度を選ぶと、自己ベスト時の内訳を表示します。",
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.7,
+            });
+            StackPanel details = new() { Spacing = 6, Visibility = Visibility.Collapsed };
+            foreach (SongBestResult result in results)
+            {
+                content.Children.Add(CreateDifficultyButton(result, details));
+            }
+            content.Children.Add(details);
+
+            ContentDialog dialog = new()
+            {
+                Title = song.Title,
+                Content = new ScrollViewer
+                {
+                    Content = content,
+                    Width = Math.Min(480, Math.Max(260, ActualWidth - 100)),
+                    MaxHeight = Math.Min(580, Math.Max(280, ActualHeight - 150)),
+                },
+                CloseButtonText = "閉じる",
+                XamlRoot = XamlRoot,
+            };
+            await dialog.ShowAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowStatus(InfoBarSeverity.Error, $"自己ベストを読み取れません: {ex.Message}");
+        }
+    }
+
+    private static Button CreateDifficultyButton(SongBestResult result, StackPanel details)
+    {
+        Grid heading = new() { ColumnSpacing = 12 };
+        heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        heading.Children.Add(new TextBlock { Text = result.Difficulty, FontSize = 15 });
+        TextBlock score = new()
+        {
+            Text = result.HasRecord ? $"{result.Score:N0} 点" : "記録なし",
+            FontSize = 15,
+        };
+        Grid.SetColumn(score, 1);
+        heading.Children.Add(score);
+
+        StackPanel summary = new() { Spacing = 3 };
+        summary.Children.Add(heading);
+        if (result.HasRecord)
+        {
+            summary.Children.Add(new TextBlock
+            {
+                Text = $"王冠: {result.CrownLabel}　　スコアランク: {result.ScoreRank}",
+                FontSize = 12,
+                TextWrapping = TextWrapping.Wrap,
+                Opacity = 0.75,
+            });
+        }
+
+        Button button = new()
+        {
+            Content = summary,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
+            Padding = new Thickness(12, 8, 12, 8),
+            IsEnabled = result.HasRecord,
+        };
+        AutomationProperties.SetName(button, result.HasRecord
+            ? $"{result.Difficulty}、{result.Score:N0}点、王冠 {result.CrownLabel}、スコアランク {result.ScoreRank}"
+            : $"{result.Difficulty}、記録なし");
+        button.Click += (_, _) => ShowScoreDetails(details, result);
+        return button;
+    }
+
+    private static void ShowScoreDetails(StackPanel details, SongBestResult result)
+    {
+        details.Children.Clear();
+        details.Children.Add(new TextBlock { Text = $"{result.Difficulty} · 自己ベスト時の内訳", FontSize = 16 });
+        details.Children.Add(new TextBlock { Text = $"スコア {result.Score:N0} 点　ゲージ {result.Gauge:0.##}%", TextWrapping = TextWrapping.Wrap });
+        details.Children.Add(new TextBlock { Text = $"良 {result.Great:N0}　可 {result.Good:N0}　不可 {result.Miss:N0}", TextWrapping = TextWrapping.Wrap });
+        details.Children.Add(new TextBlock { Text = $"連打 {result.RollCount:N0}　最大コンボ {result.MaxCombo:N0}", TextWrapping = TextWrapping.Wrap });
+        details.Children.Add(new TextBlock
+        {
+            Text = "王冠とスコアランクは、それぞれこれまでの最高到達記録です。",
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+            Opacity = 0.7,
+        });
+        details.Visibility = Visibility.Visible;
     }
 
     private void SetDonPreviewStatus(string text)
@@ -206,11 +310,13 @@ public sealed partial class HomePage : Page
     }
 }
 
-public sealed partial class RecentSongItem(int rank, string title)
+public sealed partial class RecentSongItem(int rank, RecentSong song)
 {
     public string RankText { get; } = rank.ToString();
 
-    public string Title { get; } = title;
+    public RecentSong Song { get; } = song;
+
+    public string Title { get; } = song.Title;
 
     public Visibility DonBadgeVisibility { get; } = rank % 2 == 1 ? Visibility.Visible : Visibility.Collapsed;
 

@@ -215,16 +215,21 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="local:RecentSongItem">
-                                    <Grid
-                                        Height="40"
+                                    <Button
+                                        Click="RecentSong_Click"
+                                        Tag="{x:Bind Song}"
+                                        HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch"
+                                        MinHeight="44"
                                         Padding="12,0"
                                         Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                                        ColumnSpacing="14"
-                                        CornerRadius="6">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
+                                        AutomationProperties.Name="{x:Bind Title}">
+                                        <Grid ColumnSpacing="14">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
                                         <Border
                                             Width="22"
                                             Height="22"
@@ -260,7 +265,9 @@
                                             FontWeight="SemiBold"
                                             Text="{x:Bind Title}"
                                             TextTrimming="CharacterEllipsis" />
-                                    </Grid>
+                                            <FontIcon Grid.Column="2" Glyph="&#xE76C;" FontSize="12" />
+                                        </Grid>
+                                    </Button>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

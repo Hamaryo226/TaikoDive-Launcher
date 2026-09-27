@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using TaikoDiveLauncher.Models;
 
 namespace TaikoDiveLauncher.Services;
@@ -193,8 +194,8 @@ public sealed class UserProfileStore
     }
 
     /// <summary>
-    /// Returns the songs whose Score.dat was written most recently. The song title is taken
-    /// from the folder that holds each Score.dat.
+    /// Returns the songs whose Score.dat was written most recently. The game stores the title
+    /// on the first line of Song.txt beside Score.dat; the folder name is a path hash.
     /// </summary>
     public Task<IReadOnlyList<RecentSong>> GetRecentSongsAsync(
         TaikoDiveInstallation installation,
@@ -223,7 +224,7 @@ public sealed class UserProfileStore
                 DateTime playedAt = File.GetLastWriteTimeUtc(scorePath);
                 if (!latestBySong.TryGetValue(songDirectory, out RecentSong? existing) || existing.PlayedAt < playedAt)
                 {
-                    latestBySong[songDirectory] = new RecentSong(Path.GetFileName(songDirectory), playedAt);
+                    latestBySong[songDirectory] = new RecentSong(ReadSongTitle(songDirectory), playedAt, scorePath);
                 }
             }
 
@@ -232,6 +233,108 @@ public sealed class UserProfileStore
                 .Take(count)
                 .ToList();
         }, cancellationToken);
+    }
+
+    public Task<IReadOnlyList<SongBestResult>> GetSongBestResultsAsync(string scorePath, CancellationToken cancellationToken)
+    {
+        return Task.Run<IReadOnlyList<SongBestResult>>(() =>
+        {
+            string[] sectionNames = ["Easy", "Normal", "Hard", "Oni", "Edit"];
+            string[] difficultyNames = ["かんたん", "ふつう", "むずかしい", "おに", "おに（裏）"];
+            SongBestResult[] results = difficultyNames
+                .Select(name => new SongBestResult { Difficulty = name })
+                .ToArray();
+            if (!File.Exists(scorePath))
+            {
+                return results;
+            }
+
+            using StreamReader reader = new(scorePath, Encoding.GetEncoding(932));
+            SongBestResult? current = null;
+            while (reader.ReadLine() is { } line)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string trimmed = line.Trim();
+                int sectionIndex = Array.FindIndex(sectionNames, name =>
+                    trimmed.Equals($"\"{name}\"", StringComparison.OrdinalIgnoreCase));
+                if (sectionIndex >= 0)
+                {
+                    current = results[sectionIndex];
+                    continue;
+                }
+
+                if (trimmed.StartsWith('}'))
+                {
+                    current = null;
+                }
+
+                int separator = trimmed.IndexOf('=');
+                if (current is null || separator < 0)
+                {
+                    continue;
+                }
+
+                string key = trimmed[..separator].Trim();
+                string value = trimmed[(separator + 1)..].Trim();
+                if (key.Equals("Gauge", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (double.TryParse(value, NumberStyles.Float, CultureInfo.CurrentCulture, out double gauge)
+                        || double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out gauge))
+                    {
+                        current.Gauge = gauge;
+                    }
+                    continue;
+                }
+
+                if (key.Equals("Crown", StringComparison.OrdinalIgnoreCase))
+                {
+                    current.Crown = value is "Clear" or "FullCombo" or "DondaFullCombo" ? value : "NoClear";
+                    continue;
+                }
+
+                if (key.Equals("ScoreRank", StringComparison.OrdinalIgnoreCase))
+                {
+                    current.ScoreRank = value is "粋白" or "粋銅" or "粋銀" or "雅金" or "雅撫子" or "雅紫" or "極"
+                        ? value : "なし";
+                    continue;
+                }
+
+                if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int number))
+                {
+                    continue;
+                }
+                switch (key)
+                {
+                    case "Score": current.Score = number; break;
+                    case "Great": current.Great = number; break;
+                    case "Good": current.Good = number; break;
+                    case "Miss": current.Miss = number; break;
+                    case "RollCount": current.RollCount = number; break;
+                    case "MaxCombo": current.MaxCombo = number; break;
+                }
+            }
+
+            return results;
+        }, cancellationToken);
+    }
+
+    private static string ReadSongTitle(string songDirectory)
+    {
+        string infoPath = Path.Combine(songDirectory, "Song.txt");
+        if (File.Exists(infoPath))
+        {
+            using StreamReader reader = new(infoPath);
+            string? title = reader.ReadLine()?.Trim();
+            if (!string.IsNullOrWhiteSpace(title))
+            {
+                return title;
+            }
+        }
+
+        string folderName = Path.GetFileName(songDirectory);
+        return folderName.Length == 64 && folderName.All(Uri.IsHexDigit)
+            ? "曲名不明"
+            : folderName;
     }
 
     private static int CountFiles(string folder, string pattern, CancellationToken cancellationToken)
