@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Globalization;
+using TaikoDiveLauncher.Controls;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.UI;
@@ -337,17 +338,8 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             var frames = new List<BitmapImage>(preview.Frames.Count);
             foreach (byte[] png in preview.Frames)
             {
-            using var stream = new Windows.Storage.Streams.InMemoryRandomAccessStream();
-            using (var writer = new Windows.Storage.Streams.DataWriter(stream.GetOutputStreamAt(0)))
-            {
-                writer.WriteBytes(png);
-                await writer.StoreAsync();
-            }
-            stream.Seek(0);
-            var image = new BitmapImage();
-            await image.SetSourceAsync(stream);
-            cancellation.Token.ThrowIfCancellationRequested();
-            frames.Add(image);
+                frames.Add(await PngImage.DecodeAsync(png));
+                cancellation.Token.ThrowIfCancellationRequested();
             }
             _animationFrames = frames; _animationDuration = preview.Duration;
             PlaybackButton.IsEnabled = animate;

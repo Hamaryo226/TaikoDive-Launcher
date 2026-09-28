@@ -4,17 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Light">
-            <SolidColorBrush x:Key="HeroBackgroundBrush" Color="#061526" />
-            <x:Double x:Key="HeroTextureOpacity">1</x:Double>
-            <SolidColorBrush x:Key="HeroForegroundBrush" Color="#FFFFFF" />
-            <SolidColorBrush x:Key="HeroSecondaryForegroundBrush" Color="#E6FFFFFF" />
-            <SolidColorBrush x:Key="HeroChipBackgroundBrush" Color="#330A4A61" />
-            <SolidColorBrush x:Key="TaikoDonBrush" Color="#A8321F" />
-            <SolidColorBrush x:Key="TaikoKaBrush" Color="#1E5F8F" />
-            <SolidColorBrush x:Key="TaikoOnAccentBrush" Color="#FFFFFF" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Dark">
+        <ResourceDictionary x:Key="Default">
             <SolidColorBrush x:Key="HeroBackgroundBrush" Color="#061526" />
             <x:Double x:Key="HeroTextureOpacity">1</x:Double>
             <SolidColorBrush x:Key="HeroForegroundBrush" Color="#FFFFFF" />

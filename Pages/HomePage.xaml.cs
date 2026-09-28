@@ -3,9 +3,9 @@ using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using TaikoDiveLauncher.Controls;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
-using Windows.Storage.Streams;
 using Windows.UI.ViewManagement;
 
 namespace TaikoDiveLauncher.Pages;
@@ -53,16 +53,9 @@ public sealed partial class HomePage : Page
 
     private void ApplyBannerStyle()
     {
-        string name = AppInstance.Context.Preferences.HomeBannerStyle switch
-        {
-            "Violet" => "HeroGradientViolet",
-            "Sunset" => "HeroGradientSunset",
-            _ => "HeroGradient",
-        };
-        ((ImageBrush)HeroBaseBorder.Background).ImageSource =
-            new BitmapImage(new Uri($"ms-appx:///Assets/{name}A.jpg"));
-        ((ImageBrush)HeroGradientOverlay.Background).ImageSource =
-            new BitmapImage(new Uri($"ms-appx:///Assets/{name}B.jpg"));
+        string style = AppInstance.Context.Preferences.HomeBannerStyle;
+        ((ImageBrush)HeroBaseBorder.Background).ImageSource = new BitmapImage(HomeBanner.GetImageUri(style, 'A'));
+        ((ImageBrush)HeroGradientOverlay.Background).ImageSource = new BitmapImage(HomeBanner.GetImageUri(style, 'B'));
     }
 
     private async Task RefreshAsync()
@@ -251,15 +244,7 @@ public sealed partial class HomePage : Page
             Character3DSettings saved = await _characterStore.LoadAsync(installation, 1);
             byte[] png = await _characterPreview.RenderAsync(installation, saved, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            using InMemoryRandomAccessStream stream = new();
-            using (DataWriter writer = new(stream.GetOutputStreamAt(0)))
-            {
-                writer.WriteBytes(png);
-                await writer.StoreAsync();
-            }
-            stream.Seek(0);
-            BitmapImage image = new();
-            await image.SetSourceAsync(stream);
+            BitmapImage image = await PngImage.DecodeAsync(png);
             cancellationToken.ThrowIfCancellationRequested();
             DonPreviewImage.Source = image;
             SetDonPreviewStatus(string.Empty);

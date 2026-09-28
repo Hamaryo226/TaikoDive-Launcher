@@ -92,7 +92,6 @@ public sealed partial class LauncherSettingsPage : Page
 
         bool previousValue = AppInstance.Context.Preferences.CloseAfterLaunch;
         AppInstance.Context.Preferences.CloseAfterLaunch = CloseAfterLaunchSwitch.IsOn;
-        UpdatePreferencesSummary();
         try
         {
             await AppInstance.Context.SavePreferencesAsync();
@@ -104,7 +103,6 @@ public sealed partial class LauncherSettingsPage : Page
             _isLoading = true;
             CloseAfterLaunchSwitch.IsOn = previousValue;
             _isLoading = false;
-            UpdatePreferencesSummary();
             ShowStatus(InfoBarSeverity.Error, $"起動動作を保存できませんでした: {ex.Message}");
         }
     }
@@ -119,7 +117,6 @@ public sealed partial class LauncherSettingsPage : Page
         string previous = AppInstance.Context.Preferences.HomeBannerStyle;
         AppInstance.Context.Preferences.HomeBannerStyle = selected;
         UpdateBannerPreview();
-        UpdatePreferencesSummary();
         try
         {
             await AppInstance.Context.SavePreferencesAsync();
@@ -132,21 +129,14 @@ public sealed partial class LauncherSettingsPage : Page
             BannerStyleBox.SelectedValue = previous;
             _isLoading = false;
             UpdateBannerPreview();
-            UpdatePreferencesSummary();
             ShowStatus(InfoBarSeverity.Error, $"ホームバナーを保存できませんでした: {ex.Message}");
         }
     }
 
     private void UpdateBannerPreview()
     {
-        string name = BannerStyleBox.SelectedValue switch
-        {
-            "Violet" => "HeroGradientViolet",
-            "Sunset" => "HeroGradientSunset",
-            _ => "HeroGradient",
-        };
         ((ImageBrush)BannerPreview.Background).ImageSource =
-            new BitmapImage(new Uri($"ms-appx:///Assets/{name}A.jpg"));
+            new BitmapImage(HomeBanner.GetImageUri(BannerStyleBox.SelectedValue as string, 'A'));
     }
 
     private void UpdateThemeButton()
@@ -161,20 +151,6 @@ public sealed partial class LauncherSettingsPage : Page
             : "ダークモード。ホワイトモードへ切り替え";
         AutomationProperties.SetName(ThemeToggleButton, accessibleName);
         ToolTipService.SetToolTip(ThemeToggleButton, accessibleName);
-        UpdatePreferencesSummary();
-    }
-
-    private void UpdatePreferencesSummary()
-    {
-        string theme = string.Equals(AppInstance.Context.Preferences.Theme, "Light", StringComparison.OrdinalIgnoreCase)
-            ? "ライト"
-            : "ダーク";
-        string afterLaunch = AppInstance.Context.Preferences.CloseAfterLaunch
-            ? "ゲーム起動後に終了"
-            : "ゲーム中もランチャーを表示";
-        string banner = BannerStyles.FirstOrDefault(option => option.Value == AppInstance.Context.Preferences.HomeBannerStyle)?.Label
-            ?? BannerStyles[0].Label;
-        LauncherPreferenceSummaryText.Text = $"現在: {theme} · {banner} · {afterLaunch}（変更時に保存）";
     }
 
     private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)

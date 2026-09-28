@@ -9,7 +9,6 @@ using TaikoDiveLauncher.Services;
 using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
-using Windows.Storage.Streams;
 
 namespace TaikoDiveLauncher.Controls;
 
@@ -48,9 +47,9 @@ public sealed partial class NamePlateAnimationView : UserControl
         {
             var layers = await Task.Run(() => NamePlateTextRenderer.RenderBaseLayers(baseSheetPath));
             if (loadVersion != _loadVersion) return;
-            BackgroundImage.Source = await DecodePngAsync(layers.Background);
+            BackgroundImage.Source = await PngImage.DecodeAsync(layers.Background);
             if (loadVersion != _loadVersion) return;
-            PlayerNumberImage.Source = await DecodePngAsync(layers.Number);
+            PlayerNumberImage.Source = await PngImage.DecodeAsync(layers.Number);
             _loadedBasePath = baseSheetPath;
         }
 
@@ -92,29 +91,15 @@ public sealed partial class NamePlateAnimationView : UserControl
         int version = ++_textVersion;
         var rendered = await Task.Run(() => NamePlateTextRenderer.Render(installation, name, title));
         if (version != _textVersion) return;
-        BitmapImage nameSource = await DecodePngAsync(rendered.Name.Png);
+        BitmapImage nameSource = await PngImage.DecodeAsync(rendered.Name.Png);
         if (version != _textVersion) return;
-        BitmapImage titleSource = await DecodePngAsync(rendered.Title.Png);
+        BitmapImage titleSource = await PngImage.DecodeAsync(rendered.Title.Png);
         if (version != _textVersion) return;
         _nameBitmap = rendered.Name;
         _titleBitmap = rendered.Title;
         NameImage.Source = nameSource;
         TitleImage.Source = titleSource;
         PlaceText();
-    }
-
-    private static async Task<BitmapImage> DecodePngAsync(byte[] png)
-    {
-        using InMemoryRandomAccessStream stream = new();
-        using (DataWriter writer = new(stream.GetOutputStreamAt(0)))
-        {
-            writer.WriteBytes(png);
-            await writer.StoreAsync();
-        }
-        stream.Seek(0);
-        BitmapImage image = new();
-        await image.SetSourceAsync(stream);
-        return image;
     }
 
     private async Task ShowAnimationAsync(Aup2Animation animation, int loadVersion)

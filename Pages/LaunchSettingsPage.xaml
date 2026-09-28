@@ -28,7 +28,6 @@
                 <TextBlock
                     Text="TaikoDiveの画面・サウンド・読み込み設定を編集します。"
                     Style="{StaticResource PageSubtitleStyle}" />
-                <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar x:Name="SaveCommandBar" Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">

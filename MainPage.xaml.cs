@@ -15,8 +15,6 @@ public sealed partial class MainPage : Page
     private bool _suppressSelectionChanged;
     private string _currentTag = "home";
 
-    public static MainPage? Current { get; private set; }
-
     public MainPage()
     {
         InitializeComponent();
@@ -26,7 +24,6 @@ public sealed partial class MainPage : Page
 
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
-        Current = this;
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
         ((App)Application.Current).Context.Updates.StateChanged += Updates_StateChanged;
         _suppressSelectionChanged = true;
@@ -48,22 +45,6 @@ public sealed partial class MainPage : Page
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)
     {
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
-        if (ReferenceEquals(Current, this))
-        {
-            Current = null;
-        }
-    }
-
-    public void NavigateTo(string tag)
-    {
-        NavigationViewItem? target = ShellNavigation.MenuItems
-            .Concat(ShellNavigation.FooterMenuItems)
-            .OfType<NavigationViewItem>()
-            .FirstOrDefault(item => item.Tag as string == tag);
-        if (target is not null)
-        {
-            ShellNavigation.SelectedItem = target;
-        }
     }
 
     private async void ShellNavigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)

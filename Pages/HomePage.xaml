@@ -95,21 +95,7 @@
                         <Button.Resources>
                             <ResourceDictionary>
                                 <ResourceDictionary.ThemeDictionaries>
-                                    <ResourceDictionary x:Key="Light">
-                                        <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#E9F9FF" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#CCEEF9" />
-                                        <SolidColorBrush x:Key="ButtonBackgroundDisabled" Color="#40FFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonForeground" Color="#093F58" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPointerOver" Color="#093F58" />
-                                        <SolidColorBrush x:Key="ButtonForegroundPressed" Color="#062F43" />
-                                        <SolidColorBrush x:Key="ButtonForegroundDisabled" Color="#CCFFFFFF" />
-                                        <SolidColorBrush x:Key="ButtonBorderBrush" Color="Transparent" />
-                                        <SolidColorBrush x:Key="ButtonBorderBrushPointerOver" Color="Transparent" />
-                                        <SolidColorBrush x:Key="ButtonBorderBrushPressed" Color="Transparent" />
-                                        <SolidColorBrush x:Key="ButtonBorderBrushDisabled" Color="#66FFFFFF" />
-                                    </ResourceDictionary>
-                                    <ResourceDictionary x:Key="Dark">
+                                    <ResourceDictionary x:Key="Default">
                                         <SolidColorBrush x:Key="ButtonBackground" Color="#FFFFFF" />
                                         <SolidColorBrush x:Key="ButtonBackgroundPointerOver" Color="#E9F9FF" />
                                         <SolidColorBrush x:Key="ButtonBackgroundPressed" Color="#CCEEF9" />

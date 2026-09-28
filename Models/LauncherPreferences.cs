@@ -11,6 +11,16 @@ public sealed class LauncherPreferences
     public WindowPlacementPreferences? WindowPlacement { get; set; }
 }
 
+internal static class HomeBanner
+{
+    /// <summary>Returns the hero gradient image for a banner style; <paramref name="layer"/> is 'A' (base) or 'B' (overlay).</summary>
+    public static Uri GetImageUri(string? style, char layer)
+    {
+        string palette = style is "Violet" or "Sunset" ? style : string.Empty;
+        return new Uri($"ms-appx:///Assets/HeroGradient{palette}{layer}.jpg");
+    }
+}
+
 public sealed class WindowPlacementPreferences
 {
     public int X { get; set; }

@@ -211,26 +211,16 @@ public sealed class UserProfileStore
                 return [];
             }
 
-            Dictionary<string, RecentSong> latestBySong = new(StringComparer.OrdinalIgnoreCase);
-            foreach (string scorePath in Directory.EnumerateFiles(folder, "Score.dat", SearchOption.AllDirectories))
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                string? songDirectory = Path.GetDirectoryName(scorePath);
-                if (songDirectory is null || string.Equals(songDirectory, folder, StringComparison.OrdinalIgnoreCase))
+            return Directory.EnumerateFiles(folder, "Score.dat", SearchOption.AllDirectories)
+                .Where(scorePath => !string.Equals(Path.GetDirectoryName(scorePath), folder, StringComparison.OrdinalIgnoreCase))
+                .Select(scorePath =>
                 {
-                    continue;
-                }
-
-                DateTime playedAt = File.GetLastWriteTimeUtc(scorePath);
-                if (!latestBySong.TryGetValue(songDirectory, out RecentSong? existing) || existing.PlayedAt < playedAt)
-                {
-                    latestBySong[songDirectory] = new RecentSong(ReadSongTitle(songDirectory), playedAt, scorePath);
-                }
-            }
-
-            return latestBySong.Values
-                .OrderByDescending(song => song.PlayedAt)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return (ScorePath: scorePath, PlayedAt: File.GetLastWriteTimeUtc(scorePath));
+                })
+                .OrderByDescending(score => score.PlayedAt)
                 .Take(count)
+                .Select(score => new RecentSong(ReadSongTitle(Path.GetDirectoryName(score.ScorePath)!), score.PlayedAt, score.ScorePath))
                 .ToList();
         }, cancellationToken);
     }

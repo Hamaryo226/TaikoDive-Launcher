@@ -14,7 +14,6 @@
         <StackPanel Spacing="6">
             <TextBlock Text="ランチャー設定" Style="{StaticResource PageTitleStyle}" />
             <TextBlock Text="表示、起動後の動作、アップデートを管理します。" Style="{StaticResource PageSubtitleStyle}" />
-            <TextBlock x:Name="LauncherPreferenceSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
         </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
