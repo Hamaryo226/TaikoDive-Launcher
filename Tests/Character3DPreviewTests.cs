@@ -31,4 +31,53 @@ public class Character3DPreviewTests
         Assert.IsFalse(Character3DPreviewService.IsSupported(Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".dll")));
         Assert.IsFalse(Character3DPreviewService.IsSupported(typeof(Character3DPreviewTests).Assembly.Location));
     }
+
+    [TestMethod]
+    public void StaticPreviewIdentityRemainsStableUntilAppearanceChanges()
+    {
+        var installation = new TaikoDiveInstallation(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")));
+        var settings = new Character3DSettings();
+        string original = Character3DPreviewService.CreateStaticCacheKey(installation, settings);
+        Assert.AreEqual(original, Character3DPreviewService.CreateStaticCacheKey(installation, settings with { }));
+        Assert.AreNotEqual(original, Character3DPreviewService.CreateStaticCacheKey(installation, settings with { BodyColor = "#123456" }));
+        Assert.AreNotEqual(original, Character3DPreviewService.CreateStaticCacheKey(installation, settings with { Head = "52" }));
+        Assert.AreNotEqual(original, Character3DPreviewService.CreateStaticCacheKey(
+            new TaikoDiveInstallation(installation.BuildDirectory + "-other"), settings));
+    }
+
+    [TestMethod]
+    public void StaticPreviewInvalidatesWhenActiveAssetsOrRendererAreUpdated()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDiveLauncherPreviewTests-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var installation = new TaikoDiveInstallation(root);
+            var settings = new Character3DSettings();
+            string models = Character3DStore.ModelRoot(installation, settings.ModelsPath);
+            Directory.CreateDirectory(Path.Combine(models, "head"));
+            string original = Character3DPreviewService.CreateStaticCacheKey(installation, settings);
+            File.WriteAllText(Path.Combine(models, "head", "1.glb"), "unused model");
+            Assert.AreEqual(original, Character3DPreviewService.CreateStaticCacheKey(installation, settings));
+
+            string model = Path.Combine(models, "head", "0.glb");
+            File.WriteAllText(model, "active model");
+            string available = Character3DPreviewService.CreateStaticCacheKey(installation, settings);
+            Assert.AreNotEqual(original, available);
+            File.SetLastWriteTimeUtc(model, File.GetLastWriteTimeUtc(model).AddSeconds(1));
+            string updated = Character3DPreviewService.CreateStaticCacheKey(installation, settings);
+            Assert.AreNotEqual(available, updated);
+
+            string renderer = Path.Combine(root, "TaikoDive.dll");
+            File.WriteAllText(renderer, "renderer");
+            Assert.AreNotEqual(updated, Character3DPreviewService.CreateStaticCacheKey(installation, settings));
+            string costumeKey = Character3DPreviewService.CreateStaticCacheKey(installation, settings with { UseCostume = true });
+            File.WriteAllText(model, "head update does not affect costume");
+            Assert.AreEqual(costumeKey, Character3DPreviewService.CreateStaticCacheKey(installation, settings with { UseCostume = true }));
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }
