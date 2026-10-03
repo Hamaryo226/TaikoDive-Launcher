@@ -1,4 +1,5 @@
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media.Imaging;
 using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher;
@@ -8,6 +9,9 @@ public partial class App : Application
     public static MainWindow MainWindow { get; private set; } = null!;
 
     public LauncherContext Context { get; } = new();
+
+    // Keep only the most recent decoded home thumbnail across page instances.
+    internal (string Key, BitmapImage Image)? HomeDonPreview { get; set; }
 
     public App()
     {

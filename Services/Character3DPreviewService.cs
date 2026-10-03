@@ -38,10 +38,39 @@ public sealed class Character3DPreviewService
         ["colors"] = new JsonObject { ["body"] = settings.BodyColor, ["limbs"] = settings.LimbsColor, ["face"] = settings.FaceColor, ["rim"] = settings.RimColor },
     }.ToJsonString();
 
+    internal static string CreateStaticCacheKey(TaikoDiveInstallation installation, Character3DSettings settings)
+    {
+        string root = Character3DStore.ModelRoot(installation, settings.ModelsPath);
+        string faceAnimations = Path.Combine(root, "face", "animations.json");
+        if (!File.Exists(faceAnimations)) faceAnimations = Path.Combine(root, "..", "Graphics", "global", "animation.json");
+        List<string> files =
+        [
+            installation.ExecutablePath,
+            Path.Combine(installation.BuildDirectory, "TaikoDive.dll"),
+            Path.Combine(root, "animations.glb"),
+            faceAnimations,
+            Path.Combine(root, "face", "face_000000.png"),
+        ];
+        if (settings.UseCostume)
+            files.Add(Path.Combine(root, "cos", settings.Costume + ".glb"));
+        else
+        {
+            files.Add(Path.Combine(root, "head", settings.Head + ".glb"));
+            files.Add(Path.Combine(root, "body", settings.Body + ".glb"));
+        }
+
+        // Check only the active model's dependencies; do not read large model files on navigation.
+        return CreateRequest(installation, settings) + "\n" + string.Join("\n", files.Select(path =>
+        {
+            FileInfo file = new(path);
+            return path + "|" + (file.Exists ? $"{file.Length}|{file.LastWriteTimeUtc.Ticks}" : "missing");
+        }));
+    }
+
     public async Task<byte[]> RenderAsync(TaikoDiveInstallation installation, Character3DSettings settings, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string key = installation.ExecutablePath + "\n" + CreateRequest(installation, settings);
+        string key = CreateStaticCacheKey(installation, settings);
         int generation;
         lock (_cacheLock)
         {
