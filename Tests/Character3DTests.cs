@@ -127,6 +127,37 @@ public sealed class Character3DTests
         Assert.AreEqual("{}", await File.ReadAllTextAsync(path));
     }
 
+    [TestMethod] public async Task DanCostumesAreListedNamedSavedAndPassedToPreview()
+    {
+        var store = new Character3DStore(() => false);
+        string root = Character3DStore.ModelRoot(_installation, "Info/Chara/Model");
+        for (int rank = 1; rank <= 25; rank++) Asset($"cos/cos_036{rank:D3}.glb");
+        Asset("cos/cos_036000.glb"); Asset("cos/cos_036026.glb");
+        Asset("head/cos_036025.glb");
+        var options = store.GetOptions(root, "cos", "0");
+        Assert.AreEqual(38, options.Count);
+        StringAssert.Contains(options.Single(x => x.Id == "cos_036001").Label, "初級");
+        StringAssert.Contains(options.Single(x => x.Id == "cos_036012").Label, "初段");
+        StringAssert.Contains(options.Single(x => x.Id == "cos_036025").Label, "達人");
+        Assert.IsFalse(store.GetOptions(root, "head", "0").Any(x => x.Id == "cos_036025"));
+        for (int rank = 1; rank <= 25; rank++)
+        {
+            string id = $"cos_036{rank:D3}";
+            await store.SaveAsync(_installation, new() { UseCostume = true, Costume = id }, 1);
+            var loaded = await store.LoadAsync(_installation, 1);
+            Assert.AreEqual(id, loaded.Costume);
+            var request = JsonNode.Parse(Character3DPreviewService.CreateRequest(_installation, loaded))!;
+            Assert.AreEqual(id, (string?)request["parts"]!["costume"]);
+        }
+        string settingsPath = Character3DStore.SettingsPath(_installation);
+        string original = await File.ReadAllTextAsync(settingsPath);
+        foreach (string id in new[] { "cos_036000", "cos_036026", "cos_036+01", "../cos_036001", "cos_036001.glb" })
+            await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(_installation, new() { UseCostume = true, Costume = id }));
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(_installation, new() { Head = "cos_036001" }));
+        Assert.AreEqual(original, await File.ReadAllTextAsync(settingsPath));
+        Assert.IsTrue(File.Exists(settingsPath + ".launcher.bak"));
+    }
+
     [TestMethod] public void CatalogUsesExistingFilesNamesAndMissingSelection()
     {
         Asset("head/0.glb"); Asset("head/3.glb"); Asset("head/invalid.glb");

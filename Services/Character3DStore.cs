@@ -69,7 +69,21 @@ public sealed class Character3DStore
         return color.ToUpperInvariant();
     }
 
-    private static bool ValidId(string id) => id.Length is > 0 and <= 10 && id.All(c => c is >= '0' and <= '9');
+    private static readonly string[] DanCostumeNames =
+    [
+        "初級", "十級", "九級", "八級", "七級", "六級", "五級", "四級", "三級", "二級", "一級",
+        "初段", "二段", "三段", "四段", "五段", "六段", "七段", "八段", "九段", "十段",
+        "玄人", "名人", "超人", "達人",
+    ];
+
+    private static int DanCostumeRank(string id) =>
+        id.Length == 10 && id.StartsWith("cos_036", StringComparison.Ordinal)
+        && int.TryParse(id.AsSpan(7), NumberStyles.None, CultureInfo.InvariantCulture, out int rank)
+        && rank is >= 1 and <= 25 ? rank : 0;
+
+    private static bool ValidId(string id, bool allowDanCostume = false) =>
+        (id.Length is > 0 and <= 10 && id.All(c => c is >= '0' and <= '9'))
+        || (allowDanCostume && DanCostumeRank(id) != 0);
 
     public IReadOnlyList<CostumeOption> GetOptions(string root, string category, string current)
     {
@@ -84,8 +98,9 @@ public sealed class Character3DStore
             foreach (string path in Directory.EnumerateFiles(directory, "*.glb").OrderBy(p => Path.GetFileNameWithoutExtension(p).Length).ThenBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 string id = Path.GetFileNameWithoutExtension(path);
-                if (!ValidId(id)) continue;
-                string label = (string?)names?[id]?["name"] ?? (id == "0" ? "標準" : $"衣装 {id}");
+                if (!ValidId(id, allowDanCostume: category == "cos")) continue;
+                int rank = category == "cos" ? DanCostumeRank(id) : 0;
+                string label = (string?)names?[id]?["name"] ?? (rank > 0 ? $"段位衣装・{DanCostumeNames[rank - 1]}" : id == "0" ? "標準" : $"衣装 {id}");
                 string iconFolder = category == "cos" ? "costume_icon" : $"costume_{category}_icon";
                 string icon = Path.Combine(root, iconFolder, id + ".png");
                 result.Add(new CostumeOption(id, $"{label}  ({id})", File.Exists(icon) ? icon : null));
@@ -103,8 +118,8 @@ public sealed class Character3DStore
         var root = await ReadAsync(path);
         if (userSlot.HasValue)
             settings = settings with { ModelsPath = (string?)root["modelsPath"] ?? "Info/Chara/Model" };
-        foreach (string id in new[] { settings.Head, settings.Body, settings.Costume })
-            if (!ValidId(id)) throw new InvalidDataException("衣装 ID が正しくありません。");
+        if (!ValidId(settings.Head) || !ValidId(settings.Body) || !ValidId(settings.Costume, allowDanCostume: true))
+            throw new InvalidDataException("衣装 ID が正しくありません。");
         string body = NormalizeColor(settings.BodyColor), limbs = NormalizeColor(settings.LimbsColor);
         string face = NormalizeColor(settings.FaceColor), rim = NormalizeColor(settings.RimColor);
         string modelRoot = ModelRoot(installation, settings.ModelsPath);
