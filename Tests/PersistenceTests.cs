@@ -1379,6 +1379,43 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public async Task IntegrityCheckReportsMissingAndModifiedFilesOnly()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "TaikoDive-Integrity-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(root, "Texture"));
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(root, "Texture", "ok.png"), "ok");
+            await File.WriteAllTextAsync(Path.Combine(root, "Texture", "same-size.png"), "xx");
+            await File.WriteAllTextAsync(Path.Combine(root, "Texture", "resized.png"), "longer");
+            string okHash = await GameUpdatePackageExtractor.ComputeSha256Async(Path.Combine(root, "Texture", "ok.png"), CancellationToken.None);
+            IReadOnlyList<GamePackageFile> files =
+            [
+                new() { Path = "Texture/ok.png", Size = 2, Sha256 = okHash.ToLowerInvariant() },
+                new() { Path = "Texture/same-size.png", Size = 2, Sha256 = okHash },
+                new() { Path = "Texture/resized.png", Size = 2, Sha256 = okHash },
+                new() { Path = "Sound/missing.ogg", Size = 1, Sha256 = okHash },
+            ];
+            List<long> progress = [];
+
+            var (missing, modified) = await GameUpdateService.CompareInstalledFilesAsync(
+                root,
+                files,
+                AssetUpdatePathPolicy.NormalizeAndValidate,
+                (completed, _) => progress.Add(completed),
+                CancellationToken.None);
+
+            CollectionAssert.AreEqual(new[] { "Sound/missing.ogg" }, missing.ToArray());
+            CollectionAssert.AreEqual(new[] { "Texture/same-size.png", "Texture/resized.png" }, modified.ToArray());
+            CollectionAssert.AreEqual(new long[] { 1, 2, 3, 4 }, progress);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [TestMethod]
     public async Task RecentSongsAreEmptyWithoutScoreFolder()
     {
         using TemporaryInstallation temporary = new();

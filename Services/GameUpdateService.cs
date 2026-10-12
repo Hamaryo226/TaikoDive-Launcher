@@ -113,21 +113,10 @@ public sealed class GameUpdateService
             }
 
             SetState(GameUpdateState.Checking, $"{_channel.DisplayName}のアップデートを確認しています…", null);
-            using HttpRequestMessage request = new(HttpMethod.Get, AddCacheBuster(_manifestUri));
-            request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
-            using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            GameUpdateManifest? manifest = await JsonSerializer.DeserializeAsync(
-                    stream,
-                    LauncherJsonContext.Default.GameUpdateManifest,
-                    cancellationToken)
-                .ConfigureAwait(false);
-            ValidateManifest(manifest, _channel);
-            SetLatestUpdate(manifest!);
+            GameUpdateManifest manifest = await FetchManifestAsync(cancellationToken).ConfigureAwait(false);
 
             string currentVersion = DetectCurrentVersion(installation);
-            if (GameUpdatePackageNaming.CompareVersions(manifest!.Version, currentVersion) <= 0)
+            if (GameUpdatePackageNaming.CompareVersions(manifest.Version, currentVersion) <= 0)
             {
                 SetState(GameUpdateState.UpToDate, $"最新版です（v{currentVersion}）。", null);
                 return;
@@ -149,7 +138,132 @@ public sealed class GameUpdateService
         }
     }
 
-    public async Task<OperationResult> DownloadAndApplyAsync(CancellationToken cancellationToken = default)
+    private async Task<GameUpdateManifest> FetchManifestAsync(CancellationToken cancellationToken)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, AddCacheBuster(_manifestUri));
+        request.Headers.CacheControl = new CacheControlHeaderValue { NoCache = true };
+        using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        GameUpdateManifest? manifest = await JsonSerializer.DeserializeAsync(
+                stream,
+                LauncherJsonContext.Default.GameUpdateManifest,
+                cancellationToken)
+            .ConfigureAwait(false);
+        ValidateManifest(manifest, _channel);
+        SetLatestUpdate(manifest!);
+        return manifest!;
+    }
+
+    public async Task<GameIntegrityReport> VerifyIntegrityAsync(
+        Action<long, long>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _operationLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+        {
+            throw new InvalidOperationException($"{_channel.DisplayName}の別の処理が進行中です。");
+        }
+
+        string? operationDirectory = null;
+        try
+        {
+            TaikoDiveInstallation? installation = _installationProvider();
+            if (installation is null || !installation.IsValid)
+            {
+                throw new InvalidOperationException("TaikoDive.exeが見つかりません。");
+            }
+
+            IReadOnlyList<GamePackageFile> files;
+            string source;
+            InstalledGameUpdate? installed = LoadInstalledUpdate();
+            if (installed?.Files is { Count: > 0 } savedFiles && IsStateForInstallation(installed, installation))
+            {
+                files = savedFiles;
+                source = $"適用済みv{installed.Version}の一覧";
+            }
+            else
+            {
+                // 一覧を保存していなかった版で適用した環境では、最新パッケージを取得して比較する。
+                string? packageKey = _packageKeyProvider();
+                if (string.IsNullOrWhiteSpace(packageKey))
+                {
+                    throw new InvalidOperationException("このランチャーには更新用キーが設定されていません。");
+                }
+
+                GameUpdateManifest update = await FetchManifestAsync(cancellationToken).ConfigureAwait(false);
+                operationDirectory = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(operationDirectory);
+                string packagePath = Path.Combine(operationDirectory, update.PackageFileName);
+                await DownloadAndVerifyAsync(packagePath, update, cancellationToken, progress).ConfigureAwait(false);
+                GamePackageManifest package = await _extractor.ExtractAndVerifyAsync(
+                    packagePath,
+                    Path.Combine(operationDirectory, "extracted"),
+                    update,
+                    packageKey,
+                    cancellationToken).ConfigureAwait(false);
+                files = package.Files;
+                source = $"最新版v{update.Version}のパッケージ";
+            }
+
+            (IReadOnlyList<string> missing, IReadOnlyList<string> modified) = await CompareInstalledFilesAsync(
+                installation.BuildDirectory,
+                files,
+                _channel.NormalizePath,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            return new GameIntegrityReport(_channel.DisplayName, source, files.Count, missing, modified);
+        }
+        finally
+        {
+            if (operationDirectory is not null)
+            {
+                TryDeleteDirectory(operationDirectory);
+            }
+            _operationLock.Release();
+        }
+    }
+
+    internal static async Task<(IReadOnlyList<string> Missing, IReadOnlyList<string> Modified)> CompareInstalledFilesAsync(
+        string targetDirectory,
+        IReadOnlyList<GamePackageFile> files,
+        Func<string, string> normalizePath,
+        Action<long, long>? progress,
+        CancellationToken cancellationToken)
+    {
+        List<string> missing = [];
+        List<string> modified = [];
+        for (int index = 0; index < files.Count; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string relativePath = normalizePath(files[index].Path);
+            FileInfo target = new(GameUpdatePackageExtractor.ResolveContainedPath(targetDirectory, relativePath));
+            if (!target.Exists)
+            {
+                missing.Add(relativePath);
+            }
+            // サイズが違えば内容も違うので、重いハッシュ計算を省く。
+            else if (target.Length != files[index].Size
+                || !string.Equals(
+                    await GameUpdatePackageExtractor.ComputeSha256Async(target.FullName, cancellationToken).ConfigureAwait(false),
+                    files[index].Sha256,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                modified.Add(relativePath);
+            }
+            progress?.Invoke(index + 1, files.Count);
+        }
+
+        return (missing, modified);
+    }
+
+    public Task<OperationResult> DownloadAndApplyAsync(CancellationToken cancellationToken = default)
+        => ApplyAsync(reinstall: false, cancellationToken);
+
+    // 整合性チェックで欠損・破損が見つかったとき、最新版を通常の更新と同じ手順で適用し直して修復する。
+    public Task<OperationResult> ReinstallLatestAsync(CancellationToken cancellationToken = default)
+        => ApplyAsync(reinstall: true, cancellationToken);
+
+    private async Task<OperationResult> ApplyAsync(bool reinstall, CancellationToken cancellationToken)
     {
         if (!await _operationLock.WaitAsync(0, cancellationToken).ConfigureAwait(false))
         {
@@ -160,7 +274,9 @@ public sealed class GameUpdateService
         bool applyLockTaken = false;
         try
         {
-            GameUpdateManifest? update = AvailableUpdate;
+            GameUpdateManifest? update = reinstall
+                ? await FetchManifestAsync(cancellationToken).ConfigureAwait(false)
+                : AvailableUpdate;
             TaikoDiveInstallation? installation = _installationProvider();
             if (update is null)
             {
@@ -220,7 +336,7 @@ public sealed class GameUpdateService
                     _channel.NormalizePath,
                     ReportProgress,
                     _channel.MirroredDirectories).ConfigureAwait(false);
-                await SaveInstalledUpdateAsync(installation, update, cancellationToken).ConfigureAwait(false);
+                await SaveInstalledUpdateAsync(installation, update, package.Files, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -527,8 +643,10 @@ public sealed class GameUpdateService
     private async Task DownloadAndVerifyAsync(
         string destinationPath,
         GameUpdateManifest manifest,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Action<long, long>? progress = null)
     {
+        progress ??= ReportProgress;
         using HttpRequestMessage request = new(HttpMethod.Get, new Uri(manifest.PackageUrl));
         using HttpResponseMessage response = await _httpClient.SendAsync(
                 request,
@@ -558,7 +676,7 @@ public sealed class GameUpdateService
             {
                 await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
                 downloadedBytes += bytesRead;
-                ReportProgress(downloadedBytes, manifest.Size);
+                progress(downloadedBytes, manifest.Size);
             }
         }
 
@@ -628,6 +746,7 @@ public sealed class GameUpdateService
     private async Task SaveInstalledUpdateAsync(
         TaikoDiveInstallation installation,
         GameUpdateManifest update,
+        IReadOnlyList<GamePackageFile> files,
         CancellationToken cancellationToken)
     {
         string path = GetInstalledStatePath();
@@ -639,6 +758,12 @@ public sealed class GameUpdateService
             Version = update.Version,
             Revision = update.Revision,
             InstalledAt = DateTimeOffset.UtcNow,
+            Files = files.Select(file => new GamePackageFile
+            {
+                Path = _channel.NormalizePath(file.Path),
+                Sha256 = file.Sha256,
+                Size = file.Size,
+            }).ToList(),
         };
         await using (FileStream stream = new(temporaryPath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
