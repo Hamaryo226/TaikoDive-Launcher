@@ -7,6 +7,17 @@ namespace TaikoDiveLauncher.Tests;
 [TestClass]
 public sealed class Character3DTests
 {
+    [TestMethod] public void PreviewFacingHasSeparateRequestAndCacheIdentity()
+    {
+        var settings = new Character3DSettings();
+        var first = System.Text.Json.Nodes.JsonNode.Parse(Character3DPreviewService.CreateRequest(_installation, settings))!;
+        var second = System.Text.Json.Nodes.JsonNode.Parse(Character3DPreviewService.CreateRequest(_installation, settings, true))!;
+        Assert.IsFalse((bool)first["secondPlayerFacing"]!);
+        Assert.IsTrue((bool)second["secondPlayerFacing"]!);
+        Assert.AreNotEqual(Character3DPreviewService.CreateStaticCacheKey(_installation, settings),
+            Character3DPreviewService.CreateStaticCacheKey(_installation, settings, true));
+    }
+
     [TestMethod] public async Task RestorePreviousLoadsUserAppearanceWithoutWritingCurrentSettings()
     {
         var store = new Character3DStore(() => false);

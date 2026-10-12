@@ -10,8 +10,6 @@
                        HorizontalAlignment="Left" VerticalAlignment="Top" />
                 <Canvas x:Name="AnimationStage" Width="338" Height="41"
                         HorizontalAlignment="Left" VerticalAlignment="Top" />
-                <Image x:Name="PlayerNumberImage" Width="326" Height="104" Margin="7,0,0,0"
-                       HorizontalAlignment="Left" VerticalAlignment="Top" />
                 <Canvas x:Name="TextStage" Width="345" Height="112" IsHitTestVisible="False">
                     <Image x:Name="TitleImage" Stretch="Fill" />
                     <Image x:Name="NameImage" Stretch="Fill" />

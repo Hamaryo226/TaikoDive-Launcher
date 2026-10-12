@@ -22,16 +22,25 @@
    </CommandBar>
   </Grid>
   <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True"/>
-  <ScrollViewer x:Name="ContentScroller" Grid.Row="3" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
+  <StackPanel x:Name="ModePicker" Grid.Row="2" Spacing="16">
+   <TextBlock Text="着せ替え方を選択" Style="{StaticResource SectionTitleStyle}"/>
+   <Button x:Name="PartsModeButton" Tag="parts" Click="ChooseMode_Click" Style="{StaticResource EditorNavigationButtonStyle}" AutomationProperties.Name="パーツ別に着せ替える">
+    <StackPanel Spacing="4"><TextBlock Text="パーツ別に着せ替える" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="あたま・からだを組み合わせて編集" TextWrapping="Wrap" Style="{StaticResource PageSubtitleStyle}"/></StackPanel>
+   </Button>
+   <Button x:Name="CostumeModeButton" Tag="costume" Click="ChooseMode_Click" Style="{StaticResource EditorNavigationButtonStyle}" AutomationProperties.Name="全身着ぐるみを選ぶ">
+    <StackPanel Spacing="4"><TextBlock Text="全身着ぐるみを選ぶ" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="全身の衣装をまとめて変更" TextWrapping="Wrap" Style="{StaticResource PageSubtitleStyle}"/></StackPanel>
+   </Button>
+  </StackPanel>
+  <Button x:Name="ChangeModeButton" Grid.Row="2" Content="着せ替え方を選び直す" Click="ChangeMode_Click" Visibility="Collapsed"/>
+  <ScrollViewer x:Name="ContentScroller" Visibility="Collapsed" Grid.Row="3" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" VerticalScrollMode="Disabled">
   <Grid ColumnSpacing="24" RowSpacing="12">
    <Grid.ColumnDefinitions><ColumnDefinition x:Name="PreviewColumn" Width="*"/><ColumnDefinition x:Name="EditorColumn" Width="*"/></Grid.ColumnDefinitions>
    <Grid.RowDefinitions><RowDefinition x:Name="PreviewRow" Height="*"/><RowDefinition x:Name="EditorRow" Height="0"/></Grid.RowDefinitions>
    <Grid x:Name="PreviewPanel" RowSpacing="8">
     <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-    <StackPanel Spacing="8">
-     <ToggleSwitch x:Name="AnimationSwitch" Header="アニメーション" IsOn="False" Toggled="AnimationModeChanged"/>
-     <ComboBox x:Name="AnimationBox" Header="再生する動き" IsEnabled="False" HorizontalAlignment="Stretch" SelectionChanged="AnimationChanged"/>
-    </StackPanel>
+    <ComboBox x:Name="FacingBox" Header="プレビューの向き" SelectedIndex="0" HorizontalAlignment="Stretch" SelectionChanged="FacingChanged">
+     <ComboBoxItem Content="1P側"/><ComboBoxItem Content="2P側"/>
+    </ComboBox>
     <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="12" Padding="16" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
      <Grid>
       <Image x:Name="PreviewImage" Stretch="Uniform" AutomationProperties.Name="選択した衣装と配色の3Dプレビュー"/>
@@ -41,15 +50,13 @@
     <StackPanel Grid.Row="2" Spacing="6">
      <TextBlock x:Name="PreviewStatus" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite"/>
      <StackPanel Orientation="Horizontal" Spacing="8">
-      <Button x:Name="PlaybackButton" Content="一時停止" Click="Playback_Click" IsEnabled="False" Visibility="Collapsed"/>
       <Button Content="プレビューを更新" Click="Preview_Click"/>
      </StackPanel>
     </StackPanel>
    </Grid>
-   <ScrollViewer x:Name="Editor" Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+   <ScrollViewer x:Name="Editor" Grid.Column="1" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="16" Padding="0,0,8,16">
      <TextBlock Text="衣装" Style="{StaticResource SubtitleTextBlockStyle}"/>
-    <ToggleSwitch x:Name="CostumeSwitch" Header="全身きぐるみを使用" Toggled="ModeChanged"/>
     <ComboBox x:Name="HeadBox" Header="あたま" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
     <ComboBox x:Name="BodyBox" Header="からだ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
     <ComboBox x:Name="CostumeBox" Header="全身きぐるみ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
@@ -65,13 +72,6 @@
     <Button x:Name="RimColorButton" Tag="rim" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button Content="色を標準に戻す" Click="ResetColors_Click"/>
     <TextBlock Text="衣装固有の模様や目・口の色は変わりません。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-      <Expander Header="モデルの参照先" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-      <StackPanel Spacing="12">
-       <TextBox x:Name="ModelsPathBox" Header="配置済みのモデルフォルダー" TextChanged="Changed"/>
-       <Button Content="衣装一覧を読み直す" Click="ReadCatalog_Click"/>
-       <TextBlock Text="既存のモデルをそのまま参照します。コピーやインストールは行いません。参照先は共通設定で変更できます。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-      </StackPanel>
-     </Expander>
      <TextBlock Text="個別に保存していないユーザーには共通設定が適用されます。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
     </StackPanel>
    </ScrollViewer>

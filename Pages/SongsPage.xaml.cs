@@ -84,6 +84,9 @@ public sealed partial class SongsPage : Page
         }
 
         _isNarrowLayout = narrow;
+        NavigationSecondColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        Grid.SetColumn(FolderNavigationButton, narrow ? 0 : 1);
+        Grid.SetRow(FolderNavigationButton, narrow ? 1 : 0);
         PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
 
         Grid.SetColumn(PathCommandBar, narrow ? 0 : 1);
@@ -717,7 +720,7 @@ public sealed partial class SongsPage : Page
         DropZone.IsHitTestVisible = !busy;
         SongOrderList.IsEnabled = !busy && !_isLoadingSongs;
         GenreList.IsEnabled = !busy;
-        NavigationCommands.IsEnabled = !busy;
+        OrderNavigationButton.IsEnabled = FolderNavigationButton.IsEnabled = !busy;
         BackToSongsCommandBar.IsEnabled = !busy;
         PathCommandBar.IsEnabled = !busy && AppInstance.Context.Installation is not null;
         UpdateMoveSongButtons();
