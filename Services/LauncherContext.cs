@@ -44,10 +44,22 @@ public sealed class LauncherContext
         }
     }
 
-    public OperationResult LaunchGame()
+    public async Task<OperationResult> LaunchGameAsync()
     {
-        return Installation is null
-            ? OperationResult.Failure("TaikoDive.Launcher.exe を TaikoDive.exe と同じフォルダーへ配置してください。")
-            : GameProcessService.Launch(Installation);
+        if (Installation is null)
+        {
+            return OperationResult.Failure("TaikoDive.Launcher.exe を TaikoDive.exe と同じフォルダーへ配置してください。");
+        }
+
+        try
+        {
+            await new Character3DStore().EnsureModelsPathAsync(Installation).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+        {
+            return OperationResult.Failure($"Info/Chara3D.json を確認できないため起動を中止しました: {ex.Message}");
+        }
+
+        return GameProcessService.Launch(Installation);
     }
 }

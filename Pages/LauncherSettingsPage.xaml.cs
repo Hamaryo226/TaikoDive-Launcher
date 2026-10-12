@@ -400,6 +400,238 @@ public sealed partial class LauncherSettingsPage : Page
                 : "TaikoDive Assetのアップデートはありません");
     }
 
+    private const int MaximumListedIntegrityFiles = 200;
+
+    private readonly List<GameIntegrityReport> _integrityReports = [];
+    private string? _modelSettingsIssue;
+    private int _integrityPercentage = -1;
+
+    private async void CheckIntegrityButton_Click(object sender, RoutedEventArgs e)
+    {
+        await RunIntegrityCheckAsync();
+    }
+
+    private async Task RunIntegrityCheckAsync()
+    {
+        if (AppInstance.Context.Installation is not { } installation)
+        {
+            ShowStatus(InfoBarSeverity.Warning, "TaikoDive.exe が見つからないためチェックできません。");
+            return;
+        }
+
+        SetIntegrityBusy(true);
+        _integrityReports.Clear();
+        _modelSettingsIssue = null;
+        List<string> errors = [];
+        foreach ((GameUpdateService service, string name) in IntegrityTargets())
+        {
+            IntegrityStatusText.Text = $"{name}のファイルを確認しています…";
+            ResetIntegrityProgress();
+            try
+            {
+                _integrityReports.Add(await service.VerifyIntegrityAsync(ReportIntegrityProgress));
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{name}: {ex.Message}");
+            }
+        }
+
+        try
+        {
+            _modelSettingsIssue = await Character3DStore.DiagnoseAsync(installation);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            errors.Add($"3Dモデル設定: {ex.Message}");
+        }
+
+        SetIntegrityBusy(false);
+        ShowIntegrityResult(errors);
+    }
+
+    private async void RepairIntegrityButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (AppInstance.Context.Installation is not { } installation)
+        {
+            return;
+        }
+        if (GameProcessService.IsRunning())
+        {
+            ShowStatus(InfoBarSeverity.Warning, "TaikoDiveを終了してから修復してください。");
+            return;
+        }
+
+        List<string> targets = [.. _integrityReports.Where(report => report.HasProblems).Select(report => report.ChannelName)];
+        // モデルフォルダー自体が無いときは参照先を直せないため、モデルを配布している Asset を適用し直す。
+        if (_modelSettingsIssue is not null && !Character3DStore.HasDetectedModels(installation) && !targets.Contains("TaikoDive Asset"))
+        {
+            targets.Add("TaikoDive Asset");
+        }
+        ContentDialog confirmation = new()
+        {
+            Title = "ファイルを修復しますか？",
+            Content = targets.Count > 0
+                ? $"{string.Join("、", targets)}の最新版をダウンロードして適用し直します。置き換えるファイルはバックアップされ、ユーザー設定、プロフィール、Songs、スコア、リプレイは保持されます。"
+                : "Info/Chara3D.json の3Dモデルの参照先を、配置済みのモデルフォルダーに設定し直します。元の内容はバックアップされます。",
+            PrimaryButtonText = "修復",
+            CloseButtonText = "キャンセル",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        SetIntegrityBusy(true);
+        List<string> failures = [];
+        foreach ((GameUpdateService service, string name) in IntegrityTargets())
+        {
+            if (!targets.Contains(name))
+            {
+                continue;
+            }
+            IntegrityStatusText.Text = $"{name}を修復しています…（進捗はアップデート欄に表示されます）";
+            OperationResult result = await service.ReinstallLatestAsync();
+            if (!result.Succeeded)
+            {
+                failures.Add($"{name}: {result.Message}");
+            }
+        }
+
+        // Asset の修復でモデルフォルダーが戻ることがあるため、参照先の修復は最後に行う。
+        if (_modelSettingsIssue is not null)
+        {
+            try
+            {
+                await new Character3DStore().EnsureModelsPathAsync(installation, replaceInvalid: true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or System.Text.Json.JsonException)
+            {
+                failures.Add($"3Dモデル設定: {ex.Message}");
+            }
+        }
+
+        SetIntegrityBusy(false);
+        if (failures.Count > 0)
+        {
+            ShowStatus(InfoBarSeverity.Error, $"修復できませんでした: {string.Join(" / ", failures)}");
+        }
+
+        // 修復結果をそのまま確かめられるよう、もう一度チェックする。
+        await RunIntegrityCheckAsync();
+        if (failures.Count == 0)
+        {
+            ShowStatus(InfoBarSeverity.Success, "修復が完了しました。");
+        }
+    }
+
+    private (GameUpdateService Service, string Name)[] IntegrityTargets() =>
+    [
+        (AppInstance.Context.GameUpdates, "TaikoDive"),
+        (AppInstance.Context.AssetUpdates, "TaikoDive Asset"),
+    ];
+
+    private void ReportIntegrityProgress(long completed, long total)
+    {
+        if (total <= 0)
+        {
+            return;
+        }
+
+        // ファイルごとに UI へ通知すると重いため、1%単位に間引く。
+        int percentage = (int)Math.Clamp(completed * 100 / total, 0, 100);
+        if (Interlocked.Exchange(ref _integrityPercentage, percentage) == percentage)
+        {
+            return;
+        }
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            IntegrityProgressBar.IsIndeterminate = false;
+            IntegrityProgressBar.Value = percentage;
+            IntegrityProgressText.Text = $"{percentage}%";
+        });
+    }
+
+    private void ResetIntegrityProgress()
+    {
+        Interlocked.Exchange(ref _integrityPercentage, -1);
+        IntegrityProgressBar.IsIndeterminate = true;
+        IntegrityProgressBar.Value = 0;
+        IntegrityProgressText.Text = "処理中";
+    }
+
+    private void SetIntegrityBusy(bool isBusy)
+    {
+        IntegrityProgressRing.IsActive = isBusy;
+        IntegrityProgressRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        IntegrityStatusIcon.Visibility = isBusy ? Visibility.Collapsed : Visibility.Visible;
+        IntegrityProgressPanel.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        CheckIntegrityButton.IsEnabled = !isBusy;
+        RepairIntegrityButton.IsEnabled = false;
+        if (isBusy)
+        {
+            ResetIntegrityProgress();
+        }
+    }
+
+    private void ShowIntegrityResult(IReadOnlyList<string> errors)
+    {
+        int missing = _integrityReports.Sum(report => report.MissingFiles.Count);
+        int modified = _integrityReports.Sum(report => report.ModifiedFiles.Count);
+        bool hasProblems = missing + modified > 0 || _modelSettingsIssue is not null;
+        List<string> problems = [];
+        if (missing > 0)
+        {
+            problems.Add($"不足 {missing}件");
+        }
+        if (modified > 0)
+        {
+            problems.Add($"内容の違い {modified}件");
+        }
+        if (_modelSettingsIssue is not null)
+        {
+            problems.Add("3Dモデル設定");
+        }
+        IntegrityStatusText.Text = (hasProblems, errors.Count > 0) switch
+        {
+            (true, _) => $"問題が見つかりました（{string.Join("・", problems)}）。「修復」で直せます。",
+            (false, true) => "一部をチェックできませんでした。詳細を確認してください。",
+            _ => $"問題は見つかりませんでした（{_integrityReports.Sum(report => report.CheckedCount)}ファイル）。",
+        };
+        IntegrityStatusIcon.Symbol = hasProblems || errors.Count > 0 ? Symbol.Important : Symbol.Accept;
+        RepairIntegrityButton.IsEnabled = hasProblems;
+
+        System.Text.StringBuilder details = new();
+        foreach (GameIntegrityReport report in _integrityReports)
+        {
+            details.AppendLine($"{report.ChannelName}（{report.Source}と比較）: {report.CheckedCount}ファイル中 不足 {report.MissingFiles.Count}件・内容の違い {report.ModifiedFiles.Count}件");
+            AppendIntegrityFiles(details, "不足", report.MissingFiles);
+            AppendIntegrityFiles(details, "内容の違い", report.ModifiedFiles);
+        }
+        details.AppendLine(_modelSettingsIssue is null ? "3Dモデル設定: 問題なし" : $"3Dモデル設定: {_modelSettingsIssue}");
+        foreach (string error in errors)
+        {
+            details.AppendLine($"チェックできませんでした — {error}");
+        }
+        IntegrityDetailsText.Text = details.ToString().TrimEnd();
+        IntegrityDetailsExpander.Visibility = Visibility.Visible;
+        IntegrityDetailsExpander.IsExpanded = hasProblems || errors.Count > 0;
+    }
+
+    private static void AppendIntegrityFiles(System.Text.StringBuilder details, string label, IReadOnlyList<string> files)
+    {
+        foreach (string file in files.Take(MaximumListedIntegrityFiles))
+        {
+            details.AppendLine($"  {label}: {file}");
+        }
+        if (files.Count > MaximumListedIntegrityFiles)
+        {
+            details.AppendLine($"  ほか {files.Count - MaximumListedIntegrityFiles}件");
+        }
+    }
+
     private static string FormatUpdateNotes(string? releaseNotes, bool manifestLoaded)
     {
         if (!string.IsNullOrWhiteSpace(releaseNotes))

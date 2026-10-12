@@ -285,7 +285,7 @@ public sealed partial class HomePage : Page
 
     private async void LaunchButton_Click(object sender, RoutedEventArgs e)
     {
-        OperationResult result = AppInstance.Context.LaunchGame();
+        OperationResult result = await AppInstance.Context.LaunchGameAsync();
         if (!result.Succeeded)
         {
             ContentDialog dialog = new()

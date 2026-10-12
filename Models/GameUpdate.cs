@@ -72,4 +72,17 @@ internal sealed class InstalledGameUpdate
     public string Revision { get; set; } = string.Empty;
 
     public DateTimeOffset InstalledAt { get; set; }
+
+    // 整合性チェックをオフラインで行うため、適用したパッケージのファイル一覧を残す。
+    public List<GamePackageFile>? Files { get; set; }
+}
+
+public sealed record GameIntegrityReport(
+    string ChannelName,
+    string Source,
+    int CheckedCount,
+    IReadOnlyList<string> MissingFiles,
+    IReadOnlyList<string> ModifiedFiles)
+{
+    public bool HasProblems => MissingFiles.Count > 0 || ModifiedFiles.Count > 0;
 }
