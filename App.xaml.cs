@@ -12,6 +12,7 @@ public partial class App : Application
 
     // Keep only the most recent decoded home thumbnail across page instances.
     internal (string Key, BitmapImage Image)? HomeDonPreview { get; set; }
+    internal Dictionary<int, (string Key, BitmapImage Image)> ProfileDonPreviews { get; } = [];
 
     public App()
     {

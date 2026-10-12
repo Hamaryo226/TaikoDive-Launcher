@@ -46,7 +46,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         bool narrow = e.NewSize.Width < 820;
-        PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
+        PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
         Grid.SetColumn(SaveCommandBar, narrow ? 0 : 1);
         Grid.SetRow(SaveCommandBar, narrow ? 1 : 0);
         SaveCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;

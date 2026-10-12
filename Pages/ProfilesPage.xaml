@@ -6,41 +6,17 @@
     xmlns:controls="using:TaikoDiveLauncher.Controls"
     xmlns:models="using:TaikoDiveLauncher.Models">
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16" SizeChanged="PageRoot_SizeChanged">
+    <Grid Style="{StaticResource PageLayoutStyle}" x:Name="PageRoot" SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="HeaderGrid" RowSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
-            <StackPanel Spacing="6">
-                <TextBlock Text="プロフィール" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="ユーザーを選び、名前・称号・ネームプレートを編集します。" Style="{StaticResource PageSubtitleStyle}" />
-                <TextBlock x:Name="EditFeedbackText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
-            </StackPanel>
-            <CommandBar
-                x:Name="ProfileCommandBar"
-                Grid.Column="1"
-                HorizontalAlignment="Right"
-                Background="Transparent"
-                DefaultLabelPosition="Right">
-                <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon><SymbolIcon Symbol="Save" /></AppBarButton.Icon>
-                </AppBarButton>
-                <CommandBar.SecondaryCommands>
-                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
-                </CommandBar.SecondaryCommands>
-            </CommandBar>
-        </Grid>
+        <StackPanel Spacing="6">
+            <TextBlock Text="プロフィール" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock Text="ユーザーを選び、保存済みの見た目を確認できます。" Style="{StaticResource PageSubtitleStyle}" />
+        </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
@@ -68,67 +44,59 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock Margin="8,4" Text="プロフィール一覧" Style="{StaticResource FieldLabelStyle}" />
-                    <ListBox
+                    <ListView
                         x:Name="ProfileList"
                         Grid.Row="1"
                         MinHeight="220"
-                        Background="{ThemeResource LayerFillColorDefaultBrush}"
+                        Background="Transparent"
                         AutomationProperties.Name="ユーザープロフィール一覧"
                         SelectionChanged="ProfileList_SelectionChanged"
                         SelectionMode="Single">
-                        <ListBox.ItemTemplate>
+                        <ListView.Resources>
+                            <CornerRadius x:Key="ListViewItemCornerRadius">8</CornerRadius>
+                        </ListView.Resources>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem" BasedOn="{StaticResource DefaultListViewItemStyle}">
+                                <Setter Property="Margin" Value="0,2" />
+                                <Setter Property="MinHeight" Value="48" />
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
                             <DataTemplate x:DataType="models:UserProfile">
                                 <TextBlock
                                     Padding="8,6"
-                                    Foreground="{ThemeResource TextFillColorPrimaryBrush}"
                                     Text="{x:Bind DisplayLabel}"
                                     TextTrimming="CharacterEllipsis" />
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                        </ListView.ItemTemplate>
+                    </ListView>
                 </Grid>
             </Border>
 
             <ScrollViewer
-                x:Name="EditorSurface"
+                x:Name="EditorSurface" HorizontalContentAlignment="Stretch"
                 Grid.Column="1"
                 HorizontalScrollBarVisibility="Disabled"
                 VerticalScrollBarVisibility="Auto">
                 <StackPanel HorizontalAlignment="Stretch" Spacing="20">
-                    <TextBlock x:Name="SlotHeading" Text="1. USER" Style="{StaticResource SectionTitleStyle}" />
-                    <StackPanel Spacing="12">
-                        <TextBox x:Name="NameBox" Header="名前" MaxLength="32" PlaceholderText="どんちゃん" TextChanged="ProfileText_Changed" />
-                        <TextBox x:Name="TitleBox" Header="称号" MaxLength="64" PlaceholderText="ドンだーデビュー" TextChanged="ProfileText_Changed" />
-                        <Button Content="このユーザーの着せ替えと色を変更" Click="EditCharacter_Click" HorizontalAlignment="Left" />
-                    </StackPanel>
-                    <Border Style="{StaticResource QuietSurfaceStyle}">
-                        <StackPanel Spacing="12">
-                            <TextBlock Text="ネームプレート · アニメーション" Style="{StaticResource FieldLabelStyle}" />
-                            <ComboBox x:Name="NamePlateBox" Header="ネームプレート" DisplayMemberPath="Label"
-                                      SelectedValuePath="Value" HorizontalAlignment="Stretch"
-                                      SelectionChanged="NamePlateBox_SelectionChanged" />
-                            <controls:NamePlateAnimationView x:Name="NamePlatePreview" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource QuietSurfaceStyle}">
-                        <Grid ColumnSpacing="20">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="保存済みスコア" Style="{StaticResource FieldLabelStyle}" />
-                                <TextBlock x:Name="ScoreCountText" FontSize="24" FontWeight="SemiBold" Text="—" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Spacing="4">
-                                <TextBlock Text="ベストリプレイ" Style="{StaticResource FieldLabelStyle}" />
-                                <TextBlock x:Name="ReplayCountText" FontSize="24" FontWeight="SemiBold" Text="—" />
-                            </StackPanel>
+                    <StackPanel Spacing="8" MaxWidth="480" HorizontalAlignment="Stretch">
+                        <controls:NamePlateAnimationView x:Name="NamePlatePreview" MaxWidth="400" HorizontalAlignment="Stretch" />
+                        <Grid Height="300">
+                            <Image x:Name="DonPreviewImage" Stretch="Uniform" AutomationProperties.Name="選択中のユーザーの保存済みどんちゃん" />
+                            <ProgressRing x:Name="PreviewBusy" Width="32" Height="32" IsActive="False" Visibility="Collapsed" />
                         </Grid>
-                    </Border>
-
-                    <TextBlock x:Name="DataFolderText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Grid x:Name="EditActions" ColumnSpacing="12" RowSpacing="12">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ActionColumn" Width="*"/></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        <Button x:Name="CharacterNavigationButton" AutomationProperties.Name="着せ替えを編集" Click="EditCharacter_Click" Style="{StaticResource EditorNavigationButtonStyle}">
+                            <StackPanel Spacing="4"><TextBlock Text="着せ替えを編集" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="衣装・パーツ・色" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        </Button>
+                        <Button x:Name="NamePlateNavigationButton" AutomationProperties.Name="ネームプレートを編集" Grid.Column="1" Click="EditNamePlate_Click" Style="{StaticResource EditorNavigationButtonStyle}">
+                            <StackPanel Spacing="4"><TextBlock Text="ネームプレートを編集" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="名前・称号・デザイン" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                        </Button>
+                    </Grid>
                 </StackPanel>
             </ScrollViewer>
         </Grid>

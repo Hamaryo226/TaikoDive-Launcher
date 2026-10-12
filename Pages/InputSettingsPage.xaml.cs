@@ -59,9 +59,10 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         bool usesNarrowLayout = e.NewSize.Width < NarrowLayoutWidth;
-        PageRoot.Padding = usesNarrowLayout
-            ? new Thickness(16, 16, 16, 28)
-            : new Thickness(32, 20, 32, 40);
+        PageRoot.Padding = (Thickness)Application.Current.Resources[usesNarrowLayout ? "PageNarrowPadding" : "PageWidePadding"];
+        Grid.SetColumn(InputCommandBar, usesNarrowLayout ? 0 : 1);
+        Grid.SetRow(InputCommandBar, usesNarrowLayout ? 1 : 0);
+        InputCommandBar.HorizontalAlignment = usesNarrowLayout ? HorizontalAlignment.Left : HorizontalAlignment.Right;
         PlayerOneColumn.Width = new GridLength(1, GridUnitType.Star);
         PlayerTwoColumn.Width = usesNarrowLayout
             ? new GridLength(0)

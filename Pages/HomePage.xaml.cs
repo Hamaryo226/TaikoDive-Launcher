@@ -50,12 +50,12 @@ public sealed partial class HomePage : Page
     private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         bool narrow = e.NewSize.Width < 820;
-        LayoutRoot.Padding = narrow ? new Thickness(16, 20, 16, 32) : new Thickness(32, 24, 32, 40);
+        LayoutRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
         HeroContent.Margin = narrow ? new Thickness(20) : new Thickness(36, 32, 36, 32);
         SummaryPrimaryColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(380);
         SummarySecondaryColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
         DonPreviewStage.Height = narrow ? 300 : 260;
-        HomeNamePlatePreview.MaxWidth = narrow ? 320 : double.PositiveInfinity;
+        HomeNamePlatePreview.MaxWidth = narrow ? 320 : 360;
         HomeNamePlatePreview.HorizontalAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
         Grid.SetColumn(ActivitySurface, narrow ? 0 : 1);
         Grid.SetRow(ActivitySurface, narrow ? 1 : 0);
