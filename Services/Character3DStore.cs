@@ -13,23 +13,34 @@ public sealed class Character3DStore
     internal Character3DStore(Func<bool> isRunning) => _isRunning = isRunning;
     public static string SettingsPath(TaikoDiveInstallation installation) => Path.Combine(installation.BuildDirectory, "Info", "Chara3D.json");
     public static string ModelRoot(TaikoDiveInstallation installation, string path) =>
-        Path.GetFullPath(string.IsNullOrWhiteSpace(path) ? "Info/Chara/Model" : path, installation.BuildDirectory);
+        Path.GetFullPath(string.IsNullOrWhiteSpace(path) ? DefaultModelsPath(installation) : path, installation.BuildDirectory);
+
+    // 配布物や環境によってモデルフォルダーが Model と Models のどちらかになるため、実在する方を既定にする。
+    public static string DefaultModelsPath(TaikoDiveInstallation installation)
+    {
+        foreach (string candidate in new[] { "Info/Chara/Model", "Info/Chara/Models" })
+            if (File.Exists(Path.Combine(installation.BuildDirectory, candidate, "animations.glb"))) return candidate;
+        return "Info/Chara/Model";
+    }
+
+    private static string StoredModelsPath(JsonObject root, TaikoDiveInstallation installation) =>
+        (string?)root["modelsPath"] is { } path && !string.IsNullOrWhiteSpace(path) ? path : DefaultModelsPath(installation);
 
     private static async Task<JsonObject> ReadAsync(string path) => File.Exists(path)
         ? JsonNode.Parse(await File.ReadAllTextAsync(path)) as JsonObject ?? throw new InvalidDataException("Chara3D.json の形式が正しくありません。")
         : new JsonObject();
 
     public async Task<Character3DSettings> LoadAsync(TaikoDiveInstallation installation, int? userSlot = null)
-        => await LoadFromPathAsync(SettingsPath(installation), userSlot);
+        => await LoadFromPathAsync(installation, SettingsPath(installation), userSlot);
 
     public async Task<Character3DSettings> LoadPreviousAsync(TaikoDiveInstallation installation, int? userSlot = null)
     {
         string path = SettingsPath(installation) + ".launcher.bak";
         if (!File.Exists(path)) throw new FileNotFoundException("前回の保存データはまだありません。設定を保存すると作成されます。");
-        return await LoadFromPathAsync(path, userSlot);
+        return await LoadFromPathAsync(installation, path, userSlot);
     }
 
-    private static async Task<Character3DSettings> LoadFromPathAsync(string path, int? userSlot)
+    private static async Task<Character3DSettings> LoadFromPathAsync(TaikoDiveInstallation installation, string path, int? userSlot)
     {
         ValidateSlot(userSlot);
         var root = await ReadAsync(path);
@@ -39,7 +50,7 @@ public sealed class Character3DStore
         return new Character3DSettings
         {
             Enabled = true,
-            ModelsPath = (string?)root["modelsPath"] ?? "Info/Chara/Model",
+            ModelsPath = StoredModelsPath(root, installation),
             UseCostume = (bool?)parts?["useCostume"] ?? false,
             Head = (string?)parts?["head"] ?? "0", Body = (string?)parts?["body"] ?? "0", Costume = (string?)parts?["costume"] ?? "0",
             BodyColor = NormalizeColor((string?)colors?["body"] ?? "#00A7BE"),
@@ -117,7 +128,7 @@ public sealed class Character3DStore
         string path = SettingsPath(installation);
         var root = await ReadAsync(path);
         if (userSlot.HasValue)
-            settings = settings with { ModelsPath = (string?)root["modelsPath"] ?? "Info/Chara/Model" };
+            settings = settings with { ModelsPath = StoredModelsPath(root, installation) };
         if (!ValidId(settings.Head) || !ValidId(settings.Body) || !ValidId(settings.Costume, allowDanCostume: true))
             throw new InvalidDataException("衣装 ID が正しくありません。");
         string body = NormalizeColor(settings.BodyColor), limbs = NormalizeColor(settings.LimbsColor);
@@ -137,10 +148,8 @@ public sealed class Character3DStore
             var users = GetOrCreateObject(root, "users");
             target = GetOrCreateObject(users, userSlot.Value.ToString(CultureInfo.InvariantCulture));
         }
-        else
-        {
-            root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? "Info/Chara/Model" : settings.ModelsPath.Trim();
-        }
+        // 本体は modelsPath が空だと起動時に例外で止まるため、ユーザー別保存でも共通の参照先を必ず残す。
+        root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? DefaultModelsPath(installation) : settings.ModelsPath.Trim();
         root["enabled"] = true; // 以前の3D対応本体とも互換を保つ。
         var parts = GetOrCreateObject(target, "parts");
         parts["useCostume"] = settings.UseCostume; parts["head"] = settings.Head; parts["body"] = settings.Body; parts["costume"] = settings.Costume;
