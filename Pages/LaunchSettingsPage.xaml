@@ -7,7 +7,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16" SizeChanged="PageRoot_SizeChanged">
+    <Grid Style="{StaticResource PageLayoutStyle}" x:Name="PageRoot" SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -30,14 +30,14 @@
                     Style="{StaticResource PageSubtitleStyle}" />
                 <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
-            <CommandBar x:Name="SaveCommandBar" Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
+            <CommandBar x:Name="SaveCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
                 </AppBarButton>
                 <CommandBar.SecondaryCommands>
-                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
+                    <AppBarButton Click="ReloadButton_Click" Label="保存済みに戻す" />
                 </CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
@@ -48,7 +48,7 @@
             IsClosable="True"
             IsOpen="False" />
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid x:Name="SettingsGrid" ColumnSpacing="16" RowSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="SettingsPrimaryColumn" Width="*" />

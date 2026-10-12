@@ -17,7 +17,6 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private bool _loading = true;
     private int _selectedSlot;
     private int _requestedSlot = 1;
-    private bool _changingUser;
     private string _colorTarget = "body";
     private bool _updatingPicker;
     private readonly ColorPicker ColorEditor = new() { IsAlphaEnabled = false, IsHexInputVisible = true, IsMoreButtonVisible = false };
@@ -53,7 +52,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private void UpdateLayoutState(double width)
     {
         bool narrow = width < 820;
-        PageRoot.Padding = narrow ? new Thickness(16) : new Thickness(20);
+        PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
         Grid.SetColumn(CharacterCommandBar, narrow ? 0 : 1);
         Grid.SetRow(CharacterCommandBar, narrow ? 1 : 0);
         CharacterCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
@@ -80,12 +79,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
                 StatusBar.IsOpen = false;
                 return;
             }
-            var profiles = await new UserProfileStore().LoadAsync(installation);
-            var options = new System.Collections.Generic.List<IntOption> { new(0, "共通設定（未設定ユーザーの初期値）") };
-            options.AddRange(profiles.Select(p => new IntOption(p.Slot, $"ユーザー {p.Slot} · {(p.IsConfigured ? p.Name : "未設定")}")));
             _selectedSlot = userSlot;
-            UserBox.ItemsSource = options;
-            UserBox.SelectedValue = userSlot;
             _settings = restorePrevious
                 ? await _store.LoadPreviousAsync(installation, userSlot == 0 ? null : userSlot)
                 : await _store.LoadAsync(installation, userSlot == 0 ? null : userSlot);
@@ -106,32 +100,6 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         catch (Exception ex) { ShowError(ex); }
         finally { _loading = false; UpdateEditState(); }
         if (Editor.IsEnabled) QueuePreview();
-    }
-
-    private async void UserChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (_loading || _changingUser || UserBox.SelectedValue is not int slot || slot == _selectedSlot) return;
-        _changingUser = true;
-        UserBox.IsEnabled = false;
-        try
-        {
-            if (HasUnsavedChanges)
-            {
-                var dialog = new ContentDialog
-                {
-                    XamlRoot = XamlRoot, Title = "変更を保存していません",
-                    Content = "変更を破棄して別のユーザーへ移動しますか？",
-                    PrimaryButtonText = "破棄して移動", CloseButtonText = "編集に戻る", DefaultButton = ContentDialogButton.Close
-                };
-                if (await dialog.ShowAsync() != ContentDialogResult.Primary)
-                {
-                    UserBox.SelectedValue = _selectedSlot;
-                    return;
-                }
-            }
-            await LoadAsync(slot);
-        }
-        finally { _changingUser = false; UserBox.IsEnabled = true; }
     }
 
     private void LoadCatalog()
@@ -184,14 +152,14 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
         if (Installation is not { } installation) return;
-        Editor.IsEnabled = false; SaveButton.IsEnabled = false; UserBox.IsEnabled = false;
+        Editor.IsEnabled = false; SaveButton.IsEnabled = false;
         try
         {
             ReadSelections(); await _store.SaveAsync(installation, _settings, _selectedSlot == 0 ? null : _selectedSlot); HasUnsavedChanges = false;
             StatusBar.Severity = InfoBarSeverity.Success; StatusBar.Message = "保存しました。次回のゲーム起動から反映されます。"; StatusBar.IsOpen = true;
         }
         catch (Exception ex) { ShowError(ex); }
-        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UserBox.IsEnabled = true; UpdateEditState(); }
+        finally { Editor.IsEnabled = true; SaveButton.IsEnabled = true; UpdateEditState(); }
     }
     private async void Reload_Click(object sender, RoutedEventArgs e)
     {

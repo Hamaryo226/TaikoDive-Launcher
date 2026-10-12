@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Navigation;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
 using Windows.ApplicationModel.DataTransfer;
@@ -13,7 +14,38 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class SongsPage : Page
 {
-    private const double NarrowLayoutThreshold = 1100;
+    private const double NarrowLayoutThreshold = 900;
+    private bool _orderMode;
+    private bool _folderMode;
+
+    protected override void OnNavigatedTo(NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        _orderMode = e.Parameter is "order";
+        _folderMode = e.Parameter is "folder";
+        PageHeading.Text = _orderMode ? "曲順の変更" : _folderMode ? "Songsフォルダー設定" : "楽曲";
+        PageDescription.Text = _orderMode
+            ? "ジャンルを選び、ドラッグまたは上下のボタンで曲順を変更します。変更は自動保存されます。"
+            : _folderMode ? "楽曲の保存場所を選択・変更できます。"
+            : "ZIPから楽曲を追加できます。曲順や保存場所は専用画面で変更します。";
+        NavigationCommands.Visibility = _orderMode || _folderMode ? Visibility.Collapsed : Visibility.Visible;
+        BackToSongsCommandBar.Visibility = _orderMode || _folderMode ? Visibility.Visible : Visibility.Collapsed;
+        PathSurface.Visibility = _folderMode ? Visibility.Visible : Visibility.Collapsed;
+        OrderSurface.Visibility = _orderMode ? Visibility.Visible : Visibility.Collapsed;
+        DropZone.Visibility = _orderMode || _folderMode ? Visibility.Collapsed : Visibility.Visible;
+        ContentScroller.Visibility = _folderMode ? Visibility.Collapsed : Visibility.Visible;
+        _isNarrowLayout = null;
+        UpdateLayoutState(ActualWidth);
+    }
+
+    private void OrderNavigationButton_Click(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(SongsPage), "order");
+
+    private void FolderNavigationButton_Click(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(SongsPage), "folder");
+
+    private void BackToSongsButton_Click(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(SongsPage));
 
     private IReadOnlyList<SongGenre> _genres = [];
     private ObservableCollection<OrderedSong> _songs = [];
@@ -45,36 +77,22 @@ public sealed partial class SongsPage : Page
 
     private void UpdateLayoutState(double width)
     {
-        bool narrow = width < NarrowLayoutThreshold;
+        bool narrow = Math.Min(width, 1280) < NarrowLayoutThreshold || ActualHeight < 650;
         if (_isNarrowLayout == narrow)
         {
             return;
         }
 
         _isNarrowLayout = narrow;
-        PageRoot.Padding = narrow ? new Thickness(16, 16, 16, 28) : new Thickness(32, 20, 32, 40);
+        PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
 
         Grid.SetColumn(PathCommandBar, narrow ? 0 : 1);
         Grid.SetRow(PathCommandBar, narrow ? 2 : 0);
         PathCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
 
-        GenreColumn.Width = narrow ? new GridLength(1, GridUnitType.Star) : new GridLength(0.85, GridUnitType.Star);
-        OrderColumn.Width = narrow ? new GridLength(0) : new GridLength(1.55, GridUnitType.Star);
-        DropColumn.Width = narrow ? new GridLength(0) : new GridLength(1.1, GridUnitType.Star);
-        GenreRow.Height = narrow ? GridLength.Auto : new GridLength(1, GridUnitType.Star);
-        OrderRow.Height = narrow ? GridLength.Auto : new GridLength(0);
-        DropRow.Height = narrow ? GridLength.Auto : new GridLength(0);
-
-        Grid.SetColumn(GenreSurface, 0);
-        Grid.SetRow(GenreSurface, 0);
-        Grid.SetColumn(OrderSurface, narrow ? 0 : 1);
-        Grid.SetRow(OrderSurface, narrow ? 1 : 0);
-        Grid.SetColumn(DropZone, narrow ? 0 : 2);
-        Grid.SetRow(DropZone, narrow ? 2 : 0);
-        DropZone.MinHeight = narrow ? 180 : 280;
-        GenreSurface.Height = narrow ? 300 : double.NaN;
+        DropZone.MinHeight = narrow ? 240 : 280;
         OrderSurface.Height = narrow ? 520 : double.NaN;
-        DropZone.Height = narrow ? 220 : double.NaN;
+        DropZone.Height = narrow ? 300 : double.NaN;
 
         ContentScroller.VerticalScrollBarVisibility = narrow
             ? ScrollBarVisibility.Auto
@@ -155,17 +173,16 @@ public sealed partial class SongsPage : Page
         {
             _isUpdatingGenres = false;
         }
-        GenreSummaryText.Text = installation is null
-            ? string.Empty
-            : $"{_genres.Count}件のジャンルを読み込みました。";
-        EmptyGenresText.Visibility = _genres.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        LoadSelectedGenreSongs();
+        if (_orderMode)
+        {
+            LoadSelectedGenreSongs();
+        }
         UpdateSongsPathStatus();
     }
 
     private void GenreList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!_isUpdatingGenres)
+        if (!_isUpdatingGenres && _orderMode)
         {
             LoadSelectedGenreSongs();
         }
@@ -699,7 +716,9 @@ public sealed partial class SongsPage : Page
         BusyRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
         DropZone.IsHitTestVisible = !busy;
         SongOrderList.IsEnabled = !busy && !_isLoadingSongs;
-        SongCommandBar.IsEnabled = !busy;
+        GenreList.IsEnabled = !busy;
+        NavigationCommands.IsEnabled = !busy;
+        BackToSongsCommandBar.IsEnabled = !busy;
         PathCommandBar.IsEnabled = !busy && AppInstance.Context.Installation is not null;
         UpdateMoveSongButtons();
     }

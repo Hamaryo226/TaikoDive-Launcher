@@ -36,7 +36,29 @@
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
 
+    <Thickness x:Key="PageWidePadding">32,20,32,40</Thickness>
+    <Thickness x:Key="PageNarrowPadding">16,16,16,28</Thickness>
+    <Style x:Key="PageLayoutStyle" TargetType="Grid">
+        <Setter Property="MaxWidth" Value="1280" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="{StaticResource PageWidePadding}" />
+        <Setter Property="RowSpacing" Value="16" />
+    </Style>
+    <Style x:Key="PageCommandBarStyle" TargetType="CommandBar">
+        <Setter Property="HorizontalAlignment" Value="Right" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="DefaultLabelPosition" Value="Right" />
+    </Style>
+    <Style x:Key="EditorNavigationButtonStyle" TargetType="Button">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Left" />
+        <Setter Property="MinHeight" Value="76" />
+        <Setter Property="Padding" Value="16,12" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
     <Style x:Key="PageTitleStyle" TargetType="TextBlock">
+        <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="FontFamily" Value="Segoe UI Variable Display" />
         <Setter Property="FontSize" Value="32" />
         <Setter Property="FontWeight" Value="SemiBold" />

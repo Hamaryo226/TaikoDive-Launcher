@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="TaikoDiveLauncher.Pages.NamePlatePage"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:controls="using:TaikoDiveLauncher.Controls">
+ <Grid Style="{StaticResource PageLayoutStyle}" x:Name="PageRoot" SizeChanged="PageRoot_SizeChanged">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <Grid ColumnSpacing="16" RowSpacing="12">
+   <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+   <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+   <StackPanel Spacing="6">
+    <TextBlock Text="ネームプレートの編集" Style="{StaticResource PageTitleStyle}"/>
+    <TextBlock x:Name="EditFeedbackText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
+   </StackPanel>
+   <CommandBar x:Name="ProfileCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
+    <AppBarButton Icon="Back" Label="プロフィールへ" Click="BackToProfile_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+    <AppBarButton Icon="Save" Label="保存" Click="SaveButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
+    <CommandBar.SecondaryCommands><AppBarButton Icon="Refresh" Label="保存済みに戻す" Click="ReloadButton_Click"/></CommandBar.SecondaryCommands>
+   </CommandBar>
+  </Grid>
+  <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True"/>
+  <ScrollViewer x:Name="EditorSurface" Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <Border VerticalAlignment="Top" Style="{StaticResource QuietSurfaceStyle}">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="ネームプレート" Style="{StaticResource SectionTitleStyle}" />
+                            <TextBox x:Name="NameBox" Header="名前" MaxLength="32" PlaceholderText="どんちゃん" TextChanged="ProfileText_Changed" />
+                            <TextBox x:Name="TitleBox" Header="称号" MaxLength="64" PlaceholderText="ドンだーデビュー" TextChanged="ProfileText_Changed" />
+                            <ComboBox x:Name="NamePlateBox" Header="デザイン・アニメーション" DisplayMemberPath="Label"
+                                      SelectedValuePath="Value" HorizontalAlignment="Stretch"
+                                      SelectionChanged="NamePlateBox_SelectionChanged" />
+                            <controls:NamePlateAnimationView x:Name="NamePlatePreview" MaxWidth="440" HorizontalAlignment="Stretch" />
+                        </StackPanel>
+                    </Border>
+
+
+  </ScrollViewer>
+  <ProgressRing x:Name="BusyRing" Grid.Row="2" Width="32" Height="32" IsActive="False" Visibility="Collapsed"/>
+ </Grid>
+</Page>

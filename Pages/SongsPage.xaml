@@ -6,7 +6,7 @@
     xmlns:services="using:TaikoDiveLauncher.Services"
     SizeChanged="SongsPage_SizeChanged">
 
-    <Grid x:Name="PageRoot" Padding="32,20,32,40" RowSpacing="16">
+    <Grid Style="{StaticResource PageLayoutStyle}" x:Name="PageRoot">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -15,8 +15,19 @@
         </Grid.RowDefinitions>
 
         <StackPanel Spacing="6">
-            <TextBlock Text="楽曲" Style="{StaticResource PageTitleStyle}" />
-            <TextBlock Text="Songsの保存場所、楽曲の追加、ゲーム内の曲順を管理します。" Style="{StaticResource PageSubtitleStyle}" />
+            <TextBlock x:Name="PageHeading" Text="楽曲" Style="{StaticResource PageTitleStyle}" />
+            <TextBlock x:Name="PageDescription" Text="ZIPから楽曲を追加できます。曲順や保存場所は専用画面で変更します。" Style="{StaticResource PageSubtitleStyle}" />
+            <CommandBar x:Name="NavigationCommands" HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">
+                <AppBarButton x:Name="OrderNavigationButton" Label="曲順を変更する" Click="OrderNavigationButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}">
+                    <AppBarButton.Icon><SymbolIcon Symbol="Sort" /></AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton x:Name="FolderNavigationButton" Label="Songsフォルダー設定" Click="FolderNavigationButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}">
+                    <AppBarButton.Icon><SymbolIcon Symbol="Folder" /></AppBarButton.Icon>
+                </AppBarButton>
+            </CommandBar>
+            <CommandBar x:Name="BackToSongsCommandBar" Style="{StaticResource PageCommandBarStyle}" HorizontalAlignment="Left" Visibility="Collapsed">
+                <AppBarButton Icon="Back" Label="楽曲へ" Click="BackToSongsButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}" />
+            </CommandBar>
         </StackPanel>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
@@ -81,20 +92,8 @@
             VerticalScrollBarVisibility="Hidden"
             VerticalScrollMode="Disabled">
         <Grid x:Name="ContentGrid" ColumnSpacing="16" RowSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="GenreColumn" Width="0.85*" />
-                <ColumnDefinition x:Name="OrderColumn" Width="1.55*" />
-                <ColumnDefinition x:Name="DropColumn" Width="1.1*" />
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition x:Name="GenreRow" Height="*" />
-                <RowDefinition x:Name="OrderRow" Height="0" />
-                <RowDefinition x:Name="DropRow" Height="0" />
-            </Grid.RowDefinitions>
-
             <Border
                 x:Name="DropZone"
-                Grid.Column="2"
                 MinHeight="280"
                 AllowDrop="True"
                 AutomationProperties.Name="楽曲ZIPのドロップ領域"
@@ -139,66 +138,7 @@
             </Border>
 
             <Border
-                x:Name="GenreSurface"
-                Style="{StaticResource QuietSurfaceStyle}">
-                <Grid RowSpacing="10">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Grid ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <TextBlock VerticalAlignment="Center" Text="ジャンル" Style="{StaticResource SectionTitleStyle}" />
-                        <CommandBar
-                            x:Name="SongCommandBar"
-                            Grid.Column="1"
-                            Background="Transparent"
-                            DefaultLabelPosition="Collapsed">
-                            <AppBarButton
-                                Click="ReloadButton_Click"
-                                Label="ジャンルを再読み込み"
-                                ToolTipService.ToolTip="ジャンルを再読み込み">
-                                <AppBarButton.Icon><SymbolIcon Symbol="Refresh" /></AppBarButton.Icon>
-                            </AppBarButton>
-                        </CommandBar>
-                    </Grid>
-                    <TextBlock
-                        x:Name="GenreSummaryText"
-                        Grid.Row="1"
-                        Style="{StaticResource PageSubtitleStyle}" />
-                    <Grid Grid.Row="2">
-                        <ListView
-                            x:Name="GenreList"
-                            MinHeight="180"
-                            AutomationProperties.Name="Songsフォルダーのジャンル一覧"
-                            SelectionChanged="GenreList_SelectionChanged"
-                            SelectionMode="Single">
-                            <ListView.ItemTemplate>
-                                <DataTemplate x:DataType="services:SongGenre">
-                                    <TextBlock Padding="8,6" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                </DataTemplate>
-                            </ListView.ItemTemplate>
-                        </ListView>
-                        <TextBlock
-                            x:Name="EmptyGenresText"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            Text="ジャンルフォルダーがありません"
-                            TextAlignment="Center"
-                            TextWrapping="Wrap"
-                            Visibility="Collapsed" />
-                    </Grid>
-                </Grid>
-            </Border>
-
-            <Border
                 x:Name="OrderSurface"
-                Grid.Column="1"
                 Style="{StaticResource QuietSurfaceStyle}">
                 <Grid RowSpacing="10">
                     <Grid.RowDefinitions>
@@ -232,7 +172,10 @@
                             </AppBarButton>
                         </CommandBar>
                     </Grid>
-                    <StackPanel Grid.Row="1" Spacing="4">
+                    <StackPanel Grid.Row="1" Spacing="8">
+                        <ComboBox x:Name="GenreList" Header="並べ替えるジャンル" HorizontalAlignment="Stretch"
+                            DisplayMemberPath="Name" SelectionChanged="GenreList_SelectionChanged"
+                            PlaceholderText="ジャンルを選択してください" />
                         <TextBlock
                             x:Name="SongOrderSummaryText"
                             Style="{StaticResource PageSubtitleStyle}"

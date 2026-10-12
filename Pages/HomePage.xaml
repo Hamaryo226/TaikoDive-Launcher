@@ -22,8 +22,9 @@
         </Storyboard>
     </Page.Resources>
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <Grid x:Name="LayoutRoot" Padding="32,24,32,40" RowSpacing="24" SizeChanged="LayoutRoot_SizeChanged">
+    <ScrollViewer HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+        <Grid>
+        <Grid Style="{StaticResource PageLayoutStyle}" x:Name="LayoutRoot" SizeChanged="LayoutRoot_SizeChanged">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -268,6 +269,7 @@
                     </StackPanel>
                 </Border>
             </Grid>
+        </Grid>
         </Grid>
     </ScrollViewer>
 </Page>

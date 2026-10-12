@@ -85,9 +85,7 @@
     </Page.Resources>
 
     <Grid
-        x:Name="PageRoot"
-        Padding="32,20,32,40"
-        RowSpacing="16"
+        Style="{StaticResource PageLayoutStyle}" x:Name="PageRoot"
         SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -95,11 +93,12 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Grid>
+        <Grid RowSpacing="8" ColumnSpacing="16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <StackPanel Spacing="6">
                 <TextBlock Text="入力設定" Style="{StaticResource PageTitleStyle}" />
                 <TextBlock
@@ -107,21 +106,21 @@
                     Style="{StaticResource PageSubtitleStyle}" />
                 <TextBlock x:Name="BindingSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
-            <CommandBar Grid.Column="1" Background="Transparent" DefaultLabelPosition="Right">
+            <CommandBar x:Name="InputCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
                 <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
                 </AppBarButton>
                 <CommandBar.SecondaryCommands>
-                    <AppBarButton Click="ReloadButton_Click" Label="保存済みを再読み込み" />
+                    <AppBarButton Click="ReloadButton_Click" Label="保存済みに戻す" />
                 </CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
 
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsClosable="True" IsOpen="False" />
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="16">
                 <Border Style="{StaticResource QuietSurfaceStyle}" Padding="16">
                     <Grid ColumnSpacing="12">
