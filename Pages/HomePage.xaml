@@ -218,12 +218,15 @@
                                 <DataTemplate x:DataType="local:RecentSongItem">
                                     <Button
                                         Click="RecentSong_Click"
+                                        Style="{StaticResource ActionButtonStyle}"
+                                        UseSystemFocusVisuals="True"
+                                        FocusVisualMargin="-2"
+                                        IsTabStop="True"
                                         Tag="{x:Bind Song}"
                                         HorizontalAlignment="Stretch"
                                         HorizontalContentAlignment="Stretch"
                                         MinHeight="56"
                                         Padding="12,6"
-                                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
                                         AutomationProperties.Name="{x:Bind AccessibilityLabel}">
                                         <Grid ColumnSpacing="12">
                                             <Grid.ColumnDefinitions>

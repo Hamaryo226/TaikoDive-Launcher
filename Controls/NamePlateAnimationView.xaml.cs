@@ -50,7 +50,6 @@ public sealed partial class NamePlateAnimationView : UserControl
             if (loadVersion != _loadVersion) return;
             BackgroundImage.Source = await DecodePngAsync(layers.Background);
             if (loadVersion != _loadVersion) return;
-            PlayerNumberImage.Source = await DecodePngAsync(layers.Number);
             _loadedBasePath = baseSheetPath;
         }
 
@@ -268,7 +267,6 @@ public sealed partial class NamePlateAnimationView : UserControl
         NameImage.Source = null;
         TitleImage.Source = null;
         BackgroundImage.Source = null;
-        PlayerNumberImage.Source = null;
         _loadedBasePath = null;
     }
 

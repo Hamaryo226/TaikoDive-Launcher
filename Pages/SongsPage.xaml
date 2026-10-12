@@ -17,14 +17,16 @@
         <StackPanel Spacing="6">
             <TextBlock x:Name="PageHeading" Text="楽曲" Style="{StaticResource PageTitleStyle}" />
             <TextBlock x:Name="PageDescription" Text="ZIPから楽曲を追加できます。曲順や保存場所は専用画面で変更します。" Style="{StaticResource PageSubtitleStyle}" />
-            <CommandBar x:Name="NavigationCommands" HorizontalAlignment="Left" Background="Transparent" DefaultLabelPosition="Right">
-                <AppBarButton x:Name="OrderNavigationButton" Label="曲順を変更する" Click="OrderNavigationButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon><SymbolIcon Symbol="Sort" /></AppBarButton.Icon>
-                </AppBarButton>
-                <AppBarButton x:Name="FolderNavigationButton" Label="Songsフォルダー設定" Click="FolderNavigationButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}">
-                    <AppBarButton.Icon><SymbolIcon Symbol="Folder" /></AppBarButton.Icon>
-                </AppBarButton>
-            </CommandBar>
+            <Grid x:Name="NavigationCommands" ColumnSpacing="12" RowSpacing="12">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="NavigationSecondColumn" Width="*"/></Grid.ColumnDefinitions>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <Button x:Name="OrderNavigationButton" Click="OrderNavigationButton_Click" Style="{StaticResource EditorNavigationButtonStyle}" AutomationProperties.Name="曲順を変更する">
+                    <StackPanel Spacing="4"><TextBlock Text="曲順を変更する" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="ジャンルごとの並び順を編集" Style="{StaticResource PageSubtitleStyle}"/></StackPanel>
+                </Button>
+                <Button x:Name="FolderNavigationButton" Grid.Column="1" Click="FolderNavigationButton_Click" Style="{StaticResource EditorNavigationButtonStyle}" AutomationProperties.Name="Songsフォルダー設定">
+                    <StackPanel Spacing="4"><TextBlock Text="Songsフォルダー設定" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="楽曲の保存場所を変更" Style="{StaticResource PageSubtitleStyle}"/></StackPanel>
+                </Button>
+            </Grid>
             <CommandBar x:Name="BackToSongsCommandBar" Style="{StaticResource PageCommandBarStyle}" HorizontalAlignment="Left" Visibility="Collapsed">
                 <AppBarButton Icon="Back" Label="楽曲へ" Click="BackToSongsButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}" />
             </CommandBar>

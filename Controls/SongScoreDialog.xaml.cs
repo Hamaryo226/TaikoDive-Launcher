@@ -2,6 +2,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Input;
 using TaikoDiveLauncher.Models;
 
 namespace TaikoDiveLauncher.Controls;
@@ -9,6 +10,7 @@ namespace TaikoDiveLauncher.Controls;
 public sealed partial class SongScoreDialog : ContentDialog
 {
     private XamlRoot? _root;
+    private UIElement? _dismissSurface;
 
     public SongScoreDialog(RecentSong song, IReadOnlyList<SongBestResult> results, ImageSource[] crownImages)
     {
@@ -25,6 +27,8 @@ public sealed partial class SongScoreDialog : ContentDialog
 
     private void Dialog_Opened(ContentDialog sender, ContentDialogOpenedEventArgs args)
     {
+        _dismissSurface = GetTemplateChild("SmokeLayerBackground") as UIElement;
+        _dismissSurface?.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(Outside_PointerPressed), true);
         _root = XamlRoot;
         if (_root is not null) _root.Changed += Root_Changed;
         UpdateAvailableSize();
@@ -36,8 +40,18 @@ public sealed partial class SongScoreDialog : ContentDialog
 
     private void Dialog_Closed(ContentDialog sender, ContentDialogClosedEventArgs args)
     {
+        _dismissSurface?.RemoveHandler(UIElement.PointerPressedEvent, new PointerEventHandler(Outside_PointerPressed));
+        _dismissSurface = null;
         if (_root is not null) _root.Changed -= Root_Changed;
         _root = null;
+    }
+
+    private void Outside_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        // Handle the modal backdrop only; clicks within the dialog keep editing/selection active.
+        if (!e.GetCurrentPoint(_dismissSurface).Properties.IsLeftButtonPressed) return;
+        e.Handled = true;
+        Hide();
     }
 
     private void Root_Changed(XamlRoot sender, XamlRootChangedEventArgs args) => UpdateAvailableSize();
@@ -46,7 +60,7 @@ public sealed partial class SongScoreDialog : ContentDialog
     {
         if (_root is null) return;
         ContentScroll.Width = Math.Clamp(_root.Size.Width - 80, 220, 480);
-        ContentScroll.MaxHeight = Math.Clamp(_root.Size.Height - 220, 160, 600);
+        ContentScroll.Height = Math.Clamp(_root.Size.Height - 220, 160, 600);
     }
 
     private void DialogContent_SizeChanged(object sender, SizeChangedEventArgs e) => UpdateContentLayout(e.NewSize.Width);

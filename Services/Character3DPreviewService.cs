@@ -31,14 +31,15 @@ public sealed class Character3DPreviewService
         });
     }
 
-    internal static string CreateRequest(TaikoDiveInstallation installation, Character3DSettings settings) => new JsonObject
+    internal static string CreateRequest(TaikoDiveInstallation installation, Character3DSettings settings, bool secondPlayerFacing = false) => new JsonObject
     {
+        ["secondPlayerFacing"] = secondPlayerFacing,
         ["modelsPath"] = Character3DStore.ModelRoot(installation, settings.ModelsPath),
         ["parts"] = new JsonObject { ["useCostume"] = settings.UseCostume, ["head"] = settings.Head, ["body"] = settings.Body, ["costume"] = settings.Costume },
         ["colors"] = new JsonObject { ["body"] = settings.BodyColor, ["limbs"] = settings.LimbsColor, ["face"] = settings.FaceColor, ["rim"] = settings.RimColor },
     }.ToJsonString();
 
-    internal static string CreateStaticCacheKey(TaikoDiveInstallation installation, Character3DSettings settings)
+    internal static string CreateStaticCacheKey(TaikoDiveInstallation installation, Character3DSettings settings, bool secondPlayerFacing = false)
     {
         string root = Character3DStore.ModelRoot(installation, settings.ModelsPath);
         string faceAnimations = Path.Combine(root, "face", "animations.json");
@@ -60,24 +61,24 @@ public sealed class Character3DPreviewService
         }
 
         // Check only the active model's dependencies; do not read large model files on navigation.
-        return CreateRequest(installation, settings) + "\n" + string.Join("\n", files.Select(path =>
+        return CreateRequest(installation, settings, secondPlayerFacing) + "\n" + string.Join("\n", files.Select(path =>
         {
             FileInfo file = new(path);
             return path + "|" + (file.Exists ? $"{file.Length}|{file.LastWriteTimeUtc.Ticks}" : "missing");
         }));
     }
 
-    public async Task<byte[]> RenderAsync(TaikoDiveInstallation installation, Character3DSettings settings, CancellationToken cancellationToken)
+    public async Task<byte[]> RenderAsync(TaikoDiveInstallation installation, Character3DSettings settings, CancellationToken cancellationToken, bool secondPlayerFacing = false)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        string key = CreateStaticCacheKey(installation, settings);
+        string key = CreateStaticCacheKey(installation, settings, secondPlayerFacing);
         int generation;
         lock (_cacheLock)
         {
             if (_staticCache.TryGetValue(key, out var cached)) return cached;
             generation = _cacheGeneration;
         }
-        byte[] png = (await RenderCoreAsync(installation, settings, null, cancellationToken)).Frames[0];
+        byte[] png = (await RenderCoreAsync(installation, settings, null, cancellationToken, secondPlayerFacing)).Frames[0];
         cancellationToken.ThrowIfCancellationRequested();
         lock (_cacheLock)
         {
@@ -93,7 +94,7 @@ public sealed class Character3DPreviewService
     public Task<CharacterAnimationPreview> RenderAnimationAsync(TaikoDiveInstallation installation, Character3DSettings settings, string animation, CancellationToken cancellationToken) =>
         RenderCoreAsync(installation, settings, animation, cancellationToken);
 
-    private async Task<CharacterAnimationPreview> RenderCoreAsync(TaikoDiveInstallation installation, Character3DSettings settings, string? animation, CancellationToken cancellationToken)
+    private async Task<CharacterAnimationPreview> RenderCoreAsync(TaikoDiveInstallation installation, Character3DSettings settings, string? animation, CancellationToken cancellationToken, bool secondPlayerFacing = false)
     {
         if (!IsSupported(Path.Combine(installation.BuildDirectory, "TaikoDive.dll"), animation is not null))
             throw new InvalidOperationException("3Dプレビュー対応版の TaikoDive に更新してください。");
@@ -106,7 +107,7 @@ public sealed class Character3DPreviewService
         try
         {
             string request = Path.Combine(directory, "request.json"), output = Path.Combine(directory, "preview.png");
-            var requestJson = JsonNode.Parse(CreateRequest(installation, settings))!.AsObject();
+            var requestJson = JsonNode.Parse(CreateRequest(installation, settings, secondPlayerFacing))!.AsObject();
             if (animation is not null) requestJson["animation"] = animation;
             await File.WriteAllTextAsync(request, requestJson.ToJsonString(), timeout.Token);
             process.StartInfo = new ProcessStartInfo(installation.ExecutablePath)
