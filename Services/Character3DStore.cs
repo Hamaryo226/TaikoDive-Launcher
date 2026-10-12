@@ -18,21 +18,48 @@ public sealed class Character3DStore
     // 配布物や環境によってモデルフォルダーが Model と Models のどちらかになるため、実在する方を既定にする。
     public static string DefaultModelsPath(TaikoDiveInstallation installation) => FindModelsPath(installation) ?? "Info/Chara/Model";
 
+    public static bool HasDetectedModels(TaikoDiveInstallation installation) => FindModelsPath(installation) is not null;
+
     private static string? FindModelsPath(TaikoDiveInstallation installation) =>
         new[] { "Info/Chara/Model", "Info/Chara/Models" }
             .FirstOrDefault(candidate => File.Exists(Path.Combine(installation.BuildDirectory, candidate, "animations.glb")));
 
     // 本体は modelsPath が無いと起動直後に例外で止まる。着せ替えを保存していない環境でも起動できるよう、起動前に補う。
-    public async Task EnsureModelsPathAsync(TaikoDiveInstallation installation)
+    // replaceInvalid は整合性チェックの修復用。起動時は利用者が指定した参照先を書き換えない。
+    public async Task EnsureModelsPathAsync(TaikoDiveInstallation installation, bool replaceInvalid = false)
     {
         string path = SettingsPath(installation);
         var root = await ReadAsync(path);
-        if ((string?)root["modelsPath"] is { } current && !string.IsNullOrWhiteSpace(current)) return;
+        if ((string?)root["modelsPath"] is { } current && !string.IsNullOrWhiteSpace(current)
+            && (!replaceInvalid || HasModel(installation, current))) return;
         // モデルが配置されていない環境では参照先を決められないため、本体側のエラー表示に任せる。
         if (FindModelsPath(installation) is not { } detected || _isRunning()) return;
         root["modelsPath"] = detected;
         if (!File.Exists(path)) root["enabled"] = true;
         await FilePersistence.WriteTextAtomicAsync(path, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, new UTF8Encoding(false));
+    }
+
+    private static bool HasModel(TaikoDiveInstallation installation, string modelsPath) =>
+        File.Exists(Path.Combine(ModelRoot(installation, modelsPath), "animations.glb"));
+
+    // 整合性チェック用。本体が起動時に失敗する設定を検出し、問題が無ければ null を返す。
+    public static async Task<string?> DiagnoseAsync(TaikoDiveInstallation installation)
+    {
+        JsonObject root;
+        try
+        {
+            root = await ReadAsync(SettingsPath(installation));
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidDataException)
+        {
+            return "Info/Chara3D.json の形式が正しくありません。";
+        }
+        string? modelsPath = root["modelsPath"] is JsonValue value && value.TryGetValue(out string? text) ? text : null;
+        if (string.IsNullOrWhiteSpace(modelsPath))
+            return FindModelsPath(installation) is null
+                ? "3Dモデルのフォルダー (Info/Chara/Model) が見つかりません。"
+                : "Info/Chara3D.json に modelsPath が設定されていません。";
+        return HasModel(installation, modelsPath) ? null : $"modelsPath ({modelsPath}) に animations.glb がありません。";
     }
 
     private static string StoredModelsPath(JsonObject root, TaikoDiveInstallation installation) =>

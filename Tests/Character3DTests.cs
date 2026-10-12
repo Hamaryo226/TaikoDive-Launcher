@@ -96,6 +96,21 @@ public sealed class Character3DTests
     }
 
     [TestMethod]
+    public async Task DiagnoseDetectsBrokenModelSettingsAndRepairReplacesInvalidPath()
+    {
+        string path = Character3DStore.SettingsPath(_installation);
+        Assert.IsNotNull(await Character3DStore.DiagnoseAsync(_installation));
+        await File.WriteAllTextAsync(path, "{\"modelsPath\":\"Info/Chara/Missing\"}");
+        StringAssert.Contains(await Character3DStore.DiagnoseAsync(_installation), "animations.glb");
+        await new Character3DStore(() => false).EnsureModelsPathAsync(_installation);
+        StringAssert.Contains(await File.ReadAllTextAsync(path), "Info/Chara/Missing");
+        await new Character3DStore(() => false).EnsureModelsPathAsync(_installation, replaceInvalid: true);
+        Assert.IsNull(await Character3DStore.DiagnoseAsync(_installation));
+        await File.WriteAllTextAsync(path, "{");
+        StringAssert.Contains(await Character3DStore.DiagnoseAsync(_installation), "形式");
+    }
+
+    [TestMethod]
     public async Task PartialProfileInheritsDefaultsAndSaveKeepsOtherProfilesAndUnknownKeys()
     {
         string path = Character3DStore.SettingsPath(_installation);
