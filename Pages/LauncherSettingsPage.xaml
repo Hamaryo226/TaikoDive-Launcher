@@ -393,6 +393,112 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                <Border Style="{StaticResource QuietSurfaceStyle}">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource UpdateCardIconStyle}">
+                                <SymbolIcon Symbol="Repair" />
+                            </Border>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="ファイルの整合性" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock
+                                    Text="配信中のゲーム本体とAssetがそろっているか、3Dモデルの参照先が正しいかを確認します。"
+                                    Style="{StaticResource PageSubtitleStyle}"
+                                    TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid MinHeight="24" ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressRing
+                                x:Name="IntegrityProgressRing"
+                                Width="20"
+                                Height="20"
+                                IsActive="False"
+                                Visibility="Collapsed" />
+                            <SymbolIcon
+                                x:Name="IntegrityStatusIcon"
+                                Width="20"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Symbol="Help" />
+                            <TextBlock
+                                x:Name="IntegrityStatusText"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Text="まだチェックしていません。"
+                                TextWrapping="Wrap" />
+                        </Grid>
+                        <Grid x:Name="IntegrityProgressPanel" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ProgressBar
+                                x:Name="IntegrityProgressBar"
+                                Height="4"
+                                Minimum="0"
+                                Maximum="100"
+                                VerticalAlignment="Center" />
+                            <TextBlock
+                                x:Name="IntegrityProgressText"
+                                Grid.Column="1"
+                                MinWidth="36"
+                                HorizontalAlignment="Right"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                TextAlignment="Right" />
+                        </Grid>
+                        <Expander
+                            x:Name="IntegrityDetailsExpander"
+                            Header="詳細"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            Visibility="Collapsed">
+                            <ScrollViewer MaxHeight="240">
+                                <TextBlock
+                                    x:Name="IntegrityDetailsText"
+                                    IsTextSelectionEnabled="True"
+                                    TextWrapping="Wrap" />
+                            </ScrollViewer>
+                        </Expander>
+                        <Grid ColumnSpacing="8" RowSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition x:Name="IntegrityActionSecondColumn" Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Button
+                                x:Name="CheckIntegrityButton"
+                                Click="CheckIntegrityButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Zoom" />
+                                    <TextBlock Text="ファイルをチェック" />
+                                </StackPanel>
+                            </Button>
+                            <Button
+                                x:Name="RepairIntegrityButton"
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
+                                Click="RepairIntegrityButton_Click"
+                                IsEnabled="False"
+                                Style="{StaticResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <SymbolIcon Symbol="Repair" />
+                                    <TextBlock Text="修復" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
@@ -428,6 +534,9 @@
                         <Setter Target="InstallGameUpdateButton.(Grid.Row)" Value="1" />
                         <Setter Target="InstallAssetUpdateButton.(Grid.Column)" Value="0" />
                         <Setter Target="InstallAssetUpdateButton.(Grid.Row)" Value="1" />
+                        <Setter Target="IntegrityActionSecondColumn.Width" Value="0" />
+                        <Setter Target="RepairIntegrityButton.(Grid.Column)" Value="0" />
+                        <Setter Target="RepairIntegrityButton.(Grid.Row)" Value="1" />
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
