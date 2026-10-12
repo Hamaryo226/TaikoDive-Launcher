@@ -7,7 +7,8 @@ namespace TaikoDiveLauncher.Tests;
 [TestClass]
 public sealed class Character3DTests
 {
-    [TestMethod] public void PreviewFacingHasSeparateRequestAndCacheIdentity()
+    [TestMethod]
+    public void PreviewFacingHasSeparateRequestAndCacheIdentity()
     {
         var settings = new Character3DSettings();
         var first = System.Text.Json.Nodes.JsonNode.Parse(Character3DPreviewService.CreateRequest(_installation, settings))!;
@@ -18,12 +19,14 @@ public sealed class Character3DTests
             Character3DPreviewService.CreateStaticCacheKey(_installation, settings, true));
     }
 
-    [TestMethod] public async Task RestorePreviousLoadsUserAppearanceWithoutWritingCurrentSettings()
+    [TestMethod]
+    public async Task RestorePreviousLoadsUserAppearanceWithoutWritingCurrentSettings()
     {
         var store = new Character3DStore(() => false);
         await Assert.ThrowsAsync<FileNotFoundException>(() => store.LoadPreviousAsync(_installation, 1));
         await store.SaveAsync(_installation, new() { Head = "3", FaceColor = "#112233" }, 1);
         await store.SaveAsync(_installation, new() { Head = "4", FaceColor = "#445566" }, 1);
+        Assert.AreEqual("Info/Chara/Model", (string?)JsonNode.Parse(await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation)))!["modelsPath"]);
         string current = await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation));
         var previous = await store.LoadPreviousAsync(_installation, 1);
         Assert.AreEqual("3", previous.Head);
@@ -31,7 +34,8 @@ public sealed class Character3DTests
         Assert.AreEqual(current, await File.ReadAllTextAsync(Character3DStore.SettingsPath(_installation)));
         Assert.AreEqual("4", (await store.LoadAsync(_installation, 1)).Head);
     }
-    [TestMethod] public async Task UserSettingsAreIndependentAndFallbackToCommonValues()
+    [TestMethod]
+    public async Task UserSettingsAreIndependentAndFallbackToCommonValues()
     {
         var store = new Character3DStore(() => false);
         await store.SaveAsync(_installation, new() { BodyColor = "#123456", Head = "7" });
@@ -55,7 +59,22 @@ public sealed class Character3DTests
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => store.SaveAsync(_installation, new(), 0));
     }
 
-    [TestMethod] public async Task PartialProfileInheritsDefaultsAndSaveKeepsOtherProfilesAndUnknownKeys()
+    [TestMethod]
+    public async Task UserOnlySaveWritesDetectedModelsPathForGame()
+    {
+        Directory.Move(Path.Combine(_root, "Info", "Chara", "Model"), Path.Combine(_root, "Info", "Chara", "Models"));
+        string path = Character3DStore.SettingsPath(_installation);
+        await File.WriteAllTextAsync(path, "{\"modelsPath\":\"\",\"future\":1}");
+        var store = new Character3DStore(() => false);
+        Assert.AreEqual("Info/Chara/Models", (await store.LoadAsync(_installation, 1)).ModelsPath);
+        await store.SaveAsync(_installation, new() { Head = "3" }, 1);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(path))!;
+        Assert.AreEqual("Info/Chara/Models", (string?)json["modelsPath"]);
+        Assert.AreEqual(1, (int)json["future"]!);
+    }
+
+    [TestMethod]
+    public async Task PartialProfileInheritsDefaultsAndSaveKeepsOtherProfilesAndUnknownKeys()
     {
         string path = Character3DStore.SettingsPath(_installation);
         await File.WriteAllTextAsync(path, """
@@ -78,7 +97,8 @@ public sealed class Character3DTests
 
     private string _root = null!;
     private TaikoDiveInstallation _installation = null!;
-    [TestInitialize] public void Setup()
+    [TestInitialize]
+    public void Setup()
     {
         _root = Path.Combine(Path.GetTempPath(), "TaikoDive-Character3D-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(_root, "Info"));
@@ -96,7 +116,8 @@ public sealed class Character3DTests
         Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, [0]);
     }
 
-    [TestMethod] public async Task RoundTripRetainsUnknownFieldsAndBackup()
+    [TestMethod]
+    public async Task RoundTripRetainsUnknownFieldsAndBackup()
     {
         string path = Character3DStore.SettingsPath(_installation);
         const string original = "{\"enabled\":false,\"future\":42,\"parts\":{\"futurePart\":3},\"colors\":{\"futureColor\":\"#123456\"}}";
@@ -116,7 +137,8 @@ public sealed class Character3DTests
         Assert.AreEqual(original, await File.ReadAllTextAsync(path + ".launcher.bak"));
     }
 
-    [TestMethod] public async Task EnabledModeValidatesOnlyItsSelectedParts()
+    [TestMethod]
+    public async Task EnabledModeValidatesOnlyItsSelectedParts()
     {
         Asset("animations.glb"); Asset("face/face_000000.png"); Asset("cos/2.glb");
         var store = new Character3DStore(() => false);
@@ -129,7 +151,8 @@ public sealed class Character3DTests
         await Assert.ThrowsAsync<FileNotFoundException>(() => store.SaveAsync(_installation, settings));
     }
 
-    [TestMethod] public async Task RunningGameAndInvalidInputDoNotOverwriteSettings()
+    [TestMethod]
+    public async Task RunningGameAndInvalidInputDoNotOverwriteSettings()
     {
         string path = Character3DStore.SettingsPath(_installation); await File.WriteAllTextAsync(path, "{}");
         await Assert.ThrowsAsync<InvalidOperationException>(() => new Character3DStore(() => true).SaveAsync(_installation, new()));
@@ -138,7 +161,8 @@ public sealed class Character3DTests
         Assert.AreEqual("{}", await File.ReadAllTextAsync(path));
     }
 
-    [TestMethod] public async Task DanCostumesAreListedNamedSavedAndPassedToPreview()
+    [TestMethod]
+    public async Task DanCostumesAreListedNamedSavedAndPassedToPreview()
     {
         var store = new Character3DStore(() => false);
         string root = Character3DStore.ModelRoot(_installation, "Info/Chara/Model");
@@ -169,7 +193,8 @@ public sealed class Character3DTests
         Assert.IsTrue(File.Exists(settingsPath + ".launcher.bak"));
     }
 
-    [TestMethod] public void CatalogUsesExistingFilesNamesAndMissingSelection()
+    [TestMethod]
+    public void CatalogUsesExistingFilesNamesAndMissingSelection()
     {
         Asset("head/0.glb"); Asset("head/3.glb"); Asset("head/invalid.glb");
         string root = Character3DStore.ModelRoot(_installation, "Info/Chara/Model");
