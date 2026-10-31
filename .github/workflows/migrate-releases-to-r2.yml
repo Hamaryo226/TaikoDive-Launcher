@@ -1,0 +1,58 @@
+name: Migrate published updates to Cloudflare R2
+
+# GitHub Releasesで配布中の最新パッケージを、版を上げずにR2へ移す一度きりのワークフロー。
+# 版を上げて作り直すと、利用者全員がAssetを再ダウンロードすることになるため。
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Copy game and Asset updates
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          $channels = @(
+            @{ Channel = 'game'; Tag = 'game-stable'; Manifest = 'game-update-manifest.json' },
+            @{ Channel = 'assets'; Tag = 'assets-stable'; Manifest = 'assets-update-manifest.json' }
+          )
+          foreach ($item in $channels) {
+            $directory = Join-Path $env:RUNNER_TEMP $item.Channel
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+            gh release download $item.Tag --repo $env:GITHUB_REPOSITORY --pattern $item.Manifest --dir $directory
+            if ($LASTEXITCODE -ne 0) { throw "Failed to download $($item.Manifest)." }
+
+            $manifestPath = Join-Path $directory $item.Manifest
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
+            gh release download $item.Tag --repo $env:GITHUB_REPOSITORY --pattern $manifest.packageFileName --dir $directory
+            if ($LASTEXITCODE -ne 0) { throw "Failed to download $($manifest.packageFileName)." }
+
+            $packagePath = Join-Path $directory $manifest.packageFileName
+            $hash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash
+            if ($hash -ne $manifest.sha256) { throw "SHA-256 mismatch: $($manifest.packageFileName)" }
+
+            # 他の項目の書式を変えないよう、URLだけを文字列として置き換える。
+            $oldUrl = $manifest.packageUrl
+            $newUrl = "https://dl.hamaryo.dev/$($item.Channel)/$($manifest.packageFileName)"
+            $raw = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
+            $updated = $raw.Replace($oldUrl, $newUrl)
+            if ($updated -eq $raw -and $oldUrl -ne $newUrl) { throw "packageUrl was not replaced in $($item.Manifest)." }
+            [System.IO.File]::WriteAllText($manifestPath, $updated, [System.Text.UTF8Encoding]::new($false))
+
+            & .\tools\r2\Publish-TaikoDiveR2.ps1 -Channel $item.Channel -PayloadPath $packagePath -ManifestPath $manifestPath
+            "$($item.Channel): v$($manifest.version) -> $newUrl" | Add-Content $env:GITHUB_STEP_SUMMARY
+          }
