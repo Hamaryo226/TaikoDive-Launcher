@@ -13,9 +13,9 @@ public sealed class LauncherUpdateService
     private const long MaximumDownloadSize = 512L * 1024 * 1024;
     private const int MaximumReleaseNotesLength = 4000;
     private static readonly Uri DefaultManifestUri = new(
-        $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/{UpdateTag}/update-manifest.json");
+        $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/{UpdateTag}/update-manifest.json");
     private static readonly Uri DefaultExecutableUri = new(
-        $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/{UpdateTag}/{ExecutableName}");
+        $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/{UpdateTag}/{ExecutableName}");
 
     private readonly HttpClient _httpClient;
     private readonly string _currentRevision;
