@@ -905,6 +905,32 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public void GameUpdateManifestRejectsPackageFromOtherRepository()
+    {
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = GameUpdatePackageNaming.Create("1.2.3", revision);
+        GameUpdateManifest manifest = new()
+        {
+            Version = "1.2.3",
+            Revision = revision,
+            PackageFileName = packageName,
+            PackageUrl = $"https://github.com/attacker/TaikoDive-Launcher/releases/download/game-stable/{packageName}",
+            Sha256 = new string('A', 64),
+            Size = 123,
+            PublishedAt = DateTimeOffset.UtcNow,
+            Archive = new GameUpdateArchiveInfo
+            {
+                Format = "zip",
+                Encryption = "winzip-aes-256",
+                Payload = "payload.bin",
+                KeyId = "2026-01",
+            },
+        };
+
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdateService.ValidateManifest(manifest));
+    }
+
+    [TestMethod]
     public async Task GameUpdateCheckerFindsNewerPublicPackage()
     {
         using TemporaryInstallation temporary = new();
