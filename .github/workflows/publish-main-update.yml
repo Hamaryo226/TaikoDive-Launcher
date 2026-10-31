@@ -35,9 +35,13 @@ jobs:
         shell: pwsh
         env:
           GAME_PACKAGE_KEY: ${{ secrets.GAME_PACKAGE_KEY }}
+          RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:GAME_PACKAGE_KEY)) {
             throw 'GAME_PACKAGE_KEY secret is required.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:RELEASE_APP_ID)) {
+            throw 'RELEASE_APP_ID secret is required.'
           }
           dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64 "-p:GamePackageKey=$env:GAME_PACKAGE_KEY"
 
@@ -81,7 +85,46 @@ jobs:
             $json + [Environment]::NewLine,
             [System.Text.UTF8Encoding]::new($false))
 
-      - name: Publish main update channel
+      - name: Create token for public release repository
+        id: release-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: Hamaryo226
+          repositories: TaikoDive-Releases
+          permission-contents: write
+
+      - name: Publish main update channel to release repository
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        run: |
+          $repository = 'Hamaryo226/TaikoDive-Releases'
+          $tag = 'launcher-main'
+          $publishDirectory = Join-Path $env:GITHUB_WORKSPACE 'bin\x64\Release\net10.0-windows10.0.26100.0\win-x64'
+          $executable = Join-Path $publishDirectory 'TaikoDive.Launcher.exe'
+          $manifest = Join-Path $publishDirectory 'update-manifest.json'
+
+          gh release view $tag --repo $repository *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag `
+              --repo $repository `
+              --title 'TaikoDive Launcher - main' `
+              --notes 'privateのmainブランチから自動生成されるランチャー更新チャネルです。' `
+              --prerelease `
+              --target main
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+          gh release upload $tag $executable --clobber --repo $repository
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          gh release upload $tag $manifest --clobber --repo $repository
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      # 旧URLを参照する配布済みランチャーが、新しい取得先の版へ移行するための旧チャネル。
+      # 新チャネルの公開に成功してから更新し、移行先が空の状態を作らない。
+      - name: Publish legacy main update channel
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
