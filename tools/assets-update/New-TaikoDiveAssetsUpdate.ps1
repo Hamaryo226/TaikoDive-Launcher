@@ -15,7 +15,7 @@ param(
     [string] $PackageKey,
 
     [string] $KeyId = '2026-01',
-    [string] $PublicRepository = 'Hamaryo226/TaikoDive-Releases',
+    [string] $DownloadBaseUrl = 'https://dl.hamaryo.dev',
 
     [ValidateLength(0, 4000)]
     [string] $ReleaseNotes = '',
@@ -155,7 +155,7 @@ try {
         revision = $revisionLower
         releaseNotes = $ReleaseNotes.Trim()
         packageFileName = $packageName
-        packageUrl = "https://github.com/$PublicRepository/releases/download/assets-stable/$packageName"
+        packageUrl = "$($DownloadBaseUrl.TrimEnd('/'))/assets/$packageName"
         sha256 = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash
         size = $packageFile.Length
         publishedAt = [DateTimeOffset]::UtcNow.ToString('O')
