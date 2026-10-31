@@ -91,32 +91,14 @@ jobs:
             -PackageKey $env:GAME_PACKAGE_KEY `
             -OutputDirectory .\game-update
 
-      - name: Create token for public release repository
-        id: release-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          owner: Hamaryo226
-          repositories: TaikoDive-Releases
-          permission-contents: write
-
-      - name: Publish stable game update
+      - name: Publish stable game update to Cloudflare R2
         shell: pwsh
         env:
-          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
-          $repository = 'Hamaryo226/TaikoDive-Releases'
-          $tag = 'game-stable'
-          $package = Get-Item .\game-update\TaikoDive_Update_*.zip
-          $manifest = Get-Item .\game-update\game-update-manifest.json
-
-          gh release view $tag --repo $repository *> $null
-          if ($LASTEXITCODE -ne 0) {
-            gh release create $tag `
-              --repo $repository `
-              --title 'TaikoDive - stable' `
-              --notes 'privateソースから生成されるTaikoDiveゲーム更新チャネルです。' `
-              --target main
-          }
-          gh release upload $tag $package.FullName $manifest.FullName --clobber --repo $repository
+          & .\launcher-tools\tools\r2\Publish-TaikoDiveR2.ps1 `
+            -Channel game `
+            -PayloadPath (Get-Item .\game-update\TaikoDive_Update_*.zip).FullName `
+            -ManifestPath .\game-update\game-update-manifest.json

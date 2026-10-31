@@ -8,14 +8,13 @@ namespace TaikoDiveLauncher.Services;
 
 public sealed class LauncherUpdateService
 {
-    private const string UpdateTag = "launcher-main";
     private const string ExecutableName = "TaikoDive.Launcher.exe";
     private const long MaximumDownloadSize = 512L * 1024 * 1024;
     private const int MaximumReleaseNotesLength = 4000;
     private static readonly Uri DefaultManifestUri = new(
-        $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/{UpdateTag}/update-manifest.json");
+        $"https://{GameUpdateService.DownloadHost}/launcher/update-manifest.json");
     private static readonly Uri DefaultExecutableUri = new(
-        $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/{UpdateTag}/{ExecutableName}");
+        $"https://{GameUpdateService.DownloadHost}/launcher/{ExecutableName}");
 
     private readonly HttpClient _httpClient;
     private readonly string _currentRevision;
