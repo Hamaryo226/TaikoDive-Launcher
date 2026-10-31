@@ -859,7 +859,7 @@ public sealed class PersistenceTests
             Version = "2.3.4",
             Revision = revision,
             PackageFileName = packageName,
-            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/assets-stable/{packageName}",
+            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/assets-stable/{packageName}",
             Sha256 = new string('A', 64),
             Size = 123,
             PublishedAt = DateTimeOffset.UtcNow,
@@ -886,7 +886,7 @@ public sealed class PersistenceTests
             Version = "1.2.3",
             Revision = revision,
             PackageFileName = packageName,
-            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{packageName}",
+            PackageUrl = $"https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/game-stable/{packageName}",
             Sha256 = new string('A', 64),
             Size = 123,
             PublishedAt = DateTimeOffset.UtcNow,
@@ -905,6 +905,32 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
+    public void GameUpdateManifestRejectsPackageFromOtherRepository()
+    {
+        string revision = "0123456789abcdef0123456789abcdef01234567";
+        string packageName = GameUpdatePackageNaming.Create("1.2.3", revision);
+        GameUpdateManifest manifest = new()
+        {
+            Version = "1.2.3",
+            Revision = revision,
+            PackageFileName = packageName,
+            PackageUrl = $"https://github.com/attacker/TaikoDive-Launcher/releases/download/game-stable/{packageName}",
+            Sha256 = new string('A', 64),
+            Size = 123,
+            PublishedAt = DateTimeOffset.UtcNow,
+            Archive = new GameUpdateArchiveInfo
+            {
+                Format = "zip",
+                Encryption = "winzip-aes-256",
+                Payload = "payload.bin",
+                KeyId = "2026-01",
+            },
+        };
+
+        Assert.ThrowsExactly<InvalidDataException>(() => GameUpdateService.ValidateManifest(manifest));
+    }
+
+    [TestMethod]
     public async Task GameUpdateCheckerFindsNewerPublicPackage()
     {
         using TemporaryInstallation temporary = new();
@@ -916,7 +942,7 @@ public sealed class PersistenceTests
               "revision": "{{revision}}",
               "releaseNotes": "・オンラインプレイを改善",
               "packageFileName": "{{packageName}}",
-              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{{packageName}}",
+              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/game-stable/{{packageName}}",
               "sha256": "{{new string('A', 64)}}",
               "size": 1234,
               "publishedAt": "2026-08-23T00:00:00Z",
@@ -960,7 +986,7 @@ public sealed class PersistenceTests
               "version": "0.1.0",
               "revision": "{{revision}}",
               "packageFileName": "{{packageName}}",
-              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Launcher/releases/download/game-stable/{{packageName}}",
+              "packageUrl": "https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/game-stable/{{packageName}}",
               "sha256": "{{new string('A', 64)}}",
               "size": 1234,
               "publishedAt": "2026-08-23T00:00:00Z",

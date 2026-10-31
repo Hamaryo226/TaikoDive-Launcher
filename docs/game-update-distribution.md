@@ -1,6 +1,6 @@
 # TaikoDiveゲーム更新の配布
 
-TaikoDiveのソースリポジトリはprivateのまま、ビルド済み更新パッケージとマニフェストだけを公開側の`TaikoDive-Launcher` Releaseへ配置します。ランチャーにはGitHubトークンを持たせません。
+TaikoDiveのソースリポジトリはprivateのまま、ビルド済み更新パッケージとマニフェストだけを公開の配布専用リポジトリ`TaikoDive-Releases`のReleaseへ配置します。ランチャーにはGitHubトークンを持たせません。
 
 ## 固定仕様
 
@@ -20,10 +20,10 @@ TaikoDiveのソースリポジトリはprivateのまま、ビルド済み更新�
 privateのTaikoDiveリポジトリへ次を登録します。
 
 - `GAME_PACKAGE_KEY`: 32バイト以上の乱数をBase64化した値（MSBuild引数で安全に扱うため`;`を含めない）
-- `RELEASE_APP_ID`: 公開リポジトリへReleaseを書けるGitHub AppのID
+- `RELEASE_APP_ID`: `TaikoDive-Releases`へReleaseを書け、privateの`TaikoDive-Launcher`を読めるGitHub AppのID
 - `RELEASE_APP_PRIVATE_KEY`: 上記GitHub Appの秘密鍵
 
-公開側ランチャーリポジトリにも同じ`GAME_PACKAGE_KEY`を登録します。ランチャーのReleaseビルド時だけ埋め込みます。鍵をソース、ログ、マニフェスト、Releaseへ保存しないでください。
+`TaikoDive-Launcher`リポジトリにも同じ`GAME_PACKAGE_KEY`と、mainの自動配布で`TaikoDive-Releases`へ書き込むための`RELEASE_APP_ID`・`RELEASE_APP_PRIVATE_KEY`を登録します。GitHub Appは`TaikoDive-Launcher`と`TaikoDive-Releases`の両方にインストールし、権限はContentsだけにします。ランチャーのReleaseビルド時だけ埋め込みます。鍵をソース、ログ、マニフェスト、Releaseへ保存しないでください。
 
 ## privateリポジトリのワークフロー例
 
