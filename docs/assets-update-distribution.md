@@ -1,6 +1,6 @@
 # TaikoDive Asset更新の配布
 
-`TaikoDive-Assets`はprivateのまま維持し、`src/`から生成した暗号化パッケージだけを公開側の`TaikoDive-Launcher` Releaseへ配置します。ランチャーにGitHubトークンは持たせません。
+`TaikoDive-Assets`はprivateのまま維持し、`src/`から生成した暗号化パッケージだけを公開の配布専用リポジトリ`TaikoDive-Releases`のReleaseへ配置します。ランチャーにGitHubトークンは持たせません。
 
 ## 適用ルール
 
@@ -19,7 +19,7 @@
 
 1. `docs/examples/publish-assets-update.yml`を`TaikoDive-Assets/.github/workflows/publish-assets-update.yml`へコピーする。
 2. `TaikoDive-Assets`へ`GAME_PACKAGE_KEY`、`RELEASE_APP_ID`、`RELEASE_APP_PRIVATE_KEY`をSecretとして登録する。
-3. 公開側のランチャーを同じ`GAME_PACKAGE_KEY`を埋め込んで先に公開する。
+3. ランチャーを同じ`GAME_PACKAGE_KEY`を埋め込んで先に公開する。
 4. `TaikoDive-Assets`のActionsを手動実行するか、`src/**`を`main`へpushする。
 5. 別のゲーム配置でAsset更新と`Info/User.ini`保持、TaikoDive起動を確認する。
 

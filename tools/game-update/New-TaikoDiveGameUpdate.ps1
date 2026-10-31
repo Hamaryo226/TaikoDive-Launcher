@@ -16,7 +16,7 @@ param(
 
     [string] $KeyId = '2026-01',
 
-    [string] $PublicRepository = 'Hamaryo226/TaikoDive-Launcher',
+    [string] $PublicRepository = 'Hamaryo226/TaikoDive-Releases',
 
     [ValidateLength(0, 4000)]
     [string] $ReleaseNotes = '',

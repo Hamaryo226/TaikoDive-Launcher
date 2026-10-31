@@ -50,7 +50,7 @@ dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64
 
 Releaseビルド後、`bin/x64/Release/net10.0-windows10.0.26100.0/win-x64` には配布用の `TaikoDive.Launcher.exe` だけが生成されます。このEXEを `TaikoDive.exe` と同じフォルダーへ配置してください。通常ビルドに必要な展開済みDLL群は `obj/release-bin` 側へ分離され、配布フォルダーには含まれません。ランチャーは自分自身の配置先だけをゲームフォルダーとして使用し、フォルダー選択は行いません。自己完結型なので実行環境へ .NET 10 Desktop Runtime や Windows App Runtimeを別途導入する必要はありません。開発時だけ `TAIKODIVE_LAUNCHER_DEV_DIRECTORY` でゲームフォルダーを指定できます。ランチャー固有設定は `%LOCALAPPDATA%/TaikoDiveLauncher/launcher.json` に保存されます。
 
-`main`へpushされるとGitHub Actionsが固定タグ`launcher-main`の公開Releaseへ単一EXEとSHA-256付きマニフェストを更新します。ランチャーは認証情報を使わずこの公開Releaseを確認し、ダウンロードしたEXEのサイズとSHA-256が一致した場合だけ自己更新します。
+このリポジトリはprivateで、配布物は公開の配布専用リポジトリ[TaikoDive-Releases](https://github.com/Hamaryo226/TaikoDive-Releases)のReleaseにだけ置きます。`main`へpushされるとGitHub Actionsが固定タグ`launcher-main`の公開Releaseへ単一EXEとSHA-256付きマニフェストを更新します。ランチャーは認証情報を使わずこの公開Releaseを確認し、ダウンロードしたEXEのサイズとSHA-256が一致した場合だけ自己更新します。
 
 ゲーム本体の更新は、privateのTaikoDiveリポジトリでビルドした`TaikoDive_Update_v{major}.{minor}.{patch}_win-x64_{commit7}.zip`を公開Releaseの固定タグ`game-stable`へ配置します。ランチャーは外側のAES-256 ZIP、外部・内部マニフェスト、全ファイルのサイズとSHA-256、保護対象パスを検証してから適用します。構築方法と必要なGitHub Secretsは[ゲーム更新の配布手順](docs/game-update-distribution.md)を参照してください。
 

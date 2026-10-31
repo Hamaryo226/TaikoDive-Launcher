@@ -23,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout private Asset repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -31,10 +31,23 @@ jobs:
         shell: pwsh
         run: choco install 7zip --yes --no-progress
 
-      - name: Checkout public packaging tools
-        uses: actions/checkout@v4
+      # TaikoDive-Launcherはprivateなので、ツール取得用に読み取り専用のトークンを発行する。
+      - name: Create token for packaging tools
+        id: tools-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: Hamaryo226
+          repositories: TaikoDive-Launcher
+          permission-contents: read
+
+      - name: Checkout packaging tools
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: Hamaryo226/TaikoDive-Launcher
+          token: ${{ steps.tools-token.outputs.token }}
+          persist-credentials: false
           path: launcher-tools
 
       - name: Generate update version
@@ -75,19 +88,20 @@ jobs:
 
       - name: Create token for public release repository
         id: release-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
           owner: Hamaryo226
-          repositories: TaikoDive-Launcher
+          repositories: TaikoDive-Releases
+          permission-contents: write
 
       - name: Publish stable Asset update
         shell: pwsh
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
         run: |
-          $repository = 'Hamaryo226/TaikoDive-Launcher'
+          $repository = 'Hamaryo226/TaikoDive-Releases'
           $tag = 'assets-stable'
           $package = Get-Item .\assets-update\TaikoDive_Assets_*.zip
           $manifest = Get-Item .\assets-update\assets-update-manifest.json
