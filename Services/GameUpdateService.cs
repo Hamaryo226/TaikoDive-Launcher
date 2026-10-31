@@ -8,10 +8,10 @@ public sealed class GameUpdateService
 {
     private const long MaximumDownloadSize = 4L * 1024 * 1024 * 1024;
     private const int MaximumReleaseNotesLength = 4000;
-    // マニフェストが改ざんされても、他人のリポジトリに置いたパッケージを取得させないよう配布元を固定する。
-    private const string ReleaseDownloadPathPrefix = "/Hamaryo226/TaikoDive-Releases/releases/download/";
-    private static readonly Uri DefaultManifestUri = new(
-        "https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/game-stable/game-update-manifest.json");
+    // 配布物はCloudflare R2のカスタムドメインから取得する。マニフェストが改ざんされても
+    // 他所に置いたパッケージを取得させないよう、パッケージURLもこのホストとチャンネルのフォルダーに固定する。
+    internal const string DownloadHost = "dl.hamaryo.dev";
+    private static readonly Uri DefaultManifestUri = new($"https://{DownloadHost}/game/game-update-manifest.json");
 
     private readonly HttpClient _httpClient;
     private readonly Uri _manifestUri;
@@ -392,10 +392,11 @@ public sealed class GameUpdateService
             || manifest.PublishedAt == default
             || !Uri.TryCreate(manifest.PackageUrl, UriKind.Absolute, out Uri? packageUri)
             || packageUri.Scheme != Uri.UriSchemeHttps
-            || !string.Equals(packageUri.Host, "github.com", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(packageUri.Host, DownloadHost, StringComparison.OrdinalIgnoreCase)
             || !packageUri.IsDefaultPort
             || !string.IsNullOrEmpty(packageUri.UserInfo)
-            || !packageUri.AbsolutePath.StartsWith(ReleaseDownloadPathPrefix, StringComparison.OrdinalIgnoreCase)
+            || !string.IsNullOrEmpty(packageUri.Query)
+            || !string.Equals(packageUri.AbsolutePath, channel.PackagePathPrefix + manifest.PackageFileName, StringComparison.Ordinal)
             || !string.Equals(Path.GetFileName(packageUri.AbsolutePath), manifest.PackageFileName, StringComparison.Ordinal)
             || !string.Equals(manifest.Archive.Format, "zip", StringComparison.Ordinal)
             || !string.Equals(manifest.Archive.Encryption, "winzip-aes-256", StringComparison.Ordinal)
@@ -867,7 +868,8 @@ public sealed class GameUpdateService
         string StorageDirectoryName,
         Func<string, string, string, bool> PackageMatches,
         Func<string, string> NormalizePath,
-        IReadOnlyList<string> MirroredDirectories)
+        IReadOnlyList<string> MirroredDirectories,
+        string PackagePathPrefix)
     {
         public static UpdateChannel Game { get; } = new(
             "TaikoDive",
@@ -875,15 +877,17 @@ public sealed class GameUpdateService
             "game-updates",
             GameUpdatePackageNaming.Matches,
             GameUpdatePathPolicy.NormalizeAndValidate,
-            []);
+            [],
+            "/game/");
 
         public static UpdateChannel Assets { get; } = new(
             "TaikoDive Asset",
-            new Uri("https://github.com/Hamaryo226/TaikoDive-Releases/releases/download/assets-stable/assets-update-manifest.json"),
+            new Uri($"https://{DownloadHost}/assets/assets-update-manifest.json"),
             "asset-updates",
             AssetUpdatePackageNaming.Matches,
             AssetUpdatePathPolicy.NormalizeAndValidate,
-            ["Texture", "Sound"]);
+            ["Texture", "Sound"],
+            "/assets/");
     }
 
 }
