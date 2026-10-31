@@ -97,7 +97,7 @@ public static class SongImportService
                 Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
                 await using FileStream output = new(outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true);
                 await using Stream input = entry.Open();
-                await input.CopyToAsync(output, cancellationToken);
+                await CopyWithLimitAsync(input, output, entry.Length, cancellationToken);
             }
 
             if (!Directory.EnumerateFiles(temporaryDirectory, "*.tja", SearchOption.AllDirectories).Any())
@@ -152,6 +152,28 @@ public static class SongImportService
         }
 
         return false;
+    }
+
+    // ZIPのヘッダーにある展開サイズは偽装できるため、実際に書き込む量でも上限を守る。
+    private static async Task CopyWithLimitAsync(
+        Stream source,
+        Stream destination,
+        long maximumBytes,
+        CancellationToken cancellationToken)
+    {
+        byte[] buffer = new byte[81920];
+        long total = 0;
+        int read;
+        while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            if (total > maximumBytes - read)
+            {
+                throw new InvalidDataException("ZIP内のファイルが宣言されたサイズを超えています。");
+            }
+
+            await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+            total += read;
+        }
     }
 
     private static string? FindCommonRoot(IReadOnlyList<ZipArchiveEntry> entries)
