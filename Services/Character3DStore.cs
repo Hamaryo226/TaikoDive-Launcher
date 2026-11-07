@@ -90,6 +90,7 @@ public sealed class Character3DStore
         {
             Enabled = true,
             ModelsPath = StoredModelsPath(root, installation),
+            PetitCharaId = (int?)profile?["petitCharaId"] ?? (int?)root["petitCharaId"] ?? await LegacyPetitCharaIdAsync(installation),
             UseCostume = (bool?)parts?["useCostume"] ?? false,
             Head = (string?)parts?["head"] ?? "0", Body = (string?)parts?["body"] ?? "0", Costume = (string?)parts?["costume"] ?? "0",
             BodyColor = NormalizeColor((string?)colors?["body"] ?? "#00A7BE"),
@@ -97,6 +98,34 @@ public sealed class Character3DStore
             FaceColor = NormalizeColor((string?)colors?["face"] ?? "#FF4125"),
             RimColor = NormalizeColor((string?)colors?["rim"] ?? "#FFF6DE"),
         };
+    }
+
+    private static async Task<int> LegacyPetitCharaIdAsync(TaikoDiveInstallation installation)
+    {
+        string path = Path.Combine(installation.BuildDirectory, "Info", "CharaConfig.json");
+        return File.Exists(path) ? (int?)JsonNode.Parse(await File.ReadAllTextAsync(path))?["petitCharaId"] ?? 0 : 0;
+    }
+
+    public IReadOnlyList<CostumeOption> GetPetitCharaOptions(TaikoDiveInstallation installation, int current)
+    {
+        string directory = Path.Combine(installation.BuildDirectory, "Texture", "PetitChara");
+        string catalog = Path.Combine(directory, "catalog.json");
+        string standardIcon = Path.Combine(directory, "icons", "0.png");
+        var result = new List<CostumeOption> { new("0", "標準", File.Exists(standardIcon) ? standardIcon : null) };
+        if (File.Exists(catalog) && JsonNode.Parse(File.ReadAllText(catalog)) is JsonObject names)
+            foreach (var entry in names.OrderBy(x => int.TryParse(x.Key, out int id) ? id : int.MaxValue))
+            {
+                if (!int.TryParse(entry.Key, NumberStyles.None, CultureInfo.InvariantCulture, out int id) || id <= 0) continue;
+                string image = Path.Combine(directory, entry.Key + ".png");
+                if (!File.Exists(image)) continue;
+                string icon = Path.Combine(directory, "icons", entry.Key + ".png");
+                string name = (string?)entry.Value?["name"] ?? entry.Key;
+                string edition = (string?)entry.Value?["edition"] ?? "Steam版";
+                result.Add(new(entry.Key, $"{name}（{edition}）", File.Exists(icon) ? icon : image));
+            }
+        string selected = current.ToString(CultureInfo.InvariantCulture);
+        if (!result.Any(x => x.Id == selected)) result.Insert(0, new(selected, $"未配置 ({selected})"));
+        return result;
     }
 
     private static JsonObject Merge(JsonObject? defaults, JsonObject? overrides)
@@ -170,6 +199,9 @@ public sealed class Character3DStore
             settings = settings with { ModelsPath = StoredModelsPath(root, installation) };
         if (!ValidId(settings.Head) || !ValidId(settings.Body) || !ValidId(settings.Costume, allowDanCostume: true))
             throw new InvalidDataException("衣装 ID が正しくありません。");
+        if (settings.PetitCharaId < 0) throw new InvalidDataException("ぷちキャラ ID が正しくありません。");
+        if (settings.PetitCharaId > 0 && !File.Exists(Path.Combine(installation.BuildDirectory, "Texture", "PetitChara", settings.PetitCharaId.ToString(CultureInfo.InvariantCulture) + ".png")))
+            throw new FileNotFoundException($"ぷちキャラの画像がありません: {settings.PetitCharaId}");
         string body = NormalizeColor(settings.BodyColor), limbs = NormalizeColor(settings.LimbsColor);
         string face = NormalizeColor(settings.FaceColor), rim = NormalizeColor(settings.RimColor);
         string modelRoot = ModelRoot(installation, settings.ModelsPath);
@@ -190,6 +222,7 @@ public sealed class Character3DStore
         // 本体は modelsPath が空だと起動時に例外で止まるため、ユーザー別保存でも共通の参照先を必ず残す。
         root["modelsPath"] = string.IsNullOrWhiteSpace(settings.ModelsPath) ? DefaultModelsPath(installation) : settings.ModelsPath.Trim();
         root["enabled"] = true; // 以前の3D対応本体とも互換を保つ。
+        target["petitCharaId"] = settings.PetitCharaId;
         var parts = GetOrCreateObject(target, "parts");
         parts["useCostume"] = settings.UseCostume; parts["head"] = settings.Head; parts["body"] = settings.Body; parts["costume"] = settings.Costume;
         var colors = GetOrCreateObject(target, "colors");

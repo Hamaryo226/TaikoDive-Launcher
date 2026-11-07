@@ -8,6 +8,49 @@ namespace TaikoDiveLauncher.Tests;
 public sealed class Character3DTests
 {
     [TestMethod]
+    public async Task PetitCharactersPreserveProfilesBackupsAndLegacySelection()
+    {
+        var store = new Character3DStore(() => false);
+        string directory = Path.Combine(_root, "Texture", "PetitChara");
+        Directory.CreateDirectory(directory);
+        File.WriteAllBytes(Path.Combine(directory, "52001.png"), []);
+        File.WriteAllBytes(Path.Combine(directory, "84000.png"), []);
+        File.WriteAllBytes(Path.Combine(directory, "2077000.png"), []);
+        File.WriteAllText(Path.Combine(directory, "catalog.json"), """
+            {"52001":{"name":"ルフィ"},"84000":{"name":"ちいかわ","edition":"ニジイロ版"},"2077000":{"name":"LindaAI-CUE","edition":"既存"},"99999":{"name":"未配置"},"../invalid":{"name":"不正"}}
+            """);
+        File.WriteAllText(Path.Combine(_root, "Info", "CharaConfig.json"), "{\"petitCharaId\":52001}");
+        Assert.AreEqual(52001, (await store.LoadAsync(_installation, 1)).PetitCharaId);
+        string settingsPath = Character3DStore.SettingsPath(_installation);
+        File.WriteAllText(settingsPath, "{\"future\":7,\"petitCharaId\":84000,\"users\":{\"1\":{\"futureUser\":9}}}");
+        var first = await store.LoadAsync(_installation, 1);
+        Assert.AreEqual(84000, first.PetitCharaId);
+        first.PetitCharaId = 52001;
+        await store.SaveAsync(_installation, first, 1);
+        Assert.AreEqual(52001, (await store.LoadAsync(_installation, 1)).PetitCharaId);
+        Assert.AreEqual(84000, (await store.LoadAsync(_installation, 2)).PetitCharaId);
+        Assert.AreEqual(84000, (await store.LoadPreviousAsync(_installation, 1)).PetitCharaId);
+        var json = JsonNode.Parse(await File.ReadAllTextAsync(settingsPath))!;
+        Assert.AreEqual(7, (int)json["future"]!);
+        Assert.AreEqual(9, (int)json["users"]!["1"]!["futureUser"]!);
+        var options = store.GetPetitCharaOptions(_installation, 52001);
+        Assert.HasCount(4, options);
+        Assert.AreEqual("0", options[0].Id);
+        StringAssert.Contains(options.Single(x => x.Id == "84000").Label, "ちいかわ（ニジイロ版）");
+        StringAssert.Contains(options.Single(x => x.Id == "52001").Label, "ルフィ（Steam版）");
+        StringAssert.Contains(options.Single(x => x.Id == "2077000").Label, "LindaAI-CUE（既存）");
+        await store.SaveAsync(_installation, first with { PetitCharaId = 2077000 }, 9);
+        Assert.AreEqual(2077000, (await store.LoadAsync(_installation, 9)).PetitCharaId);
+        StringAssert.Contains(store.GetPetitCharaOptions(_installation, 99000)[0].Label, "未配置");
+        string original = await File.ReadAllTextAsync(settingsPath);
+        await Assert.ThrowsAsync<FileNotFoundException>(() => store.SaveAsync(_installation, first with { PetitCharaId = 99000 }, 1));
+        await Assert.ThrowsAsync<InvalidDataException>(() => store.SaveAsync(_installation, first with { PetitCharaId = -1 }, 1));
+        Assert.AreEqual(original, await File.ReadAllTextAsync(settingsPath));
+        await store.SaveAsync(_installation, first with { PetitCharaId = 0 }, 1);
+        Assert.AreEqual(0, (await store.LoadAsync(_installation, 1)).PetitCharaId);
+    }
+
+    [TestMethod]
     public void PreviewFacingHasSeparateRequestAndCacheIdentity()
     {
         var settings = new Character3DSettings();
