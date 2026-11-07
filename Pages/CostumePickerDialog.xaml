@@ -1,0 +1,36 @@
+<ContentDialog
+ x:Class="TaikoDiveLauncher.Pages.CostumePickerDialog"
+ xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+ xmlns:models="using:TaikoDiveLauncher.Models"
+ PrimaryButtonText="選択する" CloseButtonText="キャンセル" DefaultButton="Primary"
+ IsPrimaryButtonEnabled="False">
+ <ContentDialog.Resources>
+  <x:Double x:Key="ContentDialogMaxWidth">1040</x:Double>
+ </ContentDialog.Resources>
+ <Grid x:Name="PickerContent" RowSpacing="12">
+  <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+  <TextBox x:Name="SearchBox" PlaceholderText="名前・IDで絞り込み" AutomationProperties.Name="名前・IDで絞り込み" TextChanged="Search_TextChanged"/>
+  <TextBlock x:Name="CountText" Grid.Row="1" Foreground="{ThemeResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite"/>
+  <GridView x:Name="OptionsGrid" Grid.Row="2" SelectionMode="Single" SelectionChanged="Options_SelectionChanged"
+    IsItemClickEnabled="False" ScrollViewer.HorizontalScrollMode="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+    ScrollViewer.VerticalScrollMode="Enabled" ScrollViewer.VerticalScrollBarVisibility="Auto"
+    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" AutomationProperties.Name="画像から選ぶ候補一覧">
+   <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal"/></ItemsPanelTemplate></GridView.ItemsPanel>
+   <GridView.ItemTemplate>
+    <DataTemplate x:DataType="models:CostumeOption">
+     <StackPanel Width="136" Height="178" Spacing="6" Padding="8" ToolTipService.ToolTip="{x:Bind Label}">
+      <Grid Height="112">
+       <TextBlock Text="{x:Bind PreviewHint}" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+       <Image Stretch="Uniform" AutomationProperties.Name="{x:Bind Label}">
+        <Image.Source><BitmapImage UriSource="{x:Bind IconUri}" DecodePixelWidth="160"/></Image.Source>
+       </Image>
+      </Grid>
+      <TextBlock Text="{x:Bind Label}" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+     </StackPanel>
+    </DataTemplate>
+   </GridView.ItemTemplate>
+  </GridView>
+  <TextBlock x:Name="EmptyText" Grid.Row="2" Text="一致する候補がありません。" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+ </Grid>
+</ContentDialog>

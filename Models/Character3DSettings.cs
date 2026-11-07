@@ -4,6 +4,7 @@ public sealed record Character3DSettings
 {
     public bool Enabled { get; set; } = true;
     public string ModelsPath { get; set; } = "Info/Chara/Model";
+    public int PetitCharaId { get; set; }
     public bool UseCostume { get; set; }
     public string Head { get; set; } = "0";
     public string Body { get; set; } = "0";
@@ -14,4 +15,9 @@ public sealed record Character3DSettings
     public string RimColor { get; set; } = "#FFF6DE";
 }
 
-public sealed record CostumeOption(string Id, string Label, string? IconPath = null);
+public sealed record CostumeOption(string Id, string Label, string? IconPath = null)
+{
+    public Uri? IconUri => IconPath is null ? null : new Uri(Path.GetFullPath(IconPath));
+    public string PreviewHint => IconPath is null ? (Id == "0" ? "標準表示" : "画像なし") : string.Empty;
+    public override string ToString() => Label;
+}

@@ -15,6 +15,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     private readonly Character3DStore _store = new();
     private Character3DSettings _settings = new();
     private bool _loading = true;
+    private readonly Dictionary<string, IReadOnlyList<CostumeOption>> _assetOptions = [];
     private int _selectedSlot;
     private int _requestedSlot = 1;
     private string _colorTarget = "body";
@@ -85,7 +86,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             if (restorePrevious)
             {
                 StatusBar.Severity = InfoBarSeverity.Informational;
-                StatusBar.Message = "1つ前の衣装と色を復元しました。プレビューで確認して保存してください。";
+                StatusBar.Message = "1つ前の衣装・色・ぷちキャラを復元しました。プレビューで確認して保存してください。";
             }
             Editor.IsEnabled = true; SaveButton.IsEnabled = _modeChosen;
         }
@@ -98,13 +99,13 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     {
         if (Installation is not { } installation) return;
         string root = Character3DStore.ModelRoot(installation, _settings.ModelsPath);
-        HeadBox.ItemsSource = _store.GetOptions(root, "head", _settings.Head); HeadBox.SelectedValue = _settings.Head;
-        BodyBox.ItemsSource = _store.GetOptions(root, "body", _settings.Body); BodyBox.SelectedValue = _settings.Body;
-        CostumeBox.ItemsSource = _store.GetOptions(root, "cos", _settings.Costume); CostumeBox.SelectedValue = _settings.Costume;
+        _assetOptions["head"] = _store.GetOptions(root, "head", _settings.Head);
+        _assetOptions["body"] = _store.GetOptions(root, "body", _settings.Body);
+        _assetOptions["cos"] = _store.GetOptions(root, "cos", _settings.Costume);
+        _assetOptions["petit"] = _store.GetPetitCharaOptions(installation, _settings.PetitCharaId);
         UpdateIcons();
     }
 
-    private void Changed(object sender, RoutedEventArgs e) { if (!_loading) { HasUnsavedChanges = true; UpdateEditState(); QueuePreview(); } }
     private void UpdateEditState()
     {
         string user = _selectedSlot == 0 ? "共通設定" : $"ユーザー {_selectedSlot}";
@@ -134,21 +135,39 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
     }
     private void UpdateMode()
     {
-        HeadBox.Visibility = BodyBox.Visibility = HeadIcon.Visibility = BodyIcon.Visibility = _settings.UseCostume ? Visibility.Collapsed : Visibility.Visible;
-        CostumeBox.Visibility = CostumeIcon.Visibility = _settings.UseCostume ? Visibility.Visible : Visibility.Collapsed;
+        HeadPicker.Visibility = BodyPicker.Visibility = _settings.UseCostume ? Visibility.Collapsed : Visibility.Visible;
+        CostumePicker.Visibility = _settings.UseCostume ? Visibility.Visible : Visibility.Collapsed;
     }
-    private void PartChanged(object sender, SelectionChangedEventArgs e) { if (HeadIcon is null) return; UpdateIcons(); Changed(sender, e); }
     private void UpdateIcons()
     {
-        static void Set(Image image, ComboBox box) => image.Source = box.SelectedItem is CostumeOption { IconPath: { } path } ? new BitmapImage(new Uri(path)) : null;
-        Set(HeadIcon, HeadBox); Set(BodyIcon, BodyBox); Set(CostumeIcon, CostumeBox);
+        void Set(string category, string id, Image image, TextBlock label)
+        {
+            var option = _assetOptions[category].FirstOrDefault(x => x.Id == id);
+            image.Source = option?.IconPath is { } path ? new BitmapImage(new Uri(path)) { DecodePixelWidth = 144 } : null;
+            label.Text = option?.Label ?? $"未配置 ({id})";
+        }
+        Set("head", _settings.Head, HeadIcon, HeadLabel);
+        Set("body", _settings.Body, BodyIcon, BodyLabel);
+        Set("cos", _settings.Costume, CostumeIcon, CostumeLabel);
+        Set("petit", _settings.PetitCharaId.ToString(CultureInfo.InvariantCulture), PetitCharaIcon, PetitCharaLabel);
     }
-    private void ReadSelections()
+    private async void PickAsset_Click(object sender, RoutedEventArgs e)
     {
-        _settings.Enabled = true;
-        _settings.Head = HeadBox.SelectedValue as string ?? _settings.Head;
-        _settings.Body = BodyBox.SelectedValue as string ?? _settings.Body;
-        _settings.Costume = CostumeBox.SelectedValue as string ?? _settings.Costume;
+        if (_loading || sender is not Button { Tag: string category }) return;
+        string current = category switch { "head" => _settings.Head, "body" => _settings.Body, "cos" => _settings.Costume, _ => _settings.PetitCharaId.ToString(CultureInfo.InvariantCulture) };
+        string title = category switch { "head" => "あたまを画像から選ぶ", "body" => "からだを画像から選ぶ", "cos" => "全身きぐるみを画像から選ぶ", _ => "ぷちキャラを画像から選ぶ" };
+        var dialog = new CostumePickerDialog(title, _assetOptions[category], current) { XamlRoot = XamlRoot, RequestedTheme = ActualTheme };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary || dialog.SelectedOption is not { } selected || selected.Id == current) return;
+        switch (category)
+        {
+            case "head": _settings.Head = selected.Id; break;
+            case "body": _settings.Body = selected.Id; break;
+            case "cos": _settings.Costume = selected.Id; break;
+            default: _settings.PetitCharaId = int.Parse(selected.Id, CultureInfo.InvariantCulture); break;
+        }
+        HasUnsavedChanges = true;
+        UpdateIcons(); UpdateEditState();
+        if (category != "petit") QueuePreview();
     }
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
@@ -156,7 +175,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         Editor.IsEnabled = false; SaveButton.IsEnabled = false;
         try
         {
-            ReadSelections(); await _store.SaveAsync(installation, _settings, _selectedSlot == 0 ? null : _selectedSlot); HasUnsavedChanges = false;
+            await _store.SaveAsync(installation, _settings, _selectedSlot == 0 ? null : _selectedSlot); HasUnsavedChanges = false;
             StatusBar.Severity = InfoBarSeverity.Success; StatusBar.Message = "保存しました。次回のゲーム起動から反映されます。"; StatusBar.IsOpen = true;
         }
         catch (Exception ex) { ShowError(ex); }
@@ -185,7 +204,7 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot, Title = "変更を保存していません",
-                Content = "着せ替えと色の変更を破棄してプロフィールに戻りますか？",
+                Content = "着せ替え・色・ぷちキャラの変更を破棄してプロフィールに戻りますか？",
                 PrimaryButtonText = "破棄して戻る", CloseButtonText = "編集に戻る",
                 DefaultButton = ContentDialogButton.Close,
             };
@@ -266,7 +285,6 @@ public sealed partial class Character3DPage : Page, IUnsavedChangesAware
         PreviewStatus.Text = "プレビューを作成しています…";
         try
         {
-            ReadSelections();
             var snapshot = _settings with { };
             bool secondPlayerFacing = FacingBox.SelectedIndex == 1;
             await Task.Delay(100, cancellation.Token);

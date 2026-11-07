@@ -91,7 +91,7 @@
                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition x:Name="ActionColumn" Width="*"/></Grid.ColumnDefinitions>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
                         <Button x:Name="CharacterNavigationButton" AutomationProperties.Name="着せ替えを編集" Click="EditCharacter_Click" Style="{StaticResource EditorNavigationButtonStyle}">
-                            <StackPanel Spacing="4"><TextBlock Text="着せ替えを編集" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="衣装・パーツ・色" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
+                            <StackPanel Spacing="4"><TextBlock Text="着せ替えを編集" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="衣装・パーツ・色・ぷちキャラ" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>
                         </Button>
                         <Button x:Name="NamePlateNavigationButton" AutomationProperties.Name="ネームプレートを編集" Grid.Column="1" Click="EditNamePlate_Click" Style="{StaticResource EditorNavigationButtonStyle}">
                             <StackPanel Spacing="4"><TextBlock Text="ネームプレートを編集" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="名前・称号・デザイン" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel>

@@ -9,7 +9,7 @@
    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
    <StackPanel Spacing="4">
     <TextBlock Text="どんちゃんの着せ替え" Style="{StaticResource PageTitleStyle}" TextWrapping="Wrap"/>
-    <TextBlock Text="ユーザー別に3Dキャラの衣装と色を変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
+    <TextBlock Text="ユーザー別に3Dキャラの衣装・色・ぷちキャラを変更します。次回のゲーム起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
     <TextBlock x:Name="EditStateText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap"/>
    </StackPanel>
    <CommandBar x:Name="CharacterCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
@@ -57,14 +57,50 @@
    <ScrollViewer x:Name="Editor" Grid.Column="1" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="16" Padding="0,0,8,16">
      <TextBlock Text="衣装" Style="{StaticResource SubtitleTextBlockStyle}"/>
-    <ComboBox x:Name="HeadBox" Header="あたま" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
-    <ComboBox x:Name="BodyBox" Header="からだ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
-    <ComboBox x:Name="CostumeBox" Header="全身きぐるみ" HorizontalAlignment="Stretch" DisplayMemberPath="Label" SelectedValuePath="Id" SelectionChanged="PartChanged"/>
-    <StackPanel Orientation="Horizontal" Spacing="12">
-     <Image x:Name="HeadIcon" Width="80" Height="80" AutomationProperties.Name="あたまの衣装アイコン"/>
-     <Image x:Name="BodyIcon" Width="80" Height="80" AutomationProperties.Name="からだの衣装アイコン"/>
-     <Image x:Name="CostumeIcon" Width="80" Height="80" AutomationProperties.Name="全身きぐるみのアイコン"/>
-    </StackPanel>
+    <Button x:Name="HeadPicker" Tag="head" Click="PickAsset_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12" AutomationProperties.Name="あたまを画像から選ぶ">
+     <Grid ColumnSpacing="12">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Image x:Name="HeadIcon" Width="72" Height="72" Stretch="Uniform" AutomationProperties.Name="選択中のあたま"/>
+      <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+       <TextBlock Text="あたま" FontWeight="SemiBold"/>
+       <TextBlock x:Name="HeadLabel" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+       <TextBlock Text="画像から選ぶ" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+      </StackPanel>
+     </Grid>
+    </Button>
+    <Button x:Name="BodyPicker" Tag="body" Click="PickAsset_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12" AutomationProperties.Name="からだを画像から選ぶ">
+     <Grid ColumnSpacing="12">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Image x:Name="BodyIcon" Width="72" Height="72" Stretch="Uniform" AutomationProperties.Name="選択中のからだ"/>
+      <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+       <TextBlock Text="からだ" FontWeight="SemiBold"/>
+       <TextBlock x:Name="BodyLabel" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+       <TextBlock Text="画像から選ぶ" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+      </StackPanel>
+     </Grid>
+    </Button>
+    <Button x:Name="CostumePicker" Tag="cos" Click="PickAsset_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12" AutomationProperties.Name="全身きぐるみを画像から選ぶ">
+     <Grid ColumnSpacing="12">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Image x:Name="CostumeIcon" Width="72" Height="72" Stretch="Uniform" AutomationProperties.Name="選択中の全身きぐるみ"/>
+      <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+       <TextBlock Text="全身きぐるみ" FontWeight="SemiBold"/>
+       <TextBlock x:Name="CostumeLabel" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+       <TextBlock Text="画像から選ぶ" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+      </StackPanel>
+     </Grid>
+    </Button>
+    <Button x:Name="PetitCharaPicker" Tag="petit" Click="PickAsset_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Padding="12" AutomationProperties.Name="ぷちキャラを画像から選ぶ">
+     <Grid ColumnSpacing="12">
+      <Grid.ColumnDefinitions><ColumnDefinition Width="72"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Image x:Name="PetitCharaIcon" Width="72" Height="72" Stretch="Uniform" AutomationProperties.Name="選択中のぷちキャラ"/>
+      <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+       <TextBlock Text="ぷちキャラ" FontWeight="SemiBold"/>
+       <TextBlock x:Name="PetitCharaLabel" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"/>
+       <TextBlock Text="画像から選ぶ" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+      </StackPanel>
+     </Grid>
+    </Button>
     <TextBlock Text="部位ごとの色" Style="{StaticResource SubtitleTextBlockStyle}"/>
     <Button x:Name="BodyColorButton" Tag="body" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
     <Button x:Name="LimbsColorButton" Tag="limbs" Click="Color_Click" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"/>
