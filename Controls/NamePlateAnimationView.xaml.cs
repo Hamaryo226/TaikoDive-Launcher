@@ -220,21 +220,21 @@ public sealed partial class NamePlateAnimationView : UserControl
 
     private void PlaceText()
     {
-        // 本体の tDrawNamePlateCore の配置値。帯の左上をプレビュー中央へ合わせる。
-        double originX = 7;
+        // 番号を表示しないプレビューでは、番号用の余白を含めず帯そのものの中央へ揃える。
+        double centerX = BackgroundImage.Margin.Left + BackgroundImage.Width / 2;
         double originY = 0;
         if (_nameBitmap is { } name)
         {
             NameImage.Width = name.Width * name.ScaleX;
             NameImage.Height = name.Height;
-            Canvas.SetLeft(NameImage, originX + 181 - (int)(NameImage.Width / 2));
+            Canvas.SetLeft(NameImage, centerX - name.InkCenterX * name.ScaleX);
             Canvas.SetTop(NameImage, originY + 56);
         }
         if (_titleBitmap is { } title)
         {
             TitleImage.Width = title.Width * title.ScaleX;
             TitleImage.Height = title.Height * title.ScaleY;
-            Canvas.SetLeft(TitleImage, originX + 185 - (int)(TitleImage.Width / 2));
+            Canvas.SetLeft(TitleImage, centerX - title.InkCenterX * title.ScaleX);
             Canvas.SetTop(TitleImage, originY + 52 - TitleImage.Height / 2);
         }
     }

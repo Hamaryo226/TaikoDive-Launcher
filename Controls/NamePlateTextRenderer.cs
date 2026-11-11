@@ -6,7 +6,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Controls;
 
-internal sealed record NamePlateTextBitmap(byte[] Png, int Width, int Height, double ScaleX, double ScaleY);
+internal sealed record NamePlateTextBitmap(byte[] Png, int Width, int Height, double ScaleX, double ScaleY, double InkCenterX);
 
 [SupportedOSPlatform("windows")]
 internal static class NamePlateTextRenderer
@@ -63,6 +63,7 @@ internal static class NamePlateTextRenderer
         graphics.Clear(Color.Transparent);
         graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
         graphics.SmoothingMode = SmoothingMode.HighQuality;
+        double inkCenterX = width / 2d;
         if (!string.IsNullOrEmpty(text))
         {
             using StringFormat format = new(StringFormat.GenericTypographic)
@@ -71,17 +72,20 @@ internal static class NamePlateTextRenderer
             };
             using GraphicsPath path = new();
             path.AddString(text, family, (int)FontStyle.Regular, pixelSize, title ? new Point(0, 0) : new Point(3, 3), format);
+            RectangleF inkBounds = path.GetBounds();
             if (!title)
             {
                 using Pen edge = new(Color.Black, 6) { LineJoin = LineJoin.Round };
+                inkBounds = path.GetBounds(null, edge);
                 graphics.DrawPath(edge, path);
             }
+            inkCenterX = inkBounds.Left + inkBounds.Width / 2;
             using Brush fill = new SolidBrush(title ? Color.Black : Color.FromArgb(250, 250, 250));
             graphics.FillPath(fill, path);
         }
         using MemoryStream stream = new();
         bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-        return new NamePlateTextBitmap(stream.ToArray(), width, height, 1, 1);
+        return new NamePlateTextBitmap(stream.ToArray(), width, height, 1, 1, inkCenterX);
     }
 
     internal static (byte[] Background, byte[] Number) RenderBaseLayers(string path)
