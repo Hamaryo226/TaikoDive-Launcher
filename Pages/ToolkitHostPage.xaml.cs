@@ -14,7 +14,7 @@ public sealed partial class ToolkitHostPage : Page, Models.IUnsavedChangesAware
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        Content = e.Parameter as string switch
+        Content = (e.Parameter as string) switch
         {
             "library" => new LibraryPage(),
             "records" => new RecordsPage(),
