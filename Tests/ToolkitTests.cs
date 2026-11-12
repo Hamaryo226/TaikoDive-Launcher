@@ -78,6 +78,20 @@ public sealed class ToolkitTests
     }
 
     [TestMethod]
+    public void OutfitAssetCheckIncludesBaseModelsAndUsesCurrentCustomRoot()
+    {
+        using var temp = new Temp(); var installation = new TaikoDiveInstallation(temp.Root);
+        Assert.IsNotEmpty(LauncherToolkitStore.MissingAssets(installation, new()));
+        string root = Path.Combine(temp.Root, "CustomModels");
+        foreach (string relative in new[] { "animations.glb", "face/face_000000.png", "head/0.glb", "body/0.glb" })
+        {
+            string path = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, []);
+        }
+        Assert.IsEmpty(LauncherToolkitStore.MissingAssets(installation, new(), "CustomModels"));
+    }
+
+    [TestMethod]
     public async Task LibraryDetectsDuplicatesAndMissingAudioWithoutChangingCharts()
     {
         using var temp = new Temp(); string chart = "TITLE:テスト\nWAVE:missing.ogg\nDEMOSTART:12.5\nCOURSE:Oni\n#START\n1111,\n#END";

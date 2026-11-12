@@ -25,6 +25,15 @@ New-Item -ItemType Directory -Force $settings | Out-Null
 $fakeGame = Join-Path $AppDirectory 'TaikoDive.exe'
 if (Test-Path $fakeGame) { throw 'UI smoke test requires an isolated launcher-only publish directory.' }
 Set-Content -LiteralPath $fakeGame -Value 'UI smoke fixture; do not execute' -Encoding utf8
+$fixtureSongs = Join-Path $AppDirectory 'Songs/LauncherSmoke'
+$fixtureReplay = Join-Path $AppDirectory 'Info/ScoreData/どんちゃん/smoke/Replay/course-3'
+$fixtureHistory = Join-Path $AppDirectory 'Info/TaikoDiveLauncher/history/smoke.json'
+New-Item -ItemType Directory -Force $fixtureSongs, $fixtureReplay, (Split-Path $fixtureHistory) | Out-Null
+$chart = Join-Path $fixtureSongs 'sample.tja'
+"TITLE:検証用サンプル曲`nWAVE:sample.wav`nCOURSE:Oni`nLEVEL:3`n#START`n1000,`n#END" | Set-Content $chart -Encoding utf8
+[IO.File]::WriteAllBytes((Join-Path $fixtureSongs 'sample.wav'), [byte[]]@())
+@{ Version = 2; SongPath = $chart; SongTitle = '検証用サンプル曲'; ChartHash = (Get-FileHash $chart -Algorithm SHA256).Hash; PlayerName = 'どんちゃん'; Course = 3; RecordedAtUtc = [DateTime]::UtcNow.ToString('O'); Result = @{ Score = 812340 } } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixtureReplay 'best.json') -Encoding utf8
+@{ id = 'smoke'; playedAtUtc = [DateTime]::UtcNow.ToString('O'); playerName = 'どんちゃん'; songTitle = '検証用サンプル曲'; course = 3; score = 812340 } | ConvertTo-Json | Set-Content $fixtureHistory -Encoding utf8
 $env:TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY = $settings
 $env:TAIKODIVE_LAUNCHER_DISABLE_UPDATE_CHECK = '1'
 
@@ -108,4 +117,8 @@ try {
         finally { if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force } }
     }
 }
-finally { Remove-Item -LiteralPath $fakeGame -Force; Remove-Item Env:TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY -ErrorAction SilentlyContinue }
+finally {
+    Remove-Item -LiteralPath $fakeGame -Force
+    Remove-Item -LiteralPath $fixtureSongs, (Split-Path (Split-Path $fixtureReplay)), $fixtureHistory -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Item Env:TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY -ErrorAction SilentlyContinue
+}

@@ -69,8 +69,10 @@ public static class LauncherToolkitStore
         var store = new Character3DStore();
         string root = Character3DStore.ModelRoot(installation, modelsPath ?? Character3DStore.DefaultModelsPath(installation));
         var missing = new List<string>();
+        if (!File.Exists(Path.Combine(root, "animations.glb"))) missing.Add("基本モデル: animations.glb");
+        if (!File.Exists(Path.Combine(root, "face", "face_000000.png"))) missing.Add("基本モデル: face/face_000000.png");
         foreach (var (category, id) in s.UseCostume ? new[] { ("cos", s.Costume) } : new[] { ("head", s.Head), ("body", s.Body) })
-            if (id != "0" && !store.GetOptions(root, category, "0").Any(x => x.Id == id)) missing.Add(category + ": " + id);
+            if (!File.Exists(Path.Combine(root, category, id + ".glb"))) missing.Add(category + ": " + id);
         if (!store.GetPetitCharaOptions(installation, 0).Any(x => x.Id == s.PetitCharaId.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             missing.Add("ぷちキャラ: " + s.PetitCharaId);
         return missing;

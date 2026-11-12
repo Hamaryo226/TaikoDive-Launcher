@@ -21,7 +21,7 @@ public sealed partial class LibraryPage : ToolkitPageBase
 
     public LibraryPage() : base("楽曲ライブラリ", "音源を試聴したり、同じ譜面や不足ファイルを確認できます。検査はファイルを書き換えません。")
     {
-        Body.Children.Add(_search); Body.Children.Add(_list); Body.Children.Add(_details);
+        Body.Children.Add(_search);
         var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 }; Body.Children.Add(actions);
         Action("再読み込み", Scan, actions);
         Action("30秒試聴", async () =>
@@ -47,6 +47,7 @@ public sealed partial class LibraryPage : ToolkitPageBase
             var groups = SongLibraryService.FindSameTitleVariants(_songs); _list.ItemsSource = groups.SelectMany(g => g).ToArray();
             Message($"同じ曲名で内容が違う譜面: {groups.Count}組。別の難易度・制作者・バージョンの場合があります。"); return Task.CompletedTask;
         });
+        Body.Children.Add(_list); Body.Children.Add(_details);
         _search.TextChanged += (_, _) => Filter();
         _list.SelectionChanged += (_, _) => { Stop(); _details.Text = _list.SelectedItem is LibrarySong s ? s.ChartPath + "\n" + string.Join("\n", s.Problems) : ""; };
         _player.MediaOpened += (_, _) => DispatcherQueue.TryEnqueue(() => { if (_disposed) return; _player.PlaybackSession.Position = TimeSpan.FromSeconds(_demoStart); _player.Play(); _stopTimer.Start(); });
