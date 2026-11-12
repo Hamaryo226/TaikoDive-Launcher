@@ -15,7 +15,7 @@ public sealed partial class RecordsPage : ToolkitPageBase
     private IReadOnlyList<PlayHistoryEntry> _history = [];
     private IReadOnlyList<ReplayEntry> _entries = [];
 
-    public RecordsPage() : base("プレイ記録", "プレイカレンダーは対応版から記録します。以前の自己ベストの更新日時をプレイ回数として数えません。")
+    public RecordsPage() : base("プレイカレンダーとリプレイ", "プレイカレンダーは対応版から記録します。以前の自己ベストの更新日時をプレイ回数として数えません。")
     {
         Body.Children.Add(_user); Body.Children.Add(_calendar); Body.Children.Add(_day);
         Body.Children.Add(Text("リプレイライブラリ", 20)); Body.Children.Add(_search); Body.Children.Add(_replays);

@@ -12,7 +12,7 @@ public sealed partial class ToolkitPage : ToolkitPageBase
         ItemsSource = new[] { "ホームの配置", "Discord・OBS・履歴", "容量と整理", "診断レポート", "互換性と更新履歴", "初回セットアップ" }, SelectedIndex = 0 };
     private readonly StackPanel _sectionBody = new() { Spacing = 12 };
 
-    public ToolkitPage() : base("ツール", "ホームの表示、配信連携、データの確認とメンテナンスを行います。")
+    public ToolkitPage() : base("ランチャーツール", "ホームの表示、配信連携、データの確認とメンテナンスを行います。")
     {
         Body.Children.Add(_section); Body.Children.Add(_sectionBody);
         _section.SelectionChanged += async (_, _) => await Render();

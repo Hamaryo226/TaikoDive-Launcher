@@ -64,11 +64,15 @@ try {
             [LauncherSmokeWindow]::SetForegroundWindow($handle) | Out-Null
             $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
             $pages = [ordered]@{ 'ホーム' = 'home'; 'ライブラリ' = 'library'; 'プレイ記録' = 'records'; 'ツール' = 'toolkit'; 'セットアップ' = 'setup' }
+            $headings = @{ home = 'TaikoDive'; library = '楽曲ライブラリ'; records = 'プレイカレンダーとリプレイ'; toolkit = 'ランチャーツール'; setup = '初回セットアップ' }
             foreach ($page in $pages.GetEnumerator()) {
                 [LauncherSmokeWindow]::SetWindowPos($handle, [IntPtr]::Zero, 20, 20, 1180, 760, 0) | Out-Null
                 Select-Navigation $root $page.Key
                 Start-Sleep -Milliseconds 1500
                 if ($process.HasExited) { throw "Launcher exited navigating to $($page.Key)." }
+                $headingCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $headings[$page.Value])
+                $heading = $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $headingCondition)
+                if ($null -eq $heading -or $heading.Current.IsOffscreen) { throw "Expected page heading was not visible: $($headings[$page.Value])" }
                 Save-Screenshot $handle (Join-Path $OutputDirectory "$theme-$($page.Value)-wide.png")
                 [LauncherSmokeWindow]::SetWindowPos($handle, [IntPtr]::Zero, 20, 20, 720, 640, 0) | Out-Null
                 Start-Sleep -Milliseconds 500
