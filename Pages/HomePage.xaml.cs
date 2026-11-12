@@ -34,6 +34,7 @@ public sealed partial class HomePage : Page
             _previewCancellation?.Cancel();
             _activeScoreDialog?.Hide();
             HeroGradientAnimation.Stop();
+            DetachHomeUpdates();
         };
     }
 

@@ -11,7 +11,12 @@ public sealed partial class SetupPage : ToolkitPageBase, IUnsavedChangesAware
     private UserProfile? _profile;
     private GameSettings? _settings;
     private int _step;
-    public bool HasUnsavedChanges { get; private set; }
+    private bool _dirty;
+    public bool HasUnsavedChanges
+    {
+        get => _dirty || _stepBody.Children.OfType<Frame>().Any(f => f.Content is IUnsavedChangesAware { HasUnsavedChanges: true });
+        private set => _dirty = value;
+    }
     public string UnsavedChangesName => "セットアップ";
 
     public SetupPage() : base("初回セットアップ", "名前 → 入力 → 音量 → 画面の順に設定します。既存の設定から始めます。")

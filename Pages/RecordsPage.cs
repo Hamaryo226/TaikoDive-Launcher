@@ -12,6 +12,7 @@ public sealed partial class RecordsPage : ToolkitPageBase
     private readonly TextBlock _day = Text("");
     private readonly ListView _replays = new() { Height = 280 };
     private readonly TextBox _search = new() { Header = "リプレイを検索（曲名・ユーザー・難易度）" };
+    private readonly HashSet<CalendarViewDayItem> _days = [];
     private IReadOnlyList<PlayHistoryEntry> _history = [];
     private IReadOnlyList<ReplayEntry> _entries = [];
 
@@ -36,7 +37,10 @@ public sealed partial class RecordsPage : ToolkitPageBase
         _calendar.CalendarViewDayItemChanging += (_, e) =>
         {
             if (e.Phase == 0)
+            {
+                _days.Add(e.Item);
                 e.Item.SetDensityColors(DayEntries(e.Item.Date.Date).Any() ? new[] { Windows.UI.Color.FromArgb(255, 0, 167, 190) } : Array.Empty<Windows.UI.Color>());
+            }
         };
         Loaded += async (_, _) => { try { await Refresh(); } catch (Exception ex) { Message(ex.Message, true); } };
     }
@@ -46,8 +50,8 @@ public sealed partial class RecordsPage : ToolkitPageBase
     {
         var entries = DayEntries(_calendar.SelectedDates.FirstOrDefault(DateTimeOffset.Now).Date).ToArray();
         _day.Text = $"{entries.Length}プレイ / {entries.Select(e => e.SongTitle).Distinct().Count()}曲\n" + string.Join("\n", entries.Select(e => $"{e.SongTitle} — {e.Score:N0}点"));
-        // 表示セルを作り直してユーザー切替を反映。
-        var display = _calendar.SelectedDates.FirstOrDefault(DateTimeOffset.Now); _calendar.SetDisplayDate(display);
+        foreach (var day in _days)
+            day.SetDensityColors(DayEntries(day.Date.Date).Any() ? new[] { Windows.UI.Color.FromArgb(255, 0, 167, 190) } : Array.Empty<Windows.UI.Color>());
     }
     private void Filter() => _replays.ItemsSource = _entries.Where(e => e.Label.Contains(_search.Text, StringComparison.CurrentCultureIgnoreCase) && (_user.SelectedItem as string == "全ユーザー" || e.PlayerName == _user.SelectedItem as string)).ToArray();
     private async Task Refresh()

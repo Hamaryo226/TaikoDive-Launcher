@@ -8,6 +8,7 @@ public sealed partial class HomePage
 {
     private Border? _calendarCard;
     private Border? _updatesCard;
+    private TextBlock? _updateSummary;
 
     private async Task LoadHomeCardsAsync()
     {
@@ -15,6 +16,7 @@ public sealed partial class HomePage
         {
             if (AppInstance.Context.Installation is not { } installation) return;
             var entries = await LauncherToolkitStore.ReadHistoryAsync(installation);
+            if (_previewCancellation?.IsCancellationRequested == true) return;
             var calendar = new CalendarView { MaxWidth = 420, HorizontalAlignment = HorizontalAlignment.Left, SelectionMode = CalendarViewSelectionMode.None };
             calendar.CalendarViewDayItemChanging += (_, e) =>
             {
@@ -22,11 +24,31 @@ public sealed partial class HomePage
                     ? new[] { Windows.UI.Color.FromArgb(255, 0, 167, 190) } : Array.Empty<Windows.UI.Color>());
             };
             _calendarCard = CreateCard("プレイカレンダー", calendar, "records");
-            var versions = new TextBlock { Text = $"本体: {AppInstance.Context.GameUpdates.CurrentVersionText}\nAsset: {AppInstance.Context.AssetUpdates.CurrentVersionText}\nランチャー: {AppInstance.Context.Updates.CurrentVersionText}", TextWrapping = TextWrapping.Wrap };
-            _updatesCard = CreateCard("更新情報", versions, "launcher-settings");
+            _updateSummary = new TextBlock { TextWrapping = TextWrapping.Wrap };
+            _updatesCard = CreateCard("更新情報", _updateSummary, "launcher-settings");
+            AppInstance.Context.GameUpdates.StateChanged += HomeUpdatesChanged;
+            AppInstance.Context.AssetUpdates.StateChanged += HomeUpdatesChanged;
+            AppInstance.Context.Updates.StateChanged += HomeUpdatesChanged;
+            RefreshHomeUpdateText();
             SummaryGrid.Children.Add(_calendarCard); SummaryGrid.Children.Add(_updatesCard); ApplyHomeCards();
         }
         catch (Exception ex) { ShowStatus(InfoBarSeverity.Warning, "ホームカードを読み込めません: " + ex.Message); }
+    }
+
+    private void HomeUpdatesChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(RefreshHomeUpdateText);
+
+    private void RefreshHomeUpdateText()
+    {
+        if (_updateSummary is null) return;
+        var context = AppInstance.Context;
+        _updateSummary.Text = $"本体: {context.GameUpdates.CurrentVersionText} — {context.GameUpdates.StatusMessage}\nAsset: {context.AssetUpdates.CurrentVersionText} — {context.AssetUpdates.StatusMessage}\nランチャー: {context.Updates.CurrentVersionText} — {context.Updates.StatusMessage}";
+    }
+
+    private void DetachHomeUpdates()
+    {
+        AppInstance.Context.GameUpdates.StateChanged -= HomeUpdatesChanged;
+        AppInstance.Context.AssetUpdates.StateChanged -= HomeUpdatesChanged;
+        AppInstance.Context.Updates.StateChanged -= HomeUpdatesChanged;
     }
 
     private Border CreateCard(string title, UIElement content, string tag)
