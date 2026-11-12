@@ -5,7 +5,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed class RecordsPage : ToolkitPageBase
+public sealed partial class RecordsPage : ToolkitPageBase
 {
     private readonly CalendarView _calendar = new() { SelectionMode = CalendarViewSelectionMode.Single, MaxWidth = 440, HorizontalAlignment = HorizontalAlignment.Left };
     private readonly ComboBox _user = new() { Header = "ユーザー", HorizontalAlignment = HorizontalAlignment.Stretch };

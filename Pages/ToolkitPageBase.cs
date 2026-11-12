@@ -6,7 +6,7 @@ using Windows.Storage.Pickers;
 
 namespace TaikoDiveLauncher.Pages;
 
-public class ToolkitPageBase : Page
+public partial class ToolkitPageBase : Page
 {
     protected readonly StackPanel Body = new() { Spacing = 16 };
     protected readonly InfoBar Status = new() { IsClosable = true };

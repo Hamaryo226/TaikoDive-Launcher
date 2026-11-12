@@ -51,6 +51,8 @@ internal static class ResumableDownload
             }
             await destination.FlushAsync(token).ConfigureAwait(false);
         }
+        if (new FileInfo(partial).Length < size)
+            throw new EndOfStreamException("ダウンロードが途中で終了しました。再試行すると続きから取得します。");
         if (!await MatchesAsync(partial, size, sha256, token).ConfigureAwait(false))
         {
             File.Delete(partial);

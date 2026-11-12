@@ -6,7 +6,7 @@ using TaikoDiveLauncher.Models;
 
 namespace TaikoDiveLauncher.Services;
 
-public sealed class LauncherUpdateService
+public sealed partial class LauncherUpdateService
 {
     private const string ExecutableName = "TaikoDive.Launcher.exe";
     private const long MaximumDownloadSize = 512L * 1024 * 1024;
@@ -203,6 +203,7 @@ public sealed class LauncherUpdateService
                 stagedDirectory,
                 cancellationToken).ConfigureAwait(false);
 
+            await SaveRollbackBackupAsync(targetPath, manifest, cancellationToken).ConfigureAwait(false);
             ProcessStartInfo installer = new()
             {
                 FileName = stagedPath,
@@ -358,8 +359,10 @@ public sealed class LauncherUpdateService
         {
             if (Directory.Exists(root))
             {
-                await Task.Delay(1000).ConfigureAwait(false);
-                Directory.Delete(root, recursive: true);
+                // 中断した更新を次回起動時にも再開できるよう、直近の部分ファイルは残す。
+                foreach (string file in LauncherToolkitStore.SafeFiles(root))
+                    if (File.GetLastWriteTimeUtc(file) < DateTime.UtcNow.AddDays(-7)) TryDelete(file);
+                await Task.CompletedTask;
             }
         }
         catch

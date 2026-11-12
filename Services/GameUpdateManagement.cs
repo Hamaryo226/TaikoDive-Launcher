@@ -94,10 +94,11 @@ public sealed partial class GameUpdateService
     public async Task<OperationResult> RestorePreviousAsync(string id, CancellationToken token = default)
     {
         await _operationLock.WaitAsync(token).ConfigureAwait(false);
-        await ApplyLock.WaitAsync(token).ConfigureAwait(false);
+        bool applyLockTaken = false;
         string? rescue = null;
         try
         {
+            await ApplyLock.WaitAsync(token).ConfigureAwait(false); applyLockTaken = true;
             if (_isGameRunning()) throw new InvalidOperationException("TaikoDiveを終了してください。");
             var installation = _installationProvider() ?? throw new InvalidOperationException("ゲーム本体がありません。");
             var history = await ReadHistoryAsync().ConfigureAwait(false);
@@ -108,12 +109,25 @@ public sealed partial class GameUpdateService
             if (!Path.GetFullPath(latest.BackupDirectory).StartsWith(backupRoot, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("バックアップの場所が不正です。");
             var installed = LoadInstalledUpdate();
-            if (installed is null || installed.Version != latest.Version) throw new InvalidOperationException("適用済みバージョンが履歴と一致しません。");
+            if (installed is null || !IsStateForInstallation(installed, installation) || installed.Version != latest.Version || installed.Revision != latest.Revision) throw new InvalidOperationException("適用済みバージョンが履歴と一致しません。");
+            foreach (string channel in new[] { "game-updates", "asset-updates" })
+            {
+                string otherPath = Path.Combine(Path.GetDirectoryName(GetUpdatesRoot())!, channel, "history.json");
+                if (Path.GetFullPath(otherPath) == Path.GetFullPath(HistoryPath) || !File.Exists(otherPath)) continue;
+                var other = JsonSerializer.Deserialize(await File.ReadAllTextAsync(otherPath, token), LauncherJsonContext.Default.UpdateHistory);
+                if (other?.Entries.Any(e => !e.Reverted && e.InstalledAtUtc > latest.InstalledAtUtc && e.BuildDirectory == installation.BuildDirectory &&
+                    e.Changes.Any(c => latest.Changes.Any(l => l.Path.Equals(c.Path, StringComparison.OrdinalIgnoreCase)))) == true)
+                    throw new InvalidOperationException("同じファイルを変更した、もう一方のチャンネルの後の更新を先に戻してください。");
+            }
             foreach (var change in latest.Changes)
             {
                 string relative = _channel.NormalizePath(change.Path);
                 if (change.Kind != "追加" && !File.Exists(GameUpdatePackageExtractor.ResolveContainedPath(latest.BackupDirectory, relative)))
                     throw new FileNotFoundException("復帰に必要なバックアップがありません: " + relative);
+                if (change.Kind != "追加" && (!GameUpdatePackageExtractor.IsHex(change.BackupSha256, 64) ||
+                    !change.BackupSha256.Equals(await GameUpdatePackageExtractor.ComputeSha256Async(
+                        GameUpdatePackageExtractor.ResolveContainedPath(latest.BackupDirectory, relative), token), StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidDataException("バックアップの内容が一致しません: " + relative);
             }
             // 復帰前も全対象を退避する。途中で失敗したら現在の状態へ戻す。
             rescue = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
@@ -161,6 +175,6 @@ public sealed partial class GameUpdateService
             return OperationResult.Success("更新前のバージョンへ復帰しました。");
         }
         catch (Exception ex) { return OperationResult.Failure(ex.Message); }
-        finally { if (rescue is not null) TryDeleteDirectory(rescue); ApplyLock.Release(); _operationLock.Release(); }
+        finally { if (rescue is not null) TryDeleteDirectory(rescue); if (applyLockTaken) ApplyLock.Release(); _operationLock.Release(); }
     }
 }

@@ -7,7 +7,7 @@ using Windows.Media.Playback;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed class LibraryPage : ToolkitPageBase
+public sealed partial class LibraryPage : ToolkitPageBase
 {
     private readonly TextBox _search = new() { Header = "曲名・ファイル名で絞り込み", PlaceholderText = "検索" };
     private readonly ListView _list = new() { Height = 360, SelectionMode = ListViewSelectionMode.Single };
@@ -17,6 +17,7 @@ public sealed class LibraryPage : ToolkitPageBase
     private readonly CancellationTokenSource _cancellation = new();
     private IReadOnlyList<LibrarySong> _songs = [];
     private double _demoStart;
+    private bool _disposed;
 
     public LibraryPage() : base("楽曲ライブラリ", "音源を試聴したり、同じ譜面や不足ファイルを確認できます。検査はファイルを書き換えません。")
     {
@@ -43,11 +44,11 @@ public sealed class LibraryPage : ToolkitPageBase
         });
         _search.TextChanged += (_, _) => Filter();
         _list.SelectionChanged += (_, _) => { Stop(); _details.Text = _list.SelectedItem is LibrarySong s ? s.ChartPath + "\n" + string.Join("\n", s.Problems) : ""; };
-        _player.MediaOpened += (_, _) => DispatcherQueue.TryEnqueue(() => { _player.PlaybackSession.Position = TimeSpan.FromSeconds(_demoStart); _player.Play(); _stopTimer.Start(); });
-        _player.MediaFailed += (_, e) => DispatcherQueue.TryEnqueue(() => { Stop(); Message("試聴できません: " + e.ErrorMessage, true); });
+        _player.MediaOpened += (_, _) => DispatcherQueue.TryEnqueue(() => { if (_disposed) return; _player.PlaybackSession.Position = TimeSpan.FromSeconds(_demoStart); _player.Play(); _stopTimer.Start(); });
+        _player.MediaFailed += (_, e) => DispatcherQueue.TryEnqueue(() => { if (_disposed) return; Stop(); Message("試聴できません: " + e.ErrorMessage, true); });
         _stopTimer.Tick += (_, _) => Stop();
         Loaded += async (_, _) => { try { await Scan(); } catch (Exception ex) { Message(ex.Message, true); } };
-        Unloaded += (_, _) => { _cancellation.Cancel(); Stop(); _player.Dispose(); };
+        Unloaded += (_, _) => { _disposed = true; _cancellation.Cancel(); Stop(); _player.Dispose(); };
     }
 
     private void Stop() { _stopTimer.Stop(); _player.Pause(); }

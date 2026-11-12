@@ -6,7 +6,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed class ToolkitPage : ToolkitPageBase
+public sealed partial class ToolkitPage : ToolkitPageBase
 {
     private readonly ComboBox _section = new() { Header = "設定する機能", HorizontalAlignment = HorizontalAlignment.Stretch,
         ItemsSource = new[] { "ホームの配置", "Discord・OBS・履歴", "容量と整理", "診断レポート", "互換性と更新履歴", "初回セットアップ" }, SelectedIndex = 0 };
@@ -45,15 +45,16 @@ public sealed class ToolkitPage : ToolkitPageBase
         var preferences = Host.Context.Preferences;
         var keys = preferences.HomeCards.Where(k => new[] { "character", "activity", "calendar", "updates" }.Contains(k)).Distinct().ToList();
         foreach (string key in new[] { "character", "activity", "calendar", "updates" }) if (!keys.Contains(key)) keys.Add(key);
-        var list = new ListView { ItemsSource = keys.Select(k => new StringOption(k, Label(k))).ToArray(), DisplayMemberPath = "Label", Height = 200 };
+        var list = new ListView { ItemsSource = keys.Select(Label).ToArray(), Height = 200 };
         _sectionBody.Children.Add(list);
         var visible = new CheckBox { Content = "選択したカードを表示" }; _sectionBody.Children.Add(visible);
-        list.SelectionChanged += (_, _) => { if (list.SelectedItem is StringOption item) visible.IsChecked = !preferences.HiddenHomeCards.Contains(item.Value); };
+        list.SelectionChanged += (_, _) => { if (list.SelectedIndex >= 0) visible.IsChecked = !preferences.HiddenHomeCards.Contains(keys[list.SelectedIndex]); };
         visible.Click += async (_, _) =>
         {
-            if (list.SelectedItem is not StringOption item) return;
-            preferences.HiddenHomeCards.RemoveAll(k => k == item.Value);
-            if (visible.IsChecked != true) preferences.HiddenHomeCards.Add(item.Value);
+            if (list.SelectedIndex < 0) return;
+            string key = keys[list.SelectedIndex];
+            preferences.HiddenHomeCards.RemoveAll(k => k == key);
+            if (visible.IsChecked != true) preferences.HiddenHomeCards.Add(key);
             try { await Host.Context.SavePreferencesAsync(); Message("ホームの表示を保存しました。"); } catch (Exception ex) { Message(ex.Message, true); }
         };
         async Task Move(int direction)
@@ -141,6 +142,16 @@ public sealed class ToolkitPage : ToolkitPageBase
                 var result = await service.RestorePreviousAsync(entry.Id); Message(result.Message, !result.Succeeded); list.ItemsSource = await service.GetHistoryAsync();
             }, _sectionBody);
         }
+        _sectionBody.Children.Add(Text("ランチャーの更新履歴", 20));
+        var launcherHistory = new ListView { Height = 150, ItemsSource = await context.Updates.GetRollbackHistoryAsync() };
+        _sectionBody.Children.Add(launcherHistory);
+        Action("ランチャーを更新前へ戻す", async () =>
+        {
+            if (launcherHistory.SelectedItem is not LauncherRollbackEntry entry) throw new InvalidOperationException("更新履歴を選択してください。");
+            if (!await Confirm("ランチャーを復帰", "更新前のランチャーへ戻して再起動します。")) return;
+            var result = await context.Updates.RestoreLauncherAsync(entry.Id); Message(result.Message, !result.Succeeded);
+            if (result.Succeeded) Host.Exit();
+        }, _sectionBody);
         Action("更新を確認", async () => { await context.GameUpdates.CheckAsync(); await context.AssetUpdates.CheckAsync(); await Render(); }, _sectionBody);
     }
 

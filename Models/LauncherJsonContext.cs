@@ -14,4 +14,5 @@ namespace TaikoDiveLauncher.Models;
 [JsonSerializable(typeof(IntegrationSettings))]
 [JsonSerializable(typeof(PlayHistoryEntry))]
 [JsonSerializable(typeof(UpdateHistory))]
+[JsonSerializable(typeof(LauncherRollbackEntry))]
 internal partial class LauncherJsonContext : JsonSerializerContext;

@@ -123,7 +123,7 @@ public sealed class ToolkitTests
     public void DiagnosticRedactionRemovesAddressesAndWindowsPaths()
     {
         string result = LauncherMaintenance.Redact("error at C:\\Users\\Alice\\build\\file.cs\nserver 192.168.1.2:22047 https://example.test/private");
-        Assert.IsFalse(result.Contains("Alice")); Assert.IsFalse(result.Contains("192.168")); Assert.IsFalse(result.Contains("example.test"));
+        Assert.DoesNotContain("Alice", result); Assert.DoesNotContain("192.168", result); Assert.DoesNotContain("example.test", result);
     }
 
     [TestMethod]
@@ -135,6 +135,69 @@ public sealed class ToolkitTests
         await Assert.ThrowsAsync<IOException>(() => GameUpdateService.ApplyWithRollbackAsync(source, target, backup,
             [new() { Path = "old.txt" }, new() { Path = "added.txt" }], default, commit: () => throw new IOException("metadata full")));
         Assert.AreEqual("old", await File.ReadAllTextAsync(Path.Combine(target, "old.txt"))); Assert.IsFalse(File.Exists(Path.Combine(target, "added.txt")));
+    }
+
+    [TestMethod]
+    public async Task UpdateHistoryRestoresChangedAndDeletedFilesAndPreservesUserData()
+    {
+        using var fixture = new RollbackFixture(); await fixture.CreateAsync();
+        var result = await fixture.Service.RestorePreviousAsync(fixture.Entry.Id);
+        Assert.IsTrue(result.Succeeded, result.Message);
+        Assert.AreEqual("old", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "old.txt")));
+        Assert.AreEqual("deleted", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "deleted.txt")));
+        Assert.IsFalse(File.Exists(Path.Combine(fixture.Target, "added.txt")));
+        Assert.AreEqual("user settings", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "Setting.json")));
+        var state = JsonSerializer.Deserialize(await File.ReadAllTextAsync(Path.Combine(fixture.Updates, "installed.json")), LauncherJsonContext.Default.InstalledGameUpdate);
+        Assert.AreEqual("1.0.0", state!.Version);
+        Assert.IsTrue((await fixture.Service.GetHistoryAsync())[0].Reverted);
+    }
+
+    [TestMethod]
+    public async Task CorruptBackupStopsRestoreBeforeAnyFileIsChanged()
+    {
+        using var fixture = new RollbackFixture(); await fixture.CreateAsync();
+        await File.WriteAllTextAsync(Path.Combine(fixture.Entry.BackupDirectory, "old.txt"), "corrupt");
+        var result = await fixture.Service.RestorePreviousAsync(fixture.Entry.Id);
+        Assert.IsFalse(result.Succeeded); Assert.AreEqual("new", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "old.txt")));
+        Assert.IsTrue(File.Exists(Path.Combine(fixture.Target, "added.txt")));
+    }
+
+    [TestMethod]
+    public async Task HistoryRejectsProtectedPathsDuringRestore()
+    {
+        using var fixture = new RollbackFixture(); await fixture.CreateAsync();
+        fixture.Entry.Changes.Add(new("Setting.json", "追加", 0)); await fixture.SaveHistoryAsync();
+        var result = await fixture.Service.RestorePreviousAsync(fixture.Entry.Id);
+        Assert.IsFalse(result.Succeeded); Assert.AreEqual("user settings", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "Setting.json")));
+        Assert.AreEqual("new", await File.ReadAllTextAsync(Path.Combine(fixture.Target, "old.txt")));
+    }
+
+    private sealed class RollbackFixture : IDisposable
+    {
+        private readonly Temp _temp = new();
+        public string Target => Path.Combine(_temp.Root, "target");
+        public string Updates => Path.Combine(_temp.Root, "game-updates");
+        public UpdateHistoryEntry Entry { get; } = new() { Version = "2.0.0", Revision = new string('b', 40), InstalledAtUtc = DateTime.UtcNow };
+        public GameUpdateService Service { get; }
+        public RollbackFixture()
+        {
+            Service = new(new HttpClient(), new("https://example.test/manifest"), () => new(Target), () => false,
+                () => "key", new GameUpdatePackageExtractor(), storageRoot: Updates);
+        }
+        public async Task CreateAsync()
+        {
+            Directory.CreateDirectory(Target); Entry.BuildDirectory = Target; Entry.BackupDirectory = Path.Combine(Updates, "backups", Entry.Id);
+            Directory.CreateDirectory(Entry.BackupDirectory);
+            await File.WriteAllTextAsync(Path.Combine(Target, "old.txt"), "new"); await File.WriteAllTextAsync(Path.Combine(Target, "added.txt"), "added");
+            await File.WriteAllTextAsync(Path.Combine(Target, "Setting.json"), "user settings");
+            await File.WriteAllTextAsync(Path.Combine(Entry.BackupDirectory, "old.txt"), "old"); await File.WriteAllTextAsync(Path.Combine(Entry.BackupDirectory, "deleted.txt"), "deleted");
+            Entry.Changes = [new("old.txt", "変更", 3, Hash(Encoding.UTF8.GetBytes("old"))), new("added.txt", "追加", 5), new("deleted.txt", "削除", 7, Hash(Encoding.UTF8.GetBytes("deleted")))];
+            Entry.PreviousInstalledState = JsonSerializer.Serialize(new InstalledGameUpdate { BuildDirectory = Target, Version = "1.0.0" }, LauncherJsonContext.Default.InstalledGameUpdate);
+            await File.WriteAllTextAsync(Path.Combine(Updates, "installed.json"), JsonSerializer.Serialize(new InstalledGameUpdate { BuildDirectory = Target, Version = Entry.Version, Revision = Entry.Revision }, LauncherJsonContext.Default.InstalledGameUpdate));
+            await SaveHistoryAsync();
+        }
+        public Task SaveHistoryAsync() => File.WriteAllTextAsync(Path.Combine(Updates, "history.json"), JsonSerializer.Serialize(new UpdateHistory { Entries = [Entry] }, LauncherJsonContext.Default.UpdateHistory));
+        public void Dispose() => _temp.Dispose();
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));

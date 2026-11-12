@@ -19,6 +19,8 @@ public static partial class LauncherMaintenance
             ("サウンド", Path.Combine(installation.BuildDirectory, "Sound"), false), ("スコア・リプレイ", installation.ScoreDirectory, false),
             ("3Dモデル", Path.Combine(installation.BuildDirectory, "Info", "Chara"), false),
         };
+        roots.Add(("ランチャーバックアップ", Path.Combine(UpdatesRoot, "launcher-backups"), false));
+        roots.Add(("ランチャー一時ファイル", Path.Combine(UpdatesRoot, "updates"), true));
         foreach (string channel in new[] { "game-updates", "asset-updates" })
         {
             roots.Add((channel + " バックアップ", Path.Combine(UpdatesRoot, channel, "backups"), false));
@@ -69,7 +71,7 @@ public static partial class LauncherMaintenance
             {
                 if (new FileInfo(path).Length > 512 * 1024) continue;
                 string text = await File.ReadAllTextAsync(path);
-                logs.Add(Redact(text.Length > 12000 ? text[^12000..] : text));
+                logs.Add((JsonNode?)JsonValue.Create(Redact(text.Length > 12000 ? text[^12000..] : text)));
             }
             report["recentErrors"] = logs;
         }

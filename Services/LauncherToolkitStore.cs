@@ -44,6 +44,7 @@ public static class LauncherToolkitStore
             if (preset is null || string.IsNullOrWhiteSpace(preset.Name) || preset.Name.Length > 80 || preset.Settings is null)
                 throw new InvalidDataException("コーデ名は1〜80文字で指定してください。");
             var s = preset.Settings;
+            if (new[] { s.BodyColor, s.LimbsColor, s.FaceColor, s.RimColor }.Any(string.IsNullOrWhiteSpace)) throw new InvalidDataException("コーデの色がありません。");
             Character3DStore.NormalizeColor(s.BodyColor); Character3DStore.NormalizeColor(s.LimbsColor);
             Character3DStore.NormalizeColor(s.FaceColor); Character3DStore.NormalizeColor(s.RimColor);
             if (s.PetitCharaId < 0 || new[] { s.Head, s.Body, s.Costume }.Any(id =>
@@ -86,7 +87,7 @@ public static class LauncherToolkitStore
             {
                 if (new FileInfo(file).Length > 16384) continue;
                 var e = JsonSerializer.Deserialize(await File.ReadAllTextAsync(file, token), LauncherJsonContext.Default.PlayHistoryEntry);
-                if (e is not null && e.Id.Length > 0 && e.PlayedAtUtc != default) entries.TryAdd(e.Id, e);
+                if (e is not null && !string.IsNullOrWhiteSpace(e.Id) && e.PlayedAtUtc != default) entries.TryAdd(e.Id, e);
             }
             catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
         }

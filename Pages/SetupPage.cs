@@ -5,7 +5,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed class SetupPage : ToolkitPageBase, IUnsavedChangesAware
+public sealed partial class SetupPage : ToolkitPageBase, IUnsavedChangesAware
 {
     private readonly StackPanel _stepBody = new() { Spacing = 12 };
     private UserProfile? _profile;

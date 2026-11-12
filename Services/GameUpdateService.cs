@@ -20,6 +20,7 @@ public sealed partial class GameUpdateService
     private readonly Func<string?> _packageKeyProvider;
     private readonly GameUpdatePackageExtractor _extractor;
     private readonly UpdateChannel _channel;
+    private readonly string? _storageRoot;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private static readonly SemaphoreSlim ApplyLock = new(1, 1);
     private readonly object _stateLock = new();
@@ -57,8 +58,10 @@ public sealed partial class GameUpdateService
         Func<bool> isGameRunning,
         Func<string?> packageKeyProvider,
         GameUpdatePackageExtractor extractor,
-        UpdateChannel? channel = null)
+        UpdateChannel? channel = null,
+        string? storageRoot = null)
     {
+        _storageRoot = storageRoot;
         _httpClient = httpClient;
         _manifestUri = manifestUri;
         _installationProvider = installationProvider;
@@ -333,7 +336,10 @@ public sealed partial class GameUpdateService
             var rollbackChanges = package.Files.Select(f => new UpdateFileChange(_channel.NormalizePath(f.Path),
                 File.Exists(GameUpdatePackageExtractor.ResolveContainedPath(installation.BuildDirectory, f.Path)) ? "変更" : "追加", f.Size)).ToList();
             rollbackChanges.AddRange(preview.Changes.Where(c => c.Kind == "削除"));
-            var historyEntry = new UpdateHistoryEntry { BuildDirectory = installation.BuildDirectory, Version = update.Version,
+            for (int i = 0; i < rollbackChanges.Count; i++)
+                if (rollbackChanges[i].Kind != "追加") rollbackChanges[i] = rollbackChanges[i] with { BackupSha256 =
+                    await GameUpdatePackageExtractor.ComputeSha256Async(GameUpdatePackageExtractor.ResolveContainedPath(installation.BuildDirectory, rollbackChanges[i].Path), cancellationToken).ConfigureAwait(false) };
+            var historyEntry = new UpdateHistoryEntry { BuildDirectory = installation.BuildDirectory, Version = update.Version, Revision = update.Revision,
                 InstalledAtUtc = DateTime.UtcNow, BackupDirectory = backupDirectory, PreviousInstalledState = previousState, Changes = rollbackChanges };
             TaikoDiveSettingsSnapshot? settingsSnapshot = await TaikoDiveSettingsPreserver.CaptureAsync(
                 installation.GameSettingsPath,
@@ -823,7 +829,7 @@ public sealed partial class GameUpdateService
         return builder.Uri;
     }
 
-    private string GetUpdatesRoot() => Path.Combine(
+    private string GetUpdatesRoot() => _storageRoot ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TaikoDiveLauncher",
         _channel.StorageDirectoryName);
