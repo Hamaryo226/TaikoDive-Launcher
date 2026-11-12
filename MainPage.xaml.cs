@@ -130,10 +130,7 @@ public sealed partial class MainPage : Page
     {
         Type pageType = tag switch
         {
-            "library" => typeof(LibraryPage),
-            "records" => typeof(RecordsPage),
-            "toolkit" => typeof(ToolkitPage),
-            "setup" => typeof(SetupPage),
+            "library" or "records" or "toolkit" or "setup" => typeof(ToolkitHostPage),
             "profiles" => typeof(ProfilesPage),
             "songs" => typeof(SongsPage),
             "input-settings" => typeof(InputSettingsPage),
@@ -142,13 +139,13 @@ public sealed partial class MainPage : Page
             _ => typeof(HomePage),
         };
 
-        if (ContentFrame.CurrentSourcePageType != pageType)
+        if (ContentFrame.Content is null || _currentTag != tag)
         {
             SlideNavigationTransitionEffect effect =
                 Array.IndexOf(NavigationOrder, tag) >= Array.IndexOf(NavigationOrder, _currentTag)
                     ? SlideNavigationTransitionEffect.FromRight
                     : SlideNavigationTransitionEffect.FromLeft;
-            ContentFrame.Navigate(pageType, null, new SlideNavigationTransitionInfo { Effect = effect });
+            ContentFrame.Navigate(pageType, pageType == typeof(ToolkitHostPage) ? tag : null, new SlideNavigationTransitionInfo { Effect = effect });
         }
 
         _currentTag = tag;
