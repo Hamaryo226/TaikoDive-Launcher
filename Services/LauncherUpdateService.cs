@@ -373,62 +373,8 @@ public sealed class LauncherUpdateService
         LauncherUpdateManifest manifest,
         CancellationToken cancellationToken)
     {
-        using HttpRequestMessage request = new(HttpMethod.Get, AddCacheBuster(_executableUri));
-        request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-        using HttpResponseMessage response = await _httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-
-        long? contentLength = response.Content.Headers.ContentLength;
-        if (contentLength is > MaximumDownloadSize || (contentLength.HasValue && contentLength.Value != manifest.Size))
-        {
-            throw new InvalidDataException("更新ファイルのサイズがマニフェストと一致しません。");
-        }
-
-        string temporaryPath = stagedPath + ".download";
-        try
-        {
-            await using (Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-            await using (FileStream destination = new(
-                temporaryPath,
-                FileMode.Create,
-                FileAccess.Write,
-                FileShare.None,
-                81920,
-                FileOptions.Asynchronous | FileOptions.SequentialScan))
-            {
-                byte[] buffer = new byte[81920];
-                long downloadedBytes = 0;
-                int bytesRead;
-                while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-                {
-                    await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
-                    downloadedBytes += bytesRead;
-                    ReportProgress(downloadedBytes, manifest.Size);
-                }
-            }
-
-            FileInfo downloadedFile = new(temporaryPath);
-            if (downloadedFile.Length != manifest.Size || downloadedFile.Length > MaximumDownloadSize)
-            {
-                throw new InvalidDataException("更新ファイルのサイズがマニフェストと一致しません。");
-            }
-
-            string actualHash = await ComputeSha256Async(temporaryPath, cancellationToken).ConfigureAwait(false);
-            if (!string.Equals(actualHash, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidDataException("更新ファイルのSHA-256が一致しません。");
-            }
-
-            File.Move(temporaryPath, stagedPath, overwrite: true);
-        }
-        finally
-        {
-            TryDelete(temporaryPath);
-        }
+        await ResumableDownload.FetchAsync(_httpClient, AddCacheBuster(_executableUri), stagedPath,
+            manifest.Size, manifest.Sha256, ReportProgress, cancellationToken).ConfigureAwait(false);
     }
 
     private static void ValidateManifest(LauncherUpdateManifest? manifest)
@@ -656,7 +602,7 @@ internal sealed record PendingUpdateCommand(
 
 internal static class LauncherBuildInfo
 {
-    private static readonly string InformationalVersion =
+    internal static readonly string InformationalVersion =
         Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
         ?? "1.0.0";
 

@@ -9,7 +9,7 @@ namespace TaikoDiveLauncher;
 public sealed partial class MainPage : Page
 {
     private static readonly string[] NavigationOrder =
-        ["home", "profiles", "songs", "input-settings", "settings", "launcher-settings"];
+        ["home", "profiles", "songs", "input-settings", "settings", "launcher-settings", "library", "records", "toolkit", "setup"];
 
     private NavigationViewItem? _currentNavigationItem;
     private bool _suppressSelectionChanged;
@@ -34,6 +34,8 @@ public sealed partial class MainPage : Page
         _suppressSelectionChanged = false;
         _currentNavigationItem = HomeItem;
         Navigate("home");
+        if (!((App)Application.Current).Context.Preferences.SetupCompleted && ((App)Application.Current).Context.Installation is not null)
+            NavigateTo("setup");
         InstallationBanner.IsOpen = ((App)Application.Current).Context.Installation is null;
         UpdateUpdateBanner();
     }
@@ -128,6 +130,10 @@ public sealed partial class MainPage : Page
     {
         Type pageType = tag switch
         {
+            "library" => typeof(LibraryPage),
+            "records" => typeof(RecordsPage),
+            "toolkit" => typeof(ToolkitPage),
+            "setup" => typeof(SetupPage),
             "profiles" => typeof(ProfilesPage),
             "songs" => typeof(SongsPage),
             "input-settings" => typeof(InputSettingsPage),

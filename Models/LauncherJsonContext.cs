@@ -10,4 +10,8 @@ namespace TaikoDiveLauncher.Models;
 [JsonSerializable(typeof(GameUpdateManifest))]
 [JsonSerializable(typeof(GamePackageManifest))]
 [JsonSerializable(typeof(InstalledGameUpdate))]
+[JsonSerializable(typeof(OutfitCollection))]
+[JsonSerializable(typeof(IntegrationSettings))]
+[JsonSerializable(typeof(PlayHistoryEntry))]
+[JsonSerializable(typeof(UpdateHistory))]
 internal partial class LauncherJsonContext : JsonSerializerContext;
