@@ -42,6 +42,11 @@ public sealed partial class LibraryPage : ToolkitPageBase
             _list.ItemsSource = groups.SelectMany(g => g).ToArray();
             Message($"同一内容の譜面: {groups.Count}組。音源の違いや必要な配置を確認してから整理してください。"); return Task.CompletedTask;
         });
+        Action("同名の別譜面を確認", () =>
+        {
+            var groups = SongLibraryService.FindSameTitleVariants(_songs); _list.ItemsSource = groups.SelectMany(g => g).ToArray();
+            Message($"同じ曲名で内容が違う譜面: {groups.Count}組。別の難易度・制作者・バージョンの場合があります。"); return Task.CompletedTask;
+        });
         _search.TextChanged += (_, _) => Filter();
         _list.SelectionChanged += (_, _) => { Stop(); _details.Text = _list.SelectedItem is LibrarySong s ? s.ChartPath + "\n" + string.Join("\n", s.Problems) : ""; };
         _player.MediaOpened += (_, _) => DispatcherQueue.TryEnqueue(() => { if (_disposed) return; _player.PlaybackSession.Position = TimeSpan.FromSeconds(_demoStart); _player.Play(); _stopTimer.Start(); });

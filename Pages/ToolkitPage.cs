@@ -21,7 +21,7 @@ public sealed partial class ToolkitPage : ToolkitPageBase
 
     private async Task Render()
     {
-        _sectionBody.Children.Clear();
+        _sectionBody.Children.Clear(); _section.IsEnabled = false;
         try
         {
             switch (_section.SelectedIndex)
@@ -37,6 +37,7 @@ public sealed partial class ToolkitPage : ToolkitPageBase
             }
         }
         catch (Exception ex) { Message(ex.Message, true); }
+        finally { _section.IsEnabled = true; }
     }
 
     private void HomeLayout()

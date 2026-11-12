@@ -65,7 +65,7 @@ public sealed partial class Character3DPage
             list.SelectionChanged += (_, _) =>
             {
                 if (list.SelectedItem is not OutfitPreset preset) { dialog.IsPrimaryButtonEnabled = false; return; }
-                var missing = LauncherToolkitStore.MissingAssets(installation, preset.Settings);
+                var missing = LauncherToolkitStore.MissingAssets(installation, preset.Settings, _settings.ModelsPath);
                 status.Text = missing.Count == 0 ? "必要な素材がそろっています。" : "不足している素材: " + string.Join("、", missing);
                 dialog.IsPrimaryButtonEnabled = missing.Count == 0;
             };

@@ -64,10 +64,10 @@ public static class LauncherToolkitStore
         return FilePersistence.WriteTextAtomicAsync(Path.Combine(Root(installation), "outfits.json"), json, new UTF8Encoding(false));
     }
 
-    public static IReadOnlyList<string> MissingAssets(TaikoDiveInstallation installation, Character3DSettings s)
+    public static IReadOnlyList<string> MissingAssets(TaikoDiveInstallation installation, Character3DSettings s, string? modelsPath = null)
     {
         var store = new Character3DStore();
-        string root = Character3DStore.ModelRoot(installation, Character3DStore.DefaultModelsPath(installation));
+        string root = Character3DStore.ModelRoot(installation, modelsPath ?? Character3DStore.DefaultModelsPath(installation));
         var missing = new List<string>();
         foreach (var (category, id) in s.UseCostume ? new[] { ("cos", s.Costume) } : new[] { ("head", s.Head), ("body", s.Body) })
             if (id != "0" && !store.GetOptions(root, category, "0").Any(x => x.Id == id)) missing.Add(category + ": " + id);

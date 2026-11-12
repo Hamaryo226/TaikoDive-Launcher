@@ -64,6 +64,11 @@ public static class SongLibraryService
         .Where(s => s.Hash.Length > 0).GroupBy(s => s.Hash, StringComparer.OrdinalIgnoreCase)
         .Where(g => g.Count() > 1).Select(g => (IReadOnlyList<LibrarySong>)g.ToArray()).ToArray();
 
+    public static IReadOnlyList<IReadOnlyList<LibrarySong>> FindSameTitleVariants(IEnumerable<LibrarySong> songs) => songs
+        .GroupBy(s => s.Title.Trim(), StringComparer.CurrentCultureIgnoreCase)
+        .Where(g => g.Select(s => s.Hash).Distinct(StringComparer.OrdinalIgnoreCase).Count() > 1)
+        .Select(g => (IReadOnlyList<LibrarySong>)g.ToArray()).ToArray();
+
     public static async Task<IReadOnlyList<ReplayEntry>> ReadReplaysAsync(TaikoDiveInstallation installation, CancellationToken token = default)
     {
         var profiles = await new UserProfileStore().LoadAsync(installation);
