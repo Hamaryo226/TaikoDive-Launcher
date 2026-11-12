@@ -4,7 +4,7 @@ using TaikoDiveLauncher.Models;
 
 namespace TaikoDiveLauncher.Services;
 
-public sealed class GameUpdateService
+public sealed partial class GameUpdateService
 {
     private const long MaximumDownloadSize = 4L * 1024 * 1024 * 1024;
     private const int MaximumReleaseNotesLength = 4000;
@@ -20,6 +20,7 @@ public sealed class GameUpdateService
     private readonly Func<string?> _packageKeyProvider;
     private readonly GameUpdatePackageExtractor _extractor;
     private readonly UpdateChannel _channel;
+    private readonly string? _storageRoot;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
     private static readonly SemaphoreSlim ApplyLock = new(1, 1);
     private readonly object _stateLock = new();
@@ -57,8 +58,10 @@ public sealed class GameUpdateService
         Func<bool> isGameRunning,
         Func<string?> packageKeyProvider,
         GameUpdatePackageExtractor extractor,
-        UpdateChannel? channel = null)
+        UpdateChannel? channel = null,
+        string? storageRoot = null)
     {
+        _storageRoot = storageRoot;
         _httpClient = httpClient;
         _manifestUri = manifestUri;
         _installationProvider = installationProvider;
@@ -195,7 +198,7 @@ public sealed class GameUpdateService
                 GameUpdateManifest update = await FetchManifestAsync(cancellationToken).ConfigureAwait(false);
                 operationDirectory = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
                 Directory.CreateDirectory(operationDirectory);
-                string packagePath = Path.Combine(operationDirectory, update.PackageFileName);
+                string packagePath = CachedPackagePath(update);
                 await DownloadAndVerifyAsync(packagePath, update, cancellationToken, progress).ConfigureAwait(false);
                 GamePackageManifest package = await _extractor.ExtractAndVerifyAsync(
                     packagePath,
@@ -293,6 +296,7 @@ public sealed class GameUpdateService
                 return OperationResult.Failure("TaikoDiveを終了してからアップデートしてください。");
             }
 
+            ValidateCompatibility(update);
             string? packageKey = _packageKeyProvider();
             if (string.IsNullOrWhiteSpace(packageKey))
             {
@@ -303,7 +307,7 @@ public sealed class GameUpdateService
             applyLockTaken = true;
             operationDirectory = Path.Combine(GetUpdatesRoot(), "staging", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(operationDirectory);
-            string packagePath = Path.Combine(operationDirectory, update.PackageFileName);
+            string packagePath = CachedPackagePath(update);
             SetState(GameUpdateState.Downloading, $"{_channel.DisplayName} v{update.Version}をダウンロードしています…", update, 0);
             await DownloadAndVerifyAsync(packagePath, update, cancellationToken).ConfigureAwait(false);
 
@@ -321,8 +325,22 @@ public sealed class GameUpdateService
                 throw new InvalidOperationException("TaikoDiveが起動しました。終了してからもう一度お試しください。");
             }
 
+            UpdatePreview preview = await BuildPreviewAsync(installation, update, package, cancellationToken).ConfigureAwait(false);
+            if (new DriveInfo(Path.GetPathRoot(installation.BuildDirectory)!).AvailableFreeSpace < preview.RequiredBytes)
+                throw new IOException("更新・バックアップ用の空き容量が不足しています。");
             SetState(GameUpdateState.Applying, "検証済みファイルを適用しています…", update, 0);
             string backupDirectory = CreateBackupDirectory(update);
+            var history = await ReadHistoryAsync().ConfigureAwait(false);
+            string? previousState = File.Exists(GetInstalledStatePath()) ? await File.ReadAllTextAsync(GetInstalledStatePath(), cancellationToken).ConfigureAwait(false) : null;
+            // 同一内容のファイルも適用処理がバックアップするため、復帰対象に記録する。
+            var rollbackChanges = package.Files.Select(f => new UpdateFileChange(_channel.NormalizePath(f.Path),
+                File.Exists(GameUpdatePackageExtractor.ResolveContainedPath(installation.BuildDirectory, f.Path)) ? "変更" : "追加", f.Size)).ToList();
+            rollbackChanges.AddRange(preview.Changes.Where(c => c.Kind == "削除"));
+            for (int i = 0; i < rollbackChanges.Count; i++)
+                if (rollbackChanges[i].Kind != "追加") rollbackChanges[i] = rollbackChanges[i] with { BackupSha256 =
+                    await GameUpdatePackageExtractor.ComputeSha256Async(GameUpdatePackageExtractor.ResolveContainedPath(installation.BuildDirectory, rollbackChanges[i].Path), cancellationToken).ConfigureAwait(false) };
+            var historyEntry = new UpdateHistoryEntry { BuildDirectory = installation.BuildDirectory, Version = update.Version, Revision = update.Revision,
+                InstalledAtUtc = DateTime.UtcNow, BackupDirectory = backupDirectory, PreviousInstalledState = previousState, Changes = rollbackChanges };
             TaikoDiveSettingsSnapshot? settingsSnapshot = await TaikoDiveSettingsPreserver.CaptureAsync(
                 installation.GameSettingsPath,
                 operationDirectory,
@@ -337,8 +355,19 @@ public sealed class GameUpdateService
                     cancellationToken,
                     _channel.NormalizePath,
                     ReportProgress,
-                    _channel.MirroredDirectories).ConfigureAwait(false);
-                await SaveInstalledUpdateAsync(installation, update, package.Files, cancellationToken).ConfigureAwait(false);
+                    _channel.MirroredDirectories,
+                    async () =>
+                    {
+                        await SaveInstalledUpdateAsync(installation, update, package.Files, cancellationToken).ConfigureAwait(false);
+                        history.Entries.Add(historyEntry);
+                        await WriteHistoryAsync(history).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
+            }
+            catch
+            {
+                if (previousState is null) TryDeleteFile(GetInstalledStatePath());
+                else await File.WriteAllTextAsync(GetInstalledStatePath(), previousState, CancellationToken.None).ConfigureAwait(false);
+                throw;
             }
             finally
             {
@@ -424,7 +453,8 @@ public sealed class GameUpdateService
         CancellationToken cancellationToken,
         Func<string, string>? normalizePath = null,
         Action<long, long>? progress = null,
-        IReadOnlyList<string>? mirroredDirectories = null)
+        IReadOnlyList<string>? mirroredDirectories = null,
+        Func<Task>? commit = null)
     {
         normalizePath ??= GameUpdatePathPolicy.NormalizeAndValidate;
         Directory.CreateDirectory(backupDirectory);
@@ -491,6 +521,7 @@ public sealed class GameUpdateService
             }
 
             DeleteEmptyDirectories(targetDirectory, mirroredDirectories ?? []);
+            if (commit is not null) await commit().ConfigureAwait(false);
         }
         catch
         {
@@ -652,50 +683,8 @@ public sealed class GameUpdateService
         CancellationToken cancellationToken,
         Action<long, long>? progress = null)
     {
-        progress ??= ReportProgress;
-        using HttpRequestMessage request = new(HttpMethod.Get, new Uri(manifest.PackageUrl));
-        using HttpResponseMessage response = await _httpClient.SendAsync(
-                request,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken)
-            .ConfigureAwait(false);
-        response.EnsureSuccessStatusCode();
-        if (response.Content.Headers.ContentLength is long contentLength
-            && (contentLength != manifest.Size || contentLength > MaximumDownloadSize))
-        {
-            throw new InvalidDataException("更新パッケージのサイズがマニフェストと一致しません。");
-        }
-
-        await using (Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-        await using (FileStream destination = new(
-            destinationPath,
-            FileMode.CreateNew,
-            FileAccess.Write,
-            FileShare.None,
-            81920,
-            FileOptions.Asynchronous | FileOptions.SequentialScan))
-        {
-            byte[] buffer = new byte[81920];
-            long downloadedBytes = 0;
-            int bytesRead;
-            while ((bytesRead = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
-            {
-                await destination.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken).ConfigureAwait(false);
-                downloadedBytes += bytesRead;
-                progress(downloadedBytes, manifest.Size);
-            }
-        }
-
-        FileInfo file = new(destinationPath);
-        if (file.Length != manifest.Size || file.Length > MaximumDownloadSize)
-        {
-            throw new InvalidDataException("更新パッケージのサイズがマニフェストと一致しません。");
-        }
-        string hash = await GameUpdatePackageExtractor.ComputeSha256Async(destinationPath, cancellationToken).ConfigureAwait(false);
-        if (!string.Equals(hash, manifest.Sha256, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException("更新パッケージのSHA-256が一致しません。");
-        }
+        await ResumableDownload.FetchAsync(_httpClient, new Uri(manifest.PackageUrl), destinationPath,
+            manifest.Size, manifest.Sha256, progress ?? ReportProgress, cancellationToken).ConfigureAwait(false);
     }
 
     private string DetectCurrentVersion(TaikoDiveInstallation? installation)
@@ -840,7 +829,7 @@ public sealed class GameUpdateService
         return builder.Uri;
     }
 
-    private string GetUpdatesRoot() => Path.Combine(
+    private string GetUpdatesRoot() => _storageRoot ?? Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "TaikoDiveLauncher",
         _channel.StorageDirectoryName);
@@ -850,7 +839,7 @@ public sealed class GameUpdateService
     private string CreateBackupDirectory(GameUpdateManifest update) => Path.Combine(
         GetUpdatesRoot(),
         "backups",
-        $"v{update.Version}-{update.Revision[..7]}-{DateTimeOffset.Now:yyyyMMdd-HHmmss}");
+        $"v{update.Version}-{update.Revision[..7]}-{Guid.NewGuid():N}");
 
     private static void TryDeleteDirectory(string path)
     {

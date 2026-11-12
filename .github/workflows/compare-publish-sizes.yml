@@ -8,6 +8,7 @@ on:
       - "**/*.csproj"
       - "**/*.xaml"
       - "Properties/PublishProfiles/**"
+      - "tools/Smoke-LauncherUi.ps1"
   workflow_dispatch:
 
 permissions:
@@ -132,6 +133,19 @@ jobs:
               Stop-Process -Id $process.Id -Force
             }
           }
+
+      - name: Verify launcher pages and capture screenshots
+        if: matrix.mode == 'TrimmedSingleFile'
+        shell: pwsh
+        run: ./tools/Smoke-LauncherUi.ps1 -AppDirectory (Join-Path $env:RUNNER_TEMP "publish-${{ matrix.mode }}") -OutputDirectory (Join-Path $env:RUNNER_TEMP 'launcher-ui')
+
+      - name: Upload UI screenshots
+        if: always() && matrix.mode == 'TrimmedSingleFile'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: launcher-ui-screenshots
+          path: ${{ runner.temp }}/launcher-ui/*.png
+          retention-days: 7
 
       - name: Upload metrics
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

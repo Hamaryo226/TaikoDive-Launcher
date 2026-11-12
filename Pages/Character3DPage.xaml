@@ -16,6 +16,7 @@
     <AppBarButton Icon="Back" Label="プロフィールへ" Click="BackToProfile_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
     <AppBarButton x:Name="SaveButton" Icon="Save" Label="保存" Click="Save_Click" Style="{StaticResource VisibleAppBarButtonStyle}"/>
     <CommandBar.SecondaryCommands>
+    <AppBarButton Label="コーデ保存・共有" Click="Outfits_Click" />
      <AppBarButton Icon="Refresh" Label="保存済みに戻す" Click="Reload_Click"/>
      <AppBarButton Icon="Undo" Label="1つ前の保存を復元" Click="RestorePrevious_Click"/>
     </CommandBar.SecondaryCommands>

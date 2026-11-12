@@ -14,6 +14,10 @@ param(
     [Parameter(Mandatory)]
     [string] $PackageKey,
 
+    [string] $MinimumGameVersion = '',
+    [string] $MinimumAssetsVersion = '',
+    [string] $MinimumLauncherVersion = '',
+
     [string] $KeyId = '2026-01',
     [string] $DownloadBaseUrl = 'https://dl.hamaryo.dev',
 
@@ -154,6 +158,9 @@ try {
         version = $Version
         revision = $revisionLower
         releaseNotes = $ReleaseNotes.Trim()
+        minimumGameVersion = $MinimumGameVersion
+        minimumAssetsVersion = $MinimumAssetsVersion
+        minimumLauncherVersion = $MinimumLauncherVersion
         packageFileName = $packageName
         packageUrl = "$($DownloadBaseUrl.TrimEnd('/'))/assets/$packageName"
         sha256 = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash

@@ -254,33 +254,7 @@ public sealed partial class LauncherSettingsPage : Page
     }
 
     private async void InstallGameUpdateButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (GameProcessService.IsRunning())
-        {
-            ShowStatus(InfoBarSeverity.Warning, "TaikoDiveを終了してからアップデートしてください。");
-            return;
-        }
-
-        GameUpdateManifest? update = AppInstance.Context.GameUpdates.AvailableUpdate;
-        ContentDialog confirmation = new()
-        {
-            Title = "TaikoDiveをアップデートしますか？",
-            Content = $"v{update?.Version}を検証して適用します。ユーザー設定、プロフィール、Songs、スコア、リプレイは保持されます。",
-            PrimaryButtonText = "アップデート",
-            CloseButtonText = "キャンセル",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot,
-        };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return;
-        }
-
-        OperationResult result = await AppInstance.Context.GameUpdates.DownloadAndApplyAsync();
-        ShowStatus(
-            result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error,
-            result.Message);
-    }
+        => await InstallManagedAsync(AppInstance.Context.GameUpdates);
 
     private void GameUpdates_StateChanged(object? sender, EventArgs e)
     {
@@ -330,33 +304,7 @@ public sealed partial class LauncherSettingsPage : Page
     }
 
     private async void InstallAssetUpdateButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (GameProcessService.IsRunning())
-        {
-            ShowStatus(InfoBarSeverity.Warning, "TaikoDiveを終了してからAssetをアップデートしてください。");
-            return;
-        }
-
-        GameUpdateManifest? update = AppInstance.Context.AssetUpdates.AvailableUpdate;
-        ContentDialog confirmation = new()
-        {
-            Title = "TaikoDive Assetをアップデートしますか？",
-            Content = $"v{update?.Version}を検証し、Assetリポジトリのsrcの内容をbuildへ適用します。Info/User.iniなどのユーザーデータは保持されます。",
-            PrimaryButtonText = "アップデート",
-            CloseButtonText = "キャンセル",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot,
-        };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return;
-        }
-
-        OperationResult result = await AppInstance.Context.AssetUpdates.DownloadAndApplyAsync();
-        ShowStatus(
-            result.Succeeded ? InfoBarSeverity.Success : InfoBarSeverity.Error,
-            result.Message);
-    }
+        => await InstallManagedAsync(AppInstance.Context.AssetUpdates);
 
     private void AssetUpdates_StateChanged(object? sender, EventArgs e)
     {

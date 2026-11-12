@@ -15,6 +15,10 @@ public enum GameUpdateState
 
 public sealed class GameUpdateManifest
 {
+    public string MinimumGameVersion { get; set; } = "";
+    public string MinimumAssetsVersion { get; set; } = "";
+    public string MinimumLauncherVersion { get; set; } = "";
+
     public string Version { get; set; } = string.Empty;
 
     public string Revision { get; set; } = string.Empty;

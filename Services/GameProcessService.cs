@@ -22,7 +22,7 @@ public static class GameProcessService
         }
     }
 
-    public static OperationResult Launch(TaikoDiveInstallation installation)
+    public static OperationResult Launch(TaikoDiveInstallation installation, IReadOnlyList<string>? arguments = null)
     {
         if (!installation.IsValid)
         {
@@ -36,11 +36,9 @@ public static class GameProcessService
 
         try
         {
-            Process? process = Process.Start(new ProcessStartInfo(installation.ExecutablePath)
-            {
-                WorkingDirectory = installation.BuildDirectory,
-                UseShellExecute = true,
-            });
+            var start = new ProcessStartInfo(installation.ExecutablePath) { WorkingDirectory = installation.BuildDirectory, UseShellExecute = false };
+            foreach (string argument in arguments ?? []) start.ArgumentList.Add(argument);
+            Process? process = Process.Start(start);
 
             if (process is null)
             {
