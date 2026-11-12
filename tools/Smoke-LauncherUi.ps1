@@ -13,6 +13,8 @@ public static class LauncherSmokeWindow {
     [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
     [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr hwnd, IntPtr after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] public static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extra);
 }
 '@
 
@@ -29,9 +31,25 @@ $env:TAIKODIVE_LAUNCHER_DISABLE_UPDATE_CHECK = '1'
 function Select-Navigation([System.Windows.Automation.AutomationElement]$root, [string]$name) {
     $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $name)
     foreach ($item in $root.FindAll([System.Windows.Automation.TreeScope]::Descendants, $condition)) {
-        $pattern = $null
-        if ($item.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$pattern)) { $pattern.Select(); return }
-        if ($item.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$pattern)) { $pattern.Invoke(); return }
+        if ($item.Current.IsOffscreen -or -not $item.Current.IsEnabled) { continue }
+        $selection = $null
+        $hasSelection = $item.TryGetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern, [ref]$selection)
+        if ($hasSelection -and $selection.Current.IsSelected) { return }
+        $invoke = $null
+        if ($item.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern, [ref]$invoke)) {
+            try { $invoke.Invoke(); return } catch { Write-Host "Invoke pattern fallback for $name" }
+        }
+        if ($hasSelection) {
+            try { $selection.Select(); return } catch { Write-Host "Selection pattern fallback for $name" }
+        }
+        if ($item.Current.ControlType -eq [System.Windows.Automation.ControlType]::Text) { continue }
+        $rect = $item.Current.BoundingRectangle
+        if ($rect.Width -gt 5 -and $rect.Height -gt 5) {
+            [LauncherSmokeWindow]::SetCursorPos([int]($rect.X + $rect.Width / 2), [int]($rect.Y + $rect.Height / 2)) | Out-Null
+            [LauncherSmokeWindow]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
+            [LauncherSmokeWindow]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
+            return
+        }
     }
     throw "Navigation item not found: $name"
 }
@@ -62,11 +80,15 @@ try {
             if ($process.MainWindowHandle -eq [IntPtr]::Zero) { throw 'No top-level launcher window was created.' }
             $handle = $process.MainWindowHandle
             [LauncherSmokeWindow]::SetForegroundWindow($handle) | Out-Null
+            Start-Sleep -Milliseconds 1000
             $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
+            Save-Screenshot $handle (Join-Path $OutputDirectory "$theme-start.png")
             $pages = [ordered]@{ 'ホーム' = 'home'; 'ライブラリ' = 'library'; 'プレイ記録' = 'records'; 'ツール' = 'toolkit'; 'セットアップ' = 'setup' }
             $headings = @{ home = 'TaikoDive'; library = '楽曲ライブラリ'; records = 'プレイカレンダーとリプレイ'; toolkit = 'ランチャーツール'; setup = '初回セットアップ' }
             foreach ($page in $pages.GetEnumerator()) {
                 [LauncherSmokeWindow]::SetWindowPos($handle, [IntPtr]::Zero, 20, 20, 1180, 760, 0) | Out-Null
+                Start-Sleep -Milliseconds 300
+                Write-Host "Navigate $theme / $($page.Key)"
                 Select-Navigation $root $page.Key
                 Start-Sleep -Milliseconds 1500
                 if ($process.HasExited) { throw "Launcher exited navigating to $($page.Key)." }
@@ -78,6 +100,10 @@ try {
                 Start-Sleep -Milliseconds 500
                 Save-Screenshot $handle (Join-Path $OutputDirectory "$theme-$($page.Value)-narrow.png")
             }
+        }
+        catch {
+            if (-not $process.HasExited -and $process.MainWindowHandle -ne [IntPtr]::Zero) { Save-Screenshot $process.MainWindowHandle (Join-Path $OutputDirectory "$theme-failure.png") }
+            throw
         }
         finally { if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force } }
     }
