@@ -20,6 +20,61 @@ internal sealed class ControllerInputMonitor
 
     private readonly List<ControllerState> _states = [];
 
+    public IReadOnlyList<ControllerDeviceOption> GetDevices()
+    {
+        Update();
+        return _states.Select((state, deviceIndex) =>
+        {
+            List<ControllerDiagramInput> inputs = [];
+            for (int index = 0; index < state.CurrentButtons.Length; index++)
+            {
+                string position;
+                string physicalLabel;
+                try { physicalLabel = state.Controller.GetButtonLabel(index).ToString(); position = ButtonPosition(physicalLabel); }
+                catch { physicalLabel = string.Empty; position = string.Empty; }
+                string label = physicalLabel switch { "Cross" => "×", "Circle" => "○", "Square" => "□", "Triangle" => "△", _ => position };
+                inputs.Add(new ControllerDiagramInput(label.Length > 0 ? label : $"B{index + 1}", position,
+                    CreateBinding(state, deviceIndex, ControllerInputType.Button, index, 1)));
+            }
+            for (int index = 0; index < state.CurrentSwitches.Length; index++)
+            {
+                string[] directions = ["↑", "↗", "→", "↘", "↓", "↙", "←", "↖"];
+                for (int direction = 1; direction <= 8; direction++)
+                {
+                    GameControllerSwitchKind kind = state.Controller.GetSwitchKind(index);
+                    if (kind == GameControllerSwitchKind.TwoWay && direction is not (1 or 5)) continue;
+                    if (kind == GameControllerSwitchKind.FourWay && direction % 2 == 0) continue;
+                    string label = directions[direction - 1];
+                    inputs.Add(new ControllerDiagramInput($"S{index + 1} {label}", index == 0 ? label : string.Empty,
+                        CreateBinding(state, deviceIndex, ControllerInputType.Switch, index, direction)));
+                }
+            }
+            ControllerInputBinding identity = CreateBinding(state, deviceIndex, ControllerInputType.Button, 0, 1);
+            return new ControllerDeviceOption(DeviceId(identity), identity.DeviceName, inputs);
+        }).ToArray();
+    }
+
+    internal static string DeviceId(ControllerInputBinding input) => $"{input.VendorId}:{input.ProductId}:{input.DeviceOrdinal}";
+
+    // GetButtonLabel identifies physical controls without assuming a RawGameController array order.
+    private static string ButtonPosition(string label) => label switch
+    {
+        "XboxA" or "LetterA" or "Cross" => "A",
+        "XboxB" or "LetterB" or "Circle" => "B",
+        "XboxX" or "LetterX" or "Square" => "X",
+        "XboxY" or "LetterY" or "Triangle" => "Y",
+        "XboxLeftBumper" or "LeftBumper" or "Left1" => "LB",
+        "XboxRightBumper" or "RightBumper" or "Right1" => "RB",
+        "XboxLeftTrigger" or "LeftTrigger" or "Left2" => "LT",
+        "XboxRightTrigger" or "RightTrigger" or "Right2" => "RT",
+        "XboxLeftStickButton" or "LeftStickButton" or "Left3" => "L3",
+        "XboxRightStickButton" or "RightStickButton" or "Right3" => "R3",
+        "XboxBack" or "XboxView" or "Share" or "Back" or "View" or "Select" or "Minus" => "View",
+        "XboxStart" or "XboxMenu" or "Options" or "Menu" or "Start" or "Plus" => "Menu",
+        "XboxUp" or "Up" => "↑", "XboxDown" or "Down" => "↓", "XboxLeft" or "Left" => "←", "XboxRight" or "Right" => "→",
+        _ => string.Empty,
+    };
+
     public IReadOnlyList<string> Update()
     {
         IReadOnlyList<RawGameController> controllers = RawGameController.RawGameControllers;

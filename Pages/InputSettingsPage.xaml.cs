@@ -1,435 +1,228 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
-using Windows.System;
 
 namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
 {
-    private const double NarrowLayoutWidth = 900;
-
-    private enum CaptureInputKind
-    {
-        None,
-        Keyboard,
-        Controller,
-    }
-
-    private sealed record BindingRemovalChoice(
-        string Label,
-        int? KeyCode = null,
-        ControllerInputBinding? Controller = null);
-
     private static readonly string[] ActionLabels = ["カッ（左）", "ドン（左）", "ドン（右）", "カッ（右）"];
     private readonly InputBindingsStore _store = new();
-    private readonly KeyboardInputMonitor _keyboardMonitor = new();
     private readonly ControllerInputMonitor _controllerMonitor = new();
-    private readonly DispatcherTimer _captureTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
     private InputBindings _bindings = new();
-    private CaptureInputKind _captureInputKind;
-    private int? _capturedKey;
-    private ControllerInputBinding? _capturedController;
+    private bool _editorReady;
+    private bool _canEdit;
+    private bool _isBusy;
+    private MenuFlyout? _assignmentMenu;
+    private IReadOnlyList<ControllerDeviceOption> _devices = [];
 
     public bool HasUnsavedChanges { get; private set; }
-
     public string UnsavedChangesName => "入力設定";
-
-    public IReadOnlyList<InputBindingRow> PlayerOneRows { get; } = CreateRows(1);
-    public IReadOnlyList<InputBindingRow> PlayerTwoRows { get; } = CreateRows(2);
-
+    private int SelectedPlayer => PlayerBox.SelectedIndex == 1 ? 2 : 1;
+    private bool IsKeyboard => DeviceTypeBox.SelectedIndex == 0;
     private App AppInstance => (App)Application.Current;
 
     public InputSettingsPage()
     {
         InitializeComponent();
-        Loaded += InputSettingsPage_Loaded;
-        Unloaded += InputSettingsPage_Unloaded;
-        _captureTimer.Tick += CaptureTimer_Tick;
-    }
-
-    private async void InputSettingsPage_Loaded(object sender, RoutedEventArgs e)
-    {
-        await ReloadAsync();
-        RefreshControllerStatus();
+        _editorReady = true;
+        DeviceDiagram.KeyInvoked += ShowKeyboardAssignmentMenu;
+        DeviceDiagram.ControllerInvoked += ShowControllerAssignmentMenu;
+        Loaded += async (_, _) => { await ReloadAsync(); RefreshControllers(); };
+        Unloaded += (_, _) => _assignmentMenu?.Hide();
+        RefreshEditor();
+        RefreshEnabledState();
     }
 
     private void PageRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        bool usesNarrowLayout = e.NewSize.Width < NarrowLayoutWidth;
-        PageRoot.Padding = (Thickness)Application.Current.Resources[usesNarrowLayout ? "PageNarrowPadding" : "PageWidePadding"];
-        Grid.SetColumn(InputCommandBar, usesNarrowLayout ? 0 : 1);
-        Grid.SetRow(InputCommandBar, usesNarrowLayout ? 1 : 0);
-        InputCommandBar.HorizontalAlignment = usesNarrowLayout ? HorizontalAlignment.Left : HorizontalAlignment.Right;
-        PlayerOneColumn.Width = new GridLength(1, GridUnitType.Star);
-        PlayerTwoColumn.Width = usesNarrowLayout
-            ? new GridLength(0)
-            : new GridLength(1, GridUnitType.Star);
-        Grid.SetColumn(PlayerTwoSurface, usesNarrowLayout ? 0 : 1);
-        Grid.SetRow(PlayerTwoSurface, usesNarrowLayout ? 1 : 0);
-    }
-
-    private void InputSettingsPage_Unloaded(object sender, RoutedEventArgs e)
-    {
-        _captureTimer.Stop();
+        bool narrow = e.NewSize.Width < 900;
+        PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
+        Grid.SetColumn(InputCommandBar, narrow ? 0 : 1);
+        Grid.SetRow(InputCommandBar, narrow ? 1 : 0);
+        InputCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
     }
 
     private async Task ReloadAsync()
     {
-        TaikoDiveInstallation? installation = AppInstance.Context.Installation;
-        if (installation is null)
-        {
-            SetEnabled(false);
-            BindingSummaryText.Text = string.Empty;
-            StatusBar.IsOpen = false;
-            return;
-        }
-
+        if (AppInstance.Context.Installation is not { } installation) { _canEdit = false; RefreshEnabledState(); return; }
         SetBusy(true);
         try
         {
             _bindings = await _store.LoadAsync(installation);
+            _canEdit = true;
             HasUnsavedChanges = false;
-            RefreshRows();
-            SetEnabled(true);
+            RefreshEditor();
             StatusBar.IsOpen = false;
         }
-        catch (Exception ex)
-        {
-            SetEnabled(false);
-            BindingSummaryText.Text = "入力設定を読み込めませんでした。";
-            ShowStatus(InfoBarSeverity.Error, ex.Message);
-        }
-        finally
-        {
-            SetBusy(false);
-        }
+        catch (Exception ex) { _canEdit = false; ShowStatus(InfoBarSeverity.Error, ex.Message); }
+        finally { SetBusy(false); }
     }
 
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        if (AppInstance.Context.Installation is not { } installation)
-        {
-            return;
-        }
-
+        if (!_canEdit || _isBusy || AppInstance.Context.Installation is not { } installation) return;
         SetBusy(true);
         try
         {
             await _store.SaveAsync(installation, _bindings);
             HasUnsavedChanges = false;
-            UpdateBindingSummary();
+            RefreshEditor();
             ShowStatus(InfoBarSeverity.Success, "入力設定を保存しました。次回のTaikoDive起動から反映されます。");
         }
-        catch (Exception ex)
-        {
-            ShowStatus(InfoBarSeverity.Error, ex.Message);
-        }
-        finally
-        {
-            SetBusy(false);
-        }
+        catch (Exception ex) { ShowStatus(InfoBarSeverity.Error, ex.Message); }
+        finally { SetBusy(false); }
     }
 
-    private async void ReloadButton_Click(object sender, RoutedEventArgs e)
+    private async void ReloadButton_Click(object sender, RoutedEventArgs e) { await ReloadAsync(); RefreshControllers(); }
+    private void RefreshControllersButton_Click(object sender, RoutedEventArgs e) => RefreshControllers();
+    private void EditorSelection_Changed(object sender, SelectionChangedEventArgs e)
     {
-        await ReloadAsync();
-        RefreshControllerStatus();
+        if (!_editorReady) return;
+        _assignmentMenu?.Hide();
+        RefreshEditor();
     }
-
-    private void RefreshControllersButton_Click(object sender, RoutedEventArgs e)
+    private void ControllerBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        RefreshControllerStatus();
+        if (!_editorReady) return;
+        _assignmentMenu?.Hide();
+        RefreshEditor();
     }
 
-    private async void AddKeyboardBindingButton_Click(object sender, RoutedEventArgs e)
+    private void RefreshControllers()
     {
-        if (sender is not Button { Tag: InputBindingRow row })
+        string? selectedId = (ControllerBox.SelectedItem as ControllerDeviceOption)?.Id;
+        List<ControllerDeviceOption> devices = [.. _controllerMonitor.GetDevices()];
+        var stored = Enumerable.Range(0, 4).SelectMany(slot => _bindings.Player1.GetControllers(slot).Concat(_bindings.Player2.GetControllers(slot)))
+            .GroupBy(ControllerInputMonitor.DeviceId);
+        foreach (var device in stored.Where(group => devices.All(item => item.Id != group.Key)))
         {
-            return;
+            ControllerInputBinding identity = device.First();
+            var inputs = device.DistinctBy(input => (input.InputType, input.InputIndex, input.InputValue))
+                .OrderBy(input => input.InputType).ThenBy(input => input.InputIndex).ThenBy(input => input.InputValue)
+                .Select(input => new ControllerDiagramInput(ShortInputLabel(input), string.Empty, input)).ToArray();
+            devices.Add(new ControllerDeviceOption(device.Key, identity.DeviceName + "（未接続）", inputs));
         }
-
-        await CaptureBindingAsync(row, CaptureInputKind.Keyboard);
+        _devices = devices;
+        ControllerBox.ItemsSource = devices;
+        ControllerBox.SelectedItem = devices.FirstOrDefault(item => item.Id == selectedId) ?? devices.FirstOrDefault();
+        ControllerBox.PlaceholderText = "コントローラーを接続してください";
+        RefreshEditor();
     }
 
-    private async void AddControllerBindingButton_Click(object sender, RoutedEventArgs e)
+    private void RefreshEditor()
     {
-        if (sender is not Button { Tag: InputBindingRow row })
+        if (!_editorReady) return;
+        PlayerInputBindings player = GetPlayer(SelectedPlayer);
+        ControllerDeviceOption? device = ControllerBox.SelectedItem as ControllerDeviceOption;
+        ControllerSurface.Visibility = IsKeyboard ? Visibility.Collapsed : Visibility.Visible;
+        DiagramInstructionText.Text = IsKeyboard
+            ? $"{SelectedPlayer}P のキーをクリックして、ドン・カッ／解除を選んでください。"
+            : device is null ? "コントローラーを接続すると、図のボタンから割り当てを変更できます。"
+            : $"{SelectedPlayer}P のボタンをクリックして、ドン・カッ／解除を選んでください。";
+        AssignmentSummaryText.Text = string.Join("   ／   ", Enumerable.Range(0, 4).Select(slot =>
         {
-            return;
-        }
-
-        await CaptureBindingAsync(row, CaptureInputKind.Controller);
+            IEnumerable<string> labels = IsKeyboard ? player.GetKeys(slot).Select(InputLabelService.KeyLabel)
+                : player.GetControllers(slot).Select(input => ShortInputLabel(input) +
+                    (_devices.Count > 1 ? $"（{input.DeviceName}）" : ""));
+            string value = string.Join("・", labels);
+            return $"{ActionLabels[slot]}：{(value.Length == 0 ? "未設定" : value)}";
+        }));
+        DeviceNoteText.Text = IsKeyboard
+            ? "Tabで図に移動、矢印でキーを選択、Enterで編集。メニューはEscで閉じられます。"
+            : device is null ? "保存済みのコントローラーは、接続していなくても機器を選んで編集できます。"
+            : DeviceTypeBox.SelectedIndex == 2
+                ? "図のB番号はコントローラーの入力番号です。打面との対応は機種によって異なります。"
+                : "ボタン名が取得できる機種は図の対応位置に表示します。B番号の位置は模式的な表示です。";
+        DeviceDiagram.Update(_bindings, SelectedPlayer, Math.Max(0, DeviceTypeBox.SelectedIndex), -1, device?.Inputs ?? []);
+        static int Count(PlayerInputBindings p) => Enumerable.Range(0, 4).Sum(slot => p.GetKeys(slot).Length + p.GetControllers(slot).Length);
+        BindingSummaryText.Text = $"1P：{Count(_bindings.Player1)}件 ／ 2P：{Count(_bindings.Player2)}件 · {(HasUnsavedChanges ? "未保存" : "保存済み")}";
     }
 
-    private async Task CaptureBindingAsync(InputBindingRow row, CaptureInputKind inputKind)
+    private void ShowKeyboardAssignmentMenu(int keyCode, Button anchor)
     {
-        _captureInputKind = inputKind;
-        _capturedKey = null;
-        _capturedController = null;
-        bool capturesKeyboard = inputKind == CaptureInputKind.Keyboard;
-        CaptureDialog.Title = capturesKeyboard ? "キーボードのキーを追加" : "外部コントローラー入力を追加";
-        CaptureTargetText.Text = $"{row.Player}P {row.Label}";
-        CaptureInstructionText.Text = capturesKeyboard
-            ? "割り当てるキーボードのキーを押してください。コントローラー入力はこの画面では検出しません。"
-            : "割り当てるコントローラーのボタン、または十字キー方向を押してください。キーボード入力はこの画面では登録しません。";
-        CaptureDialog.XamlRoot = XamlRoot;
-        if (capturesKeyboard)
-        {
-            _keyboardMonitor.ResetEdges();
-        }
-        else
-        {
-            _controllerMonitor.ResetEdges();
-        }
-        _captureTimer.Start();
-        try
-        {
-            await CaptureDialog.ShowAsync();
-        }
-        finally
-        {
-            _captureTimer.Stop();
-            _captureInputKind = CaptureInputKind.None;
-        }
-
-        if (_capturedKey is int key)
-        {
-            AddKeyboardBinding(row, key);
-        }
-        else if (_capturedController is not null)
-        {
-            AddControllerBinding(row, _capturedController);
-        }
+        if (!_canEdit || _isBusy) return;
+        int player = SelectedPlayer;
+        PlayerInputBindings selected = GetPlayer(player);
+        bool conflict = Enumerable.Range(0, 4).Any(slot => GetPlayer(3 - player).GetKeys(slot).Contains(keyCode));
+        ShowAssignmentMenu(anchor, $"{InputLabelService.KeyLabel(keyCode)} → {player}P", conflict,
+            slot => selected.GetKeys(slot).Contains(keyCode),
+            slot =>
+            {
+                var result = InputBindingsEditor.AssignKeyboard(_bindings, player, keyCode, slot);
+                if (result == KeyboardAssignmentResult.Changed) AssignmentChanged();
+                else if (result == KeyboardAssignmentResult.Conflict) ShowConflict();
+            });
     }
 
-    private async void RemoveKeyboardBindingButton_Click(object sender, RoutedEventArgs e)
+    private void ShowControllerAssignmentMenu(ControllerInputBinding input, Button anchor)
     {
-        if (sender is not Button { Tag: InputBindingRow row })
-        {
-            return;
-        }
-
-        await RemoveBindingAsync(row, CaptureInputKind.Keyboard);
+        if (!_canEdit || _isBusy) return;
+        int player = SelectedPlayer;
+        bool Has(PlayerInputBindings p, int slot) => p.GetControllers(slot).Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input));
+        bool conflict = Enumerable.Range(0, 4).Any(slot => Has(GetPlayer(3 - player), slot));
+        ShowAssignmentMenu(anchor, $"{ShortInputLabel(input)} → {player}P", conflict,
+            slot => Has(GetPlayer(player), slot),
+            slot =>
+            {
+                var result = InputBindingsEditor.AssignController(_bindings, player, input, slot);
+                if (result == ControllerAssignmentResult.Changed) AssignmentChanged();
+                else if (result == ControllerAssignmentResult.Conflict) ShowConflict();
+            });
     }
 
-    private async void RemoveControllerBindingButton_Click(object sender, RoutedEventArgs e)
+    private void ShowAssignmentMenu(Button anchor, string label, bool conflict, Func<int, bool> isAssigned, Action<int?> apply)
     {
-        if (sender is not Button { Tag: InputBindingRow row })
+        _assignmentMenu?.Hide();
+        MenuFlyout menu = new();
+        menu.Items.Add(new MenuFlyoutItem { Text = label, IsEnabled = false });
+        if (conflict) menu.Items.Add(new MenuFlyoutItem { Text = "別のプレイヤーに使用中です", IsEnabled = false });
+        for (int slot = 0; slot < 4; slot++)
         {
-            return;
+            int target = slot;
+            MenuFlyoutItem item = new() { Text = (isAssigned(slot) ? "✓ " : "") + ActionLabels[slot], IsEnabled = !conflict };
+            item.Click += (_, _) => { if (_canEdit && !_isBusy) apply(target); };
+            menu.Items.Add(item);
         }
-
-        await RemoveBindingAsync(row, CaptureInputKind.Controller);
+        menu.Items.Add(new MenuFlyoutSeparator());
+        MenuFlyoutItem clear = new() { Text = "割り当てを解除", IsEnabled = Enumerable.Range(0, 4).Any(isAssigned) };
+        clear.Click += (_, _) => { if (_canEdit && !_isBusy) apply(null); };
+        menu.Items.Add(clear);
+        _assignmentMenu = menu;
+        menu.ShowAt(anchor);
     }
 
-    private async Task RemoveBindingAsync(InputBindingRow row, CaptureInputKind inputKind)
-    {
-        PlayerInputBindings player = GetPlayer(row.Player);
-        bool removesKeyboard = inputKind == CaptureInputKind.Keyboard;
-        IReadOnlyList<BindingRemovalChoice> choices = removesKeyboard
-            ? player.GetKeys(row.Slot)
-                .Select(key => new BindingRemovalChoice(InputLabelService.KeyLabel(key), KeyCode: key))
-                .ToArray()
-            : player.GetControllers(row.Slot)
-                .Select(controller => new BindingRemovalChoice(
-                    InputLabelService.ControllerLabel(controller),
-                    Controller: controller))
-                .ToArray();
-        if (choices.Count == 0)
-        {
-            return;
-        }
-
-        ComboBox picker = new()
-        {
-            Header = "削除する割り当て",
-            ItemsSource = choices,
-            DisplayMemberPath = nameof(BindingRemovalChoice.Label),
-            MinWidth = 320,
-            SelectedIndex = 0,
-        };
-        StackPanel content = new() { Spacing = 10 };
-        content.Children.Add(new TextBlock
-        {
-            Text = $"{row.Player}P {row.Label} の{(removesKeyboard ? "キーボード" : "外部コントローラー")}割り当てから1件だけ削除します。",
-            TextWrapping = TextWrapping.Wrap,
-        });
-        content.Children.Add(picker);
-        ContentDialog dialog = new()
-        {
-            Title = "割り当てを1件削除",
-            Content = content,
-            PrimaryButtonText = "削除",
-            CloseButtonText = "キャンセル",
-            DefaultButton = ContentDialogButton.Close,
-            XamlRoot = XamlRoot,
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary
-            || picker.SelectedItem is not BindingRemovalChoice selected)
-        {
-            return;
-        }
-
-        bool removed = removesKeyboard && selected.KeyCode is int keyCode
-            ? InputBindingsEditor.RemoveKeyboard(player, row.Slot, keyCode)
-            : selected.Controller is not null
-                && InputBindingsEditor.RemoveController(player, row.Slot, selected.Controller);
-        if (!removed)
-        {
-            return;
-        }
-
-        HasUnsavedChanges = true;
-        RefreshRows();
-        ShowStatus(
-            InfoBarSeverity.Informational,
-            $"{selected.Label} を1件削除しました。ほかの割り当ては保持しています。保存すると反映されます。");
-    }
-
-    private void CaptureDialog_KeyDown(object sender, KeyRoutedEventArgs e)
-    {
-        if (_captureInputKind != CaptureInputKind.Keyboard || e.Key == VirtualKey.Escape)
-        {
-            return;
-        }
-
-        int? keyCode = InputLabelService.ToDxLibKeyCode(e.Key, e.KeyStatus.ScanCode, e.KeyStatus.IsExtendedKey);
-        if (keyCode is null)
-        {
-            return;
-        }
-
-        _capturedKey = keyCode;
-        e.Handled = true;
-        CaptureDialog.Hide();
-    }
-
-    private void CaptureTimer_Tick(object? sender, object e)
-    {
-        if (_captureInputKind == CaptureInputKind.Keyboard
-            && _keyboardMonitor.TryGetPressed(out int keyCode))
-        {
-            _capturedKey = keyCode;
-            CaptureDialog.Hide();
-        }
-        else if (_captureInputKind == CaptureInputKind.Controller
-            && _controllerMonitor.TryGetPressed(out ControllerInputBinding? input)
-            && input is not null)
-        {
-            _capturedController = input;
-            CaptureDialog.Hide();
-        }
-    }
-
-    private void AddKeyboardBinding(InputBindingRow row, int keyCode)
-    {
-        if (IsKeyboardUsedElsewhere(row, keyCode))
-        {
-            ShowStatus(InfoBarSeverity.Warning, $"{InputLabelService.KeyLabel(keyCode)} は別の打面に割り当て済みです。");
-            return;
-        }
-
-        PlayerInputBindings player = GetPlayer(row.Player);
-        InputBindingsEditor.AddKeyboard(player, row.Slot, keyCode);
-        HasUnsavedChanges = true;
-        RefreshRows();
-        ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.KeyLabel(keyCode)} を追加しました。保存すると反映されます。");
-    }
-
-    private void AddControllerBinding(InputBindingRow row, ControllerInputBinding input)
-    {
-        if (IsControllerUsedElsewhere(row, input))
-        {
-            ShowStatus(InfoBarSeverity.Warning, $"{InputLabelService.ControllerLabel(input)} は別の打面に割り当て済みです。");
-            return;
-        }
-
-        PlayerInputBindings player = GetPlayer(row.Player);
-        InputBindingsEditor.AddController(player, row.Slot, input);
-        HasUnsavedChanges = true;
-        RefreshRows();
-        ShowStatus(InfoBarSeverity.Success, $"{InputLabelService.ControllerLabel(input)} を追加しました。保存すると反映されます。");
-    }
-
-    private bool IsKeyboardUsedElsewhere(InputBindingRow target, int keyCode)
-    {
-        return AllRows().Any(row => row != target && GetPlayer(row.Player).GetKeys(row.Slot).Contains(keyCode));
-    }
-
-    private bool IsControllerUsedElsewhere(InputBindingRow target, ControllerInputBinding input)
-    {
-        return AllRows().Any(row => row != target && GetPlayer(row.Player).GetControllers(row.Slot)
-            .Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input)));
-    }
-
-    private void RefreshRows()
-    {
-        foreach (InputBindingRow row in AllRows())
-        {
-            PlayerInputBindings player = GetPlayer(row.Player);
-            int[] keys = player.GetKeys(row.Slot);
-            ControllerInputBinding[] controllers = player.GetControllers(row.Slot);
-            row.KeyboardValue = keys.Length == 0
-                ? "未設定"
-                : string.Join("  /  ", keys.Select(InputLabelService.KeyLabel));
-            row.ControllerValue = controllers.Length == 0
-                ? "未設定"
-                : string.Join("  /  ", controllers.Select(InputLabelService.ControllerLabel));
-            row.HasKeyboardBindings = keys.Length > 0;
-            row.HasControllerBindings = controllers.Length > 0;
-        }
-
-        UpdateBindingSummary();
-    }
-
-    private void UpdateBindingSummary()
-    {
-        static string DescribePlayer(PlayerInputBindings player, int number)
-        {
-            int keyboard = Enumerable.Range(0, 4).Sum(slot => player.GetKeys(slot).Length);
-            int controller = Enumerable.Range(0, 4).Sum(slot => player.GetControllers(slot).Length);
-            return $"{number}P: キー{keyboard}件・コントローラー{controller}件";
-        }
-
-        BindingSummaryText.Text = $"{DescribePlayer(_bindings.Player1, 1)} / {DescribePlayer(_bindings.Player2, 2)} · {(HasUnsavedChanges ? "未保存" : "保存済み")}";
-    }
-
-    private void RefreshControllerStatus()
-    {
-        IReadOnlyList<string> devices = _controllerMonitor.Update();
-        ControllerStatusText.Text = devices.Count == 0
-            ? "検出されていません。接続後に更新してください。"
-            : string.Join("  /  ", devices);
-    }
-
+    private void AssignmentChanged() { HasUnsavedChanges = true; RefreshEditor(); }
+    private void ShowConflict() => ShowStatus(InfoBarSeverity.Warning, "別のプレイヤーに割り当て済みです。プレイヤーを切り替えて編集してください。");
     private PlayerInputBindings GetPlayer(int player) => player == 1 ? _bindings.Player1 : _bindings.Player2;
+    private static string ShortInputLabel(ControllerInputBinding input) => input.InputType == ControllerInputType.Button
+        ? $"B{input.InputIndex + 1}" : $"S{input.InputIndex + 1} {new[] { "", "↑", "↗", "→", "↘", "↓", "↙", "←", "↖" }[Math.Clamp(input.InputValue, 0, 8)]}";
 
-    private IEnumerable<InputBindingRow> AllRows() => PlayerOneRows.Concat(PlayerTwoRows);
-
-    private static IReadOnlyList<InputBindingRow> CreateRows(int player)
+    private void SetBusy(bool busy)
     {
-        return ActionLabels.Select((label, slot) => new InputBindingRow { Player = player, Slot = slot, Label = label }).ToArray();
+        _isBusy = busy;
+        if (busy) _assignmentMenu?.Hide();
+        BusyRing.IsActive = busy;
+        BusyRing.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
+        RefreshEnabledState();
     }
 
-    private void SetBusy(bool isBusy)
+    private void RefreshEnabledState()
     {
-        BusyRing.IsActive = isBusy;
-        BusyRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        bool enabled = _canEdit && !_isBusy;
+        DeviceDiagram.IsEnabled = enabled;
+        PlayerBox.IsEnabled = enabled;
+        DeviceTypeBox.IsEnabled = enabled;
+        ControllerBox.IsEnabled = enabled;
+        SaveButton.IsEnabled = enabled;
+        ReloadButton.IsEnabled = !_isBusy;
     }
 
-    private void SetEnabled(bool isEnabled)
-    {
-        PlayersGrid.IsHitTestVisible = isEnabled;
-        PlayersGrid.Opacity = isEnabled ? 1 : 0.55;
-    }
-
-    private void ShowStatus(InfoBarSeverity severity, string message)
+    private void ShowStatus(InfoBarSeverity severity, string text)
     {
         StatusBar.Severity = severity;
-        StatusBar.Message = message;
+        StatusBar.Message = text;
         StatusBar.IsOpen = true;
     }
 }

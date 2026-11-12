@@ -1,0 +1,14 @@
+# Input device artwork
+
+These project assets were generated with the built-in image_gen tool, using transparent_background=true. Labels, input mappings and highlights are native WinUI controls and are not baked into the images. Runtime decoding is limited to 1000 pixels wide.
+
+- Gamepad.png: symmetric twin-stick controller, front/top view, neutral pearl-grey shell.
+- TaikoController.png: ivory drumskin, orange lacquer barrel and charcoal stand.
+
+## Gamepad prompt
+
+Use case: product-mockup. Asset: production desktop controller-binding UI transparent PNG, landscape 3:2. Create a premium, precise product illustration of one generic modern symmetric twin-stick game controller, orthographic front/top view with absolutely NO perspective tilt, symmetric silhouette, handles pointing down. The controller fills the canvas, leaving a 7% margin. Neutral pearl-grey shell, graphite inset panels, subtle realistic material finish and restrained studio shading, highly legible control geometry. Four separate round face buttons on the right arranged diamond, plus-shaped d-pad on left, two analog sticks symmetrically below centre, two small menu buttons beside centre. Two shoulder buttons and two trigger tabs clearly visible along top edge. Face buttons BLANK, no letters, no words or logos anywhere. High quality professional hardware UI illustration, clean engineering proportions, sophisticated detailed object rather than a cartoon or line drawing. Single isolated controller with actual transparent background, no external shadow or floor or frame, no wires, no hands, no coloured control highlights. The interactive labels will be added programmatically.
+
+## Taiko controller prompt
+
+Use case: product-mockup. Asset: production desktop drum-controller binding UI transparent PNG, landscape 3:2. Create a refined premium product illustration of one Japanese taiko rhythm-game drum controller mounted on a short sturdy charcoal stand. Precise symmetrical nearly-front view, slightly looking down at drum face, face large and nearly circular with just a subtle natural oval. Drum face fills most of the upper canvas; stand visible at bottom. Ivory taut drumskin, continuous raised pale rim with evenly spaced small dark fastening studs around the OUTSIDE of the playable surface; warm burnt-orange lacquer barrel visible below drum face. Elegant clean hardware design with realistic material finish and restrained studio shading, accurate smooth geometry and coherent perspective. Single isolated object filling canvas with 7% margin; actual transparent background. NO text, logos, letters, sticks, hands, coloured overlays, guides, arrows, floor, or external shadow. Professional product visual for a polished Windows hardware settings page; detailed high quality physical object, not a cartoon or wireframe. The surface will get interactive colour overlays programmatically.
