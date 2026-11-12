@@ -221,6 +221,8 @@ public sealed class PersistenceTests
 
         InputBindingsStore store = new(() => false);
         InputBindings bindings = await store.LoadAsync(temporary.Installation);
+        Assert.AreEqual(KeyboardAssignmentResult.Changed,
+            InputBindingsEditor.AssignKeyboard(bindings, 1, 32, 2));
         bindings.Player1.DonLeftControllers =
         [
             new ControllerInputBinding
@@ -240,11 +242,32 @@ public sealed class PersistenceTests
         Assert.IsTrue(saved["futureSetting"]!.GetValue<bool>());
         Assert.AreEqual("keep", saved["p1Keys"]!["futureBinding"]!.GetValue<string>());
         Assert.AreEqual(7, saved["p1Keys"]!["donLeftControllers"]![0]!["inputIndex"]!.GetValue<int>());
+        Assert.AreEqual(original, await File.ReadAllTextAsync(temporary.Installation.GameSettingsPath + ".launcher.bak"));
 
         InputBindings reloaded = await store.LoadAsync(temporary.Installation);
+        Assert.IsEmpty(reloaded.Player1.KaLeft);
+        CollectionAssert.AreEqual(new[] { 35, 36, 32 }, reloaded.Player1.DonRight);
         Assert.HasCount(1, reloaded.Player1.DonLeftControllers);
         Assert.AreEqual((ushort)0x1234, reloaded.Player1.DonLeftControllers[0].VendorId);
         Assert.AreEqual("Taiko Controller", reloaded.Player1.DonLeftControllers[0].DeviceName);
+    }
+
+    [TestMethod]
+    public async Task InputBindingsSaveRefusesRunningGameWithoutChangingFiles()
+    {
+        using TemporaryInstallation temporary = new();
+        const string original = "{\"futureSetting\":true,\"p1Keys\":{\"kaLeft\":[32]}}";
+        string path = temporary.Installation.GameSettingsPath;
+        await File.WriteAllTextAsync(path, original);
+        await File.WriteAllTextAsync(path + ".launcher.bak", "previous backup");
+        InputBindingsStore store = new(() => true);
+        InputBindings bindings = await store.LoadAsync(temporary.Installation);
+        InputBindingsEditor.AssignKeyboard(bindings, 1, 32, 2);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.SaveAsync(temporary.Installation, bindings));
+
+        Assert.AreEqual(original, await File.ReadAllTextAsync(path));
+        Assert.AreEqual("previous backup", await File.ReadAllTextAsync(path + ".launcher.bak"));
     }
 
     [TestMethod]

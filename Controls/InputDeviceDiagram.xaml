@@ -1,0 +1,100 @@
+<UserControl
+    x:Class="TaikoDiveLauncher.Controls.InputDeviceDiagram"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="DonFillBrush" Color="#B73027" />
+                    <SolidColorBrush x:Key="KaFillBrush" Color="#006B83" />
+                    <SolidColorBrush x:Key="HitForegroundBrush" Color="White" />
+                    <SolidColorBrush x:Key="DiagramControlBackgroundBrush" Color="#B0282828" />
+                    <SolidColorBrush x:Key="DiagramControlForegroundBrush" Color="White" />
+                    <SolidColorBrush x:Key="DiagramLabelBackgroundBrush" Color="#DA282828" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="HighContrast">
+                    <SolidColorBrush x:Key="DonFillBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="KaFillBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="HitForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
+                    <SolidColorBrush x:Key="DiagramControlBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="DiagramControlForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="DiagramLabelBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+            <ControlTemplate x:Key="DrumSectorTemplate" TargetType="Button">
+                <Grid>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal" />
+                            <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.75" /></VisualState.Setters></VisualState>
+                            <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.9" /></VisualState.Setters></VisualState>
+                            <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.1" /></VisualState.Setters></VisualState>
+                        </VisualStateGroup>
+                        <VisualStateGroup x:Name="FocusStates">
+                            <!-- Keep each Geometry on one Path; highlight the same surface for focus. -->
+                            <VisualState x:Name="Unfocused" />
+                            <VisualState x:Name="PointerFocused" />
+                            <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="Surface.StrokeThickness" Value="5" /><Setter Target="Surface.Opacity" Value="0.8" /></VisualState.Setters></VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                    <Path x:Name="Surface" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                          Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="2" Opacity="0.45" />
+                    <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" IsHitTestVisible="False" />
+                </Grid>
+            </ControlTemplate>
+            <Style x:Key="DiagramCaptionStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource DiagramLabelBackgroundBrush}" />
+                <Setter Property="Padding" Value="4" />
+                <Setter Property="CornerRadius" Value="8" />
+            </Style>
+            <Style x:Key="DiagramControlStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource DiagramControlBackgroundBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource DiagramControlForegroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource DiagramControlForegroundBrush}" />
+            </Style>
+            <Style x:Key="DonKeyStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource DonFillBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource HitForegroundBrush}" />
+            </Style>
+            <Style x:Key="KaKeyStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="Background" Value="{ThemeResource KaFillBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource HitForegroundBrush}" />
+            </Style>
+            <Style x:Key="SelectedDonKeyStyle" TargetType="Button" BasedOn="{StaticResource DonKeyStyle}">
+                <Setter Property="BorderBrush" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="BorderThickness" Value="3" />
+            </Style>
+            <Style x:Key="SelectedKaKeyStyle" TargetType="Button" BasedOn="{StaticResource KaKeyStyle}">
+                <Setter Property="BorderBrush" Value="{ThemeResource TextFillColorPrimaryBrush}" />
+                <Setter Property="BorderThickness" Value="3" />
+            </Style>
+            <Style x:Key="DiagramShellPathStyle" TargetType="Shape">
+                <Setter Property="Fill" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                <Setter Property="Stroke" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                <Setter Property="StrokeThickness" Value="2" />
+            </Style>
+            <Style x:Key="DiagramInsetPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
+                <Setter Property="Fill" Value="{ThemeResource ControlAltFillColorQuarternaryBrush}" />
+            </Style>
+            <Style x:Key="DiagramDetailPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
+                <Setter Property="Fill" Value="{ThemeResource ControlFillColorDefaultBrush}" />
+            </Style>
+            <Style x:Key="DiagramBarrelPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
+                <Setter Property="Fill" Value="{ThemeResource ControlAltFillColorSecondaryBrush}" />
+            </Style>
+            <Style x:Key="DiagramStudPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
+                <Setter Property="Fill" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Setter Property="StrokeThickness" Value="0" />
+            </Style>
+            <Style x:Key="DiagramLinePathStyle" TargetType="Shape">
+                <Setter Property="Stroke" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+                <Setter Property="StrokeThickness" Value="1.5" />
+            </Style>
+            <Style x:Key="DiagramBodyStyle" TargetType="Border">
+                <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+</UserControl>
