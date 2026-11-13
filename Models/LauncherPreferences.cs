@@ -2,12 +2,6 @@ namespace TaikoDiveLauncher.Models;
 
 public sealed class LauncherPreferences
 {
-    public List<string> HomeCards { get; set; } = ["character", "activity", "calendar", "updates"];
-
-    public List<string> HiddenHomeCards { get; set; } = [];
-
-    public bool SetupCompleted { get; set; }
-
     public bool CloseAfterLaunch { get; set; } = true;
 
     public string Theme { get; set; } = "Dark";
