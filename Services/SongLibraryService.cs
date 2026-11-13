@@ -7,6 +7,7 @@ namespace TaikoDiveLauncher.Services;
 
 public static class SongLibraryService
 {
+    static SongLibraryService() => Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
     public static Task<IReadOnlyList<LibrarySong>> ScanAsync(string root, CancellationToken token = default) => Task.Run<IReadOnlyList<LibrarySong>>(() =>
     {
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -15,7 +16,7 @@ public static class SongLibraryService
         {
             token.ThrowIfCancellationRequested();
             try { songs.Add(ReadChart(root, path)); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or DecoderFallbackException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             { songs.Add(new(Path.GetFileNameWithoutExtension(path), path, null, 0, "", [ex.Message])); }
         }
         return songs.OrderBy(s => s.Title, StringComparer.CurrentCultureIgnoreCase).ToArray();
@@ -28,7 +29,7 @@ public static class SongLibraryService
         string text;
         try { text = new UTF8Encoding(false, true).GetString(bytes).TrimStart('\uFEFF'); }
         catch (DecoderFallbackException) { text = Encoding.GetEncoding(932).GetString(bytes); }
-        string title = Path.GetFileNameWithoutExtension(path), wave = "";
+        string title = Path.GetFileNameWithoutExtension(path), wave = "", subtitle = "", genre = "";
         double demo = 0;
         bool inChart = false;
         int starts = 0, ends = 0;
@@ -43,6 +44,8 @@ public static class SongLibraryService
             string key = line[..colon].Trim().ToUpperInvariant(), value = line[(colon + 1)..].Trim();
             if (key == "TITLE" && value.Length > 0) title = value;
             if (key == "WAVE") wave = value.Trim('"');
+            if (key == "SUBTITLE") subtitle = value.StartsWith("--") || value.StartsWith("++") ? value[2..] : value;
+            if (key == "GENRE") genre = value;
             if (key == "DEMOSTART" && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) && double.IsFinite(d)) demo = Math.Max(0, d);
         }
         if (starts == 0 || starts != ends) issues.Add("#START / #END の対応を確認してください");
@@ -56,6 +59,32 @@ public static class SongLibraryService
             else if (!File.Exists(candidate)) issues.Add("音源が見つかりません: " + wave);
             else audio = candidate;
         }
-        return new(title, path, audio, demo, Convert.ToHexString(SHA256.HashData(bytes)), issues);
+        if (genre.Length == 0) genre = ReadFolderGenre(root, Path.GetDirectoryName(path)!);
+        return new(title, path, audio, demo, Convert.ToHexString(SHA256.HashData(bytes)), issues) { Subtitle = subtitle, Genre = genre };
+    }
+
+    private static string ReadFolderGenre(string root, string directory)
+    {
+        string fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar);
+        while (directory.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)
+            || directory.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            string box = Path.Combine(directory, "box.def");
+            if (File.Exists(box) && new FileInfo(box).Length <= 1024 * 1024)
+            {
+                byte[] bytes = File.ReadAllBytes(box);
+                string text;
+                try { text = new UTF8Encoding(false, true).GetString(bytes).TrimStart('\uFEFF'); }
+                catch (DecoderFallbackException) { text = Encoding.GetEncoding(932).GetString(bytes); }
+                foreach (string raw in text.Split('\n'))
+                {
+                    string line = raw.Trim();
+                    if (line.StartsWith("#GENRE:", StringComparison.OrdinalIgnoreCase)) return line[7..].Trim();
+                }
+            }
+            if (directory.Equals(fullRoot, StringComparison.OrdinalIgnoreCase)) break;
+            directory = Path.GetDirectoryName(directory)!;
+        }
+        return "";
     }
 }

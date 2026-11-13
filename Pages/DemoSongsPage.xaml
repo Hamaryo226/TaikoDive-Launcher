@@ -1,0 +1,157 @@
+<Page
+    x:Class="TaikoDiveLauncher.Pages.DemoSongsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:models="using:TaikoDiveLauncher.Models">
+    <Page.Resources>
+        <ResourceDictionary>
+        <ResourceDictionary.ThemeDictionaries>
+            <ResourceDictionary x:Key="Light">
+                <SolidColorBrush x:Key="MainSongFillBrush" Color="#FFF6E5"/><SolidColorBrush x:Key="MainSongStrokeBrush" Color="#E3BA68"/><SolidColorBrush x:Key="MainRoleForegroundBrush" Color="#885600"/>
+                <SolidColorBrush x:Key="SubSongFillBrush" Color="#EFF7FF"/><SolidColorBrush x:Key="SubSongStrokeBrush" Color="#A8CBE8"/><SolidColorBrush x:Key="SubRoleForegroundBrush" Color="#0E639C"/>
+                <SolidColorBrush x:Key="SubPositionOutlineBrush" Color="#769DB8"/>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="Dark">
+                <SolidColorBrush x:Key="MainSongFillBrush" Color="#352E20"/><SolidColorBrush x:Key="MainSongStrokeBrush" Color="#806333"/><SolidColorBrush x:Key="MainRoleForegroundBrush" Color="#FFD17A"/>
+                <SolidColorBrush x:Key="SubSongFillBrush" Color="#203242"/><SolidColorBrush x:Key="SubSongStrokeBrush" Color="#416782"/><SolidColorBrush x:Key="SubRoleForegroundBrush" Color="#83CBFF"/>
+                <SolidColorBrush x:Key="SubPositionOutlineBrush" Color="#6F93AE"/>
+            </ResourceDictionary>
+            <ResourceDictionary x:Key="HighContrast">
+                <SolidColorBrush x:Key="MainSongFillBrush" Color="{ThemeResource SystemColorWindowColor}"/><SolidColorBrush x:Key="MainSongStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/><SolidColorBrush x:Key="MainRoleForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                <SolidColorBrush x:Key="SubSongFillBrush" Color="{ThemeResource SystemColorWindowColor}"/><SolidColorBrush x:Key="SubSongStrokeBrush" Color="{ThemeResource SystemColorWindowTextColor}"/><SolidColorBrush x:Key="SubRoleForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+                <SolidColorBrush x:Key="SubPositionOutlineBrush" Color="{ThemeResource SystemColorWindowTextColor}"/>
+            </ResourceDictionary>
+        </ResourceDictionary.ThemeDictionaries>
+        <Style x:Key="MainSongButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="{ThemeResource MainSongFillBrush}"/><Setter Property="BorderBrush" Value="{ThemeResource MainSongStrokeBrush}"/>
+        </Style>
+        <Style x:Key="SubSongButtonStyle" TargetType="Button" BasedOn="{StaticResource ActionButtonStyle}">
+            <Setter Property="Background" Value="{ThemeResource SubSongFillBrush}"/><Setter Property="BorderBrush" Value="{ThemeResource SubSongStrokeBrush}"/>
+        </Style>
+        <Style x:Key="MainRoleIconStyle" TargetType="FontIcon">
+            <Setter Property="FontSize" Value="18"/><Setter Property="Foreground" Value="{ThemeResource MainRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="SubRoleIconStyle" TargetType="FontIcon">
+            <Setter Property="FontSize" Value="18"/><Setter Property="Foreground" Value="{ThemeResource SubRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="SongPickerIconStyle" TargetType="FontIcon">
+            <Setter Property="FontSize" Value="14"/><Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}"/>
+        </Style>
+        <Style x:Key="MainFieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{ThemeResource MainRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="SubFieldLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="{ThemeResource SubRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="SubPositionLabelStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/><Setter Property="Foreground" Value="{ThemeResource SubRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="SubPositionCellStyle" TargetType="Border">
+            <Setter Property="BorderBrush" Value="{ThemeResource SubPositionOutlineBrush}"/><Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="1"/>
+        </Style>
+        <Style x:Key="SubPositionActiveCellStyle" TargetType="Border" BasedOn="{StaticResource SubPositionCellStyle}">
+            <Setter Property="Background" Value="{ThemeResource SubRoleForegroundBrush}"/><Setter Property="BorderBrush" Value="{ThemeResource SubRoleForegroundBrush}"/>
+        </Style>
+        <Style x:Key="ShowcaseCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/><Setter Property="CornerRadius" Value="8"/><Setter Property="Padding" Value="16"/>
+        </Style>
+        <Style x:Key="DeleteEntryButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+            <Setter Property="Width" Value="44"/><Setter Property="Height" Value="44"/><Setter Property="Padding" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+        </Style>
+        <Style x:Key="DeleteEntryIconStyle" TargetType="FontIcon">
+            <Setter Property="FontSize" Value="18"/><Setter Property="Foreground" Value="{ThemeResource SystemFillColorCriticalBrush}"/>
+        </Style>
+        <Style x:Key="DropIndicatorStyle" TargetType="Border">
+            <Setter Property="Background" Value="{ThemeResource AccentFillColorDefaultBrush}"/>
+            <Setter Property="Height" Value="3"/><Setter Property="Visibility" Value="Collapsed"/>
+            <Setter Property="Margin" Value="-16"/>
+        </Style>
+        <DataTemplate x:Key="CandidateTemplate" x:DataType="models:SelectedDemoSong">
+            <StackPanel Spacing="2" Padding="0,4">
+                <TextBlock Text="{x:Bind Label}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{x:Bind Description}" Style="{StaticResource PageSubtitleStyle}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{x:Bind RelativePath}" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+        </DataTemplate>
+        </ResourceDictionary>
+    </Page.Resources>
+    <Grid x:Name="PageRoot" Style="{StaticResource PageLayoutStyle}" RowSpacing="12" SizeChanged="PageRoot_SizeChanged">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel Spacing="8">
+            <HyperlinkButton x:Name="BackButton" HorizontalAlignment="Left" MinHeight="28" Padding="0" AutomationProperties.Name="楽曲ページへ戻る" ToolTipService.ToolTip="楽曲ページへ戻る" Click="Back_Click">
+                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE72B;" FontSize="14"/><TextBlock Text="楽曲ページへ戻る"/></StackPanel>
+            </HyperlinkButton>
+            <TextBlock Text="タイトルの楽曲紹介" Style="{StaticResource PageTitleStyle}" FontSize="28"/>
+        </StackPanel>
+        <InfoBar x:Name="Status" Grid.Row="1" IsClosable="True"/>
+        <ListView x:Name="CardsList" Grid.Row="2" SelectionMode="None"
+                  HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                  AutomationProperties.Name="紹介枠の順番" AutomationProperties.HelpText="枠の左端の目印をドラッグして紹介順を変更します。">
+            <!-- 最大13枠。画面外へのドラッグ中も、元のハンドルのポインターキャプチャを保持する。 -->
+            <ListView.ItemsPanel><ItemsPanelTemplate><StackPanel/></ItemsPanelTemplate></ListView.ItemsPanel>
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,16"/>
+                </Style>
+            </ListView.ItemContainerStyle>
+            <ListView.Header>
+            <StackPanel Spacing="24" Padding="0,0,16,16">
+                <Grid x:Name="IntroductionLayout" ColumnSpacing="24" RowSpacing="16">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    <Image Width="200" Height="112.5" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="楽曲紹介の表示例。中央にメイン曲、下にサブ4曲を表示します。">
+                        <Image.Source><BitmapImage UriSource="ms-appx:///Assets/DemoSongShowcasePreview.png" DecodePixelWidth="480"/></Image.Source>
+                    </Image>
+                    <StackPanel x:Name="IntroductionText" Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="タイトル画面で紹介する曲を選びます。" TextWrapping="Wrap"/>
+                        <TextBlock Text="メインの1曲と、画面下の小さいサブ4曲を1枠ずつ設定できます。" Style="{StaticResource PageSubtitleStyle}"/>
+                        <TextBlock Text="画像は紹介画面の表示例です。" Style="{StaticResource PageSubtitleStyle}"/>
+                    </StackPanel>
+                </Grid>
+                <Border Style="{StaticResource ShowcaseCardStyle}">
+                    <Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE8D6;" FontSize="24" VerticalAlignment="Center" IsHitTestVisible="False"/>
+                        <StackPanel Grid.Column="1" Spacing="8">
+                            <TextBlock Text="標準の紹介を使う" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="ModeHelp" Style="{StaticResource PageSubtitleStyle}"/>
+                        </StackPanel>
+                        <ToggleSwitch x:Name="StandardToggle" Grid.Column="2" IsOn="True" OnContent="オン" OffContent="オフ" VerticalAlignment="Center" AutomationProperties.Name="標準の紹介を使う" Toggled="Standard_Toggled"/>
+                    </Grid>
+                </Border>
+                <StackPanel x:Name="LoadingPanel" Spacing="8">
+                    <ProgressBar IsIndeterminate="True"/><TextBlock Text="Songsの楽曲を読み込んでいます…" Style="{StaticResource PageSubtitleStyle}"/>
+                </StackPanel>
+                <StackPanel x:Name="EditorPanel" Spacing="16">
+                    <StackPanel Spacing="8">
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="EntryCount" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                            <Button x:Name="AddEntryButton" Grid.Column="1" Click="AddEntry_Click"><StackPanel Orientation="Horizontal" Spacing="8"><SymbolIcon Symbol="Add"/><TextBlock Text="紹介枠を追加"/></StackPanel></Button>
+                        </Grid>
+                        <TextBlock Text="枠の左端の目印をドラッグして並べ替えます。上から順に紹介し、最大13枠。少ない場合は繰り返します。" Style="{StaticResource PageSubtitleStyle}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="EmptyHelp" Text="「紹介枠を追加」を押し、最初のメイン曲を選んでください。" Style="{StaticResource PageSubtitleStyle}"/>
+                </StackPanel>
+            </StackPanel>
+            </ListView.Header>
+        </ListView>
+        <Grid Grid.Row="3" ColumnSpacing="16" RowSpacing="8" Padding="0,12,0,0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid x:Name="PreviewPanel" Grid.ColumnSpan="2" ColumnSpacing="12" Visibility="Collapsed">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <TextBlock x:Name="PreviewState" VerticalAlignment="Center" TextWrapping="Wrap"/><Button Grid.Column="1" Content="試聴を停止" Click="StopPreview_Click"/>
+            </Grid>
+            <StackPanel Grid.Row="1" Spacing="3" VerticalAlignment="Center">
+                <TextBlock x:Name="SaveState" FontWeight="SemiBold" TextWrapping="Wrap"/><TextBlock Text="保存後、次のゲーム起動から反映します。" Style="{StaticResource PageSubtitleStyle}"/>
+            </StackPanel>
+            <Button x:Name="SaveButton" Grid.Row="1" Grid.Column="1" Content="変更を保存" Style="{StaticResource AccentButtonStyle}" MinHeight="44" Padding="24,10" Click="Save_Click"/>
+        </Grid>
+    </Grid>
+</Page>
