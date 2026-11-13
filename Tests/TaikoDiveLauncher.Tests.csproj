@@ -22,7 +22,7 @@
     <Compile Include="..\Models\*.cs" Link="Production\Models\%(Filename)%(Extension)" />
     <Compile
       Include="..\Services\*.cs"
-      Exclude="..\Services\WindowPlacementService.cs"
+      Exclude="..\Services\WindowPlacementService.cs;..\Services\LauncherFilePicker.cs"
       Link="Production\Services\%(Filename)%(Extension)" />
   </ItemGroup>
 

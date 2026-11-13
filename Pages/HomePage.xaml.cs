@@ -46,7 +46,7 @@ public sealed partial class HomePage : Page
             HeroGradientAnimation.Begin();
         }
         await RefreshAsync();
-        await LoadHomeCardsAsync();
+        LoadHomeCards();
     }
 
     private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)

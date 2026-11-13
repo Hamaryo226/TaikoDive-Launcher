@@ -43,7 +43,7 @@ public sealed partial class Character3DPage
             Add("選択したコーデを書き出す", async () =>
             {
                 if (list.SelectedItem is not OutfitPreset preset) throw new InvalidOperationException("コーデを選択してください。");
-                if (await ToolkitPageBase.SaveFileAsync("TaikoDive-outfit", ".json") is { } path)
+                if (await LauncherFilePicker.SaveFileAsync("TaikoDive-outfit", ".json") is { } path)
                 {
                     var export = new OutfitCollection { Presets = [new OutfitPreset { Name = preset.Name, Settings = preset.Settings with { ModelsPath = "Info/Chara/Model" } }] };
                     await File.WriteAllTextAsync(path, JsonSerializer.Serialize(export, LauncherJsonContext.Default.OutfitCollection), new UTF8Encoding(false));
@@ -51,7 +51,7 @@ public sealed partial class Character3DPage
             });
             Add("コーデファイルを取り込む", async () =>
             {
-                if (await ToolkitPageBase.OpenFileAsync(".json") is not { } path) return;
+                if (await LauncherFilePicker.OpenFileAsync(".json") is not { } path) return;
                 if (new FileInfo(path).Length > 1024 * 1024) throw new InvalidDataException("コーデファイルは1MBまでです。");
                 var imported = LauncherToolkitStore.ParseOutfits(await File.ReadAllTextAsync(path));
                 if (collection.Presets.Count + imported.Presets.Count > 100) throw new InvalidOperationException("保存できるコーデは100件までです。");

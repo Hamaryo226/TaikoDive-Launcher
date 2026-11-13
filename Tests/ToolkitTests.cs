@@ -92,7 +92,7 @@ public sealed class ToolkitTests
     }
 
     [TestMethod]
-    public async Task LibraryDetectsDuplicatesAndMissingAudioWithoutChangingCharts()
+    public async Task SongScanReadsShiftJisAndMissingAudioWithoutChangingCharts()
     {
         using var temp = new Temp(); string chart = "TITLE:テスト\nWAVE:missing.ogg\nDEMOSTART:12.5\nCOURSE:Oni\n#START\n1111,\n#END";
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
@@ -100,28 +100,17 @@ public sealed class ToolkitTests
         File.Copy(Path.Combine(temp.Root, "a.tja"), Path.Combine(temp.Root, "b.tja"));
         var songs = await SongLibraryService.ScanAsync(temp.Root);
         Assert.HasCount(2, songs); Assert.AreEqual("テスト", songs[0].Title); Assert.AreEqual(12.5, songs[0].DemoStart);
-        Assert.HasCount(1, SongLibraryService.FindDuplicates(songs)); Assert.IsTrue(songs.All(s => s.Problems.Any(p => p.Contains("音源"))));
+        Assert.IsTrue(songs.All(s => s.Problems.Any(p => p.Contains("音源"))));
         Assert.AreEqual(chart, await File.ReadAllTextAsync(Path.Combine(temp.Root, "a.tja"), Encoding.GetEncoding(932)));
     }
 
     [TestMethod]
-    public async Task LibraryRejectsAudioOutsideSongsAndBrokenChartMarkers()
+    public async Task SongScanRejectsAudioOutsideSongsAndBrokenChartMarkers()
     {
         using var temp = new Temp();
         await File.WriteAllTextAsync(Path.Combine(temp.Root, "a.tja"), "TITLE:A\nWAVE:../outside.ogg\n#START\n1,");
         var songs = await SongLibraryService.ScanAsync(temp.Root);
         Assert.HasCount(2, songs[0].Problems); Assert.IsNull(songs[0].AudioPath);
-    }
-
-    [TestMethod]
-    public async Task HistoryCountsEventsAndIgnoresCorruptAndDuplicateIds()
-    {
-        using var temp = new Temp(); var installation = new TaikoDiveInstallation(temp.Root);
-        string folder = Path.Combine(LauncherToolkitStore.Root(installation), "history"); Directory.CreateDirectory(folder);
-        string json = JsonSerializer.Serialize(new PlayHistoryEntry { Id = "round-1", PlayedAtUtc = DateTime.UtcNow, SongTitle = "A", PlayerName = "P1" }, LauncherJsonContext.Default.PlayHistoryEntry);
-        await File.WriteAllTextAsync(Path.Combine(folder, "a.json"), json); await File.WriteAllTextAsync(Path.Combine(folder, "duplicate.json"), json);
-        await File.WriteAllTextAsync(Path.Combine(folder, "broken.json"), "{");
-        Assert.HasCount(1, await LauncherToolkitStore.ReadHistoryAsync(installation));
     }
 
     [TestMethod]
@@ -131,13 +120,6 @@ public sealed class ToolkitTests
         manifest.MinimumAssetsVersion = "0.15.0";
         Assert.HasCount(1, LauncherMaintenance.CheckCompatibility(manifest, "0.16.0", "0.14.0", "1.0.0"));
         Assert.IsEmpty(LauncherMaintenance.CheckCompatibility(manifest, "0.16.0", "0.15.0", "1.0.0"));
-    }
-
-    [TestMethod]
-    public void DiagnosticRedactionRemovesAddressesAndWindowsPaths()
-    {
-        string result = LauncherMaintenance.Redact("error at C:\\Users\\Alice\\build\\file.cs\nserver 192.168.1.2:22047 https://example.test/private");
-        Assert.DoesNotContain("Alice", result); Assert.DoesNotContain("192.168", result); Assert.DoesNotContain("example.test", result);
     }
 
     [TestMethod]

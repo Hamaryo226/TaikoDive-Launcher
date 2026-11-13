@@ -26,14 +26,10 @@ $fakeGame = Join-Path $AppDirectory 'TaikoDive.exe'
 if (Test-Path $fakeGame) { throw 'UI smoke test requires an isolated launcher-only publish directory.' }
 Set-Content -LiteralPath $fakeGame -Value 'UI smoke fixture; do not execute' -Encoding utf8
 $fixtureSongs = Join-Path $AppDirectory 'Songs/LauncherSmoke'
-$fixtureReplay = Join-Path $AppDirectory 'Info/ScoreData/どんちゃん/smoke/Replay/course-3'
-$fixtureHistory = Join-Path $AppDirectory 'Info/TaikoDiveLauncher/history/smoke.json'
-New-Item -ItemType Directory -Force $fixtureSongs, $fixtureReplay, (Split-Path $fixtureHistory) | Out-Null
+New-Item -ItemType Directory -Force $fixtureSongs | Out-Null
 $chart = Join-Path $fixtureSongs 'sample.tja'
 "TITLE:検証用サンプル曲`nWAVE:sample.wav`nCOURSE:Oni`nLEVEL:3`n#START`n1000,`n#END" | Set-Content $chart -Encoding utf8
 [IO.File]::WriteAllBytes((Join-Path $fixtureSongs 'sample.wav'), [byte[]]@())
-@{ Version = 2; SongPath = $chart; SongTitle = '検証用サンプル曲'; ChartHash = (Get-FileHash $chart -Algorithm SHA256).Hash; PlayerName = 'どんちゃん'; Course = 3; RecordedAtUtc = [DateTime]::UtcNow.ToString('O'); Result = @{ Score = 812340 } } | ConvertTo-Json -Depth 4 | Set-Content (Join-Path $fixtureReplay 'best.json') -Encoding utf8
-@{ id = 'smoke'; playedAtUtc = [DateTime]::UtcNow.ToString('O'); playerName = 'どんちゃん'; songTitle = '検証用サンプル曲'; course = 3; score = 812340 } | ConvertTo-Json | Set-Content $fixtureHistory -Encoding utf8
 $env:TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY = $settings
 $env:TAIKODIVE_LAUNCHER_DISABLE_UPDATE_CHECK = '1'
 
@@ -77,7 +73,7 @@ function Save-Screenshot([IntPtr]$handle, [string]$path) {
 
 try {
     foreach ($theme in @('Light', 'Dark')) {
-        @{ theme = $theme; setupCompleted = $true; closeAfterLaunch = $false } | ConvertTo-Json | Set-Content (Join-Path $settings 'launcher.json') -Encoding utf8
+        @{ theme = $theme; closeAfterLaunch = $false } | ConvertTo-Json | Set-Content (Join-Path $settings 'launcher.json') -Encoding utf8
         $process = Start-Process (Join-Path $AppDirectory 'TaikoDive.Launcher.exe') -WorkingDirectory $AppDirectory -PassThru
         try {
             for ($i = 0; $i -lt 100; $i++) {
@@ -92,8 +88,14 @@ try {
             Start-Sleep -Milliseconds 1000
             $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
             Save-Screenshot $handle (Join-Path $OutputDirectory "$theme-start.png")
-            $pages = [ordered]@{ 'ホーム' = 'home'; 'ライブラリ' = 'library'; 'プレイ記録' = 'records'; 'ツール' = 'toolkit'; 'セットアップ' = 'setup' }
-            $headings = @{ home = 'TaikoDive'; library = '楽曲ライブラリ'; records = 'プレイカレンダーとリプレイ'; toolkit = 'ランチャーツール'; setup = '初回セットアップ' }
+            foreach ($removedPage in @('ライブラリ', 'プレイ記録', 'ツール', 'セットアップ')) {
+                $removedCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::NameProperty, $removedPage)
+                if ($null -ne $root.FindFirst([System.Windows.Automation.TreeScope]::Descendants, $removedCondition)) {
+                    throw "Removed navigation item is still present: $removedPage"
+                }
+            }
+            $pages = [ordered]@{ 'ホーム' = 'home'; 'プロフィール' = 'profiles'; '楽曲' = 'songs'; '入力設定' = 'input'; '起動構成' = 'settings'; 'ランチャー設定' = 'launcher-settings' }
+            $headings = @{ home = 'TaikoDive'; profiles = 'プロフィール'; songs = '楽曲'; input = '入力設定'; settings = '起動構成'; 'launcher-settings' = 'ランチャー設定' }
             foreach ($page in $pages.GetEnumerator()) {
                 [LauncherSmokeWindow]::SetWindowPos($handle, [IntPtr]::Zero, 20, 20, 1180, 760, 0) | Out-Null
                 Start-Sleep -Milliseconds 300
@@ -119,6 +121,9 @@ try {
 }
 finally {
     Remove-Item -LiteralPath $fakeGame -Force
-    Remove-Item -LiteralPath $fixtureSongs, (Split-Path (Split-Path $fixtureReplay)), $fixtureHistory -Recurse -Force -ErrorAction SilentlyContinue
+    $fixtureRoot = [IO.Path]::GetFullPath($AppDirectory).TrimEnd('\') + '\'
+    $fixtureTarget = [IO.Path]::GetFullPath($fixtureSongs)
+    if (-not $fixtureTarget.StartsWith($fixtureRoot, [StringComparison]::OrdinalIgnoreCase)) { throw 'Fixture cleanup path escaped the app directory.' }
+    Remove-Item -LiteralPath $fixtureTarget -Recurse -Force -ErrorAction SilentlyContinue
     Remove-Item Env:TAIKODIVE_LAUNCHER_SETTINGS_DIRECTORY -ErrorAction SilentlyContinue
 }

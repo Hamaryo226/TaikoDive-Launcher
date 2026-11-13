@@ -7,24 +7,6 @@ namespace TaikoDiveLauncher.Services;
 public static class LauncherToolkitStore
 {
     public static string Root(TaikoDiveInstallation installation) => Path.Combine(installation.BuildDirectory, "Info", "TaikoDiveLauncher");
-    public static string IntegrationPath(TaikoDiveInstallation installation) => Path.Combine(Root(installation), "integrations.json");
-
-    public static async Task<IntegrationSettings> LoadIntegrationsAsync(TaikoDiveInstallation installation)
-    {
-        string path = IntegrationPath(installation);
-        return File.Exists(path)
-            ? JsonSerializer.Deserialize(await File.ReadAllTextAsync(path), LauncherJsonContext.Default.IntegrationSettings)
-                ?? throw new InvalidDataException("連携設定を読み取れません。")
-            : new();
-    }
-
-    public static Task SaveIntegrationsAsync(TaikoDiveInstallation installation, IntegrationSettings settings)
-    {
-        EnsureStopped();
-        settings.Goal = settings.Goal.Length > 200 ? settings.Goal[..200] : settings.Goal;
-        return FilePersistence.WriteTextAtomicAsync(IntegrationPath(installation),
-            JsonSerializer.Serialize(settings, LauncherJsonContext.Default.IntegrationSettings), new UTF8Encoding(false));
-    }
 
     public static async Task<OutfitCollection> LoadOutfitsAsync(TaikoDiveInstallation installation)
     {
@@ -76,24 +58,6 @@ public static class LauncherToolkitStore
         if (!store.GetPetitCharaOptions(installation, 0).Any(x => x.Id == s.PetitCharaId.ToString(System.Globalization.CultureInfo.InvariantCulture)))
             missing.Add("ぷちキャラ: " + s.PetitCharaId);
         return missing;
-    }
-
-    public static async Task<IReadOnlyList<PlayHistoryEntry>> ReadHistoryAsync(TaikoDiveInstallation installation, CancellationToken token = default)
-    {
-        string root = Path.Combine(Root(installation), "history");
-        var entries = new Dictionary<string, PlayHistoryEntry>(StringComparer.Ordinal);
-        foreach (string file in SafeFiles(root).Where(p => p.EndsWith(".json", StringComparison.OrdinalIgnoreCase)))
-        {
-            token.ThrowIfCancellationRequested();
-            try
-            {
-                if (new FileInfo(file).Length > 16384) continue;
-                var e = JsonSerializer.Deserialize(await File.ReadAllTextAsync(file, token), LauncherJsonContext.Default.PlayHistoryEntry);
-                if (e is not null && !string.IsNullOrWhiteSpace(e.Id) && e.PlayedAtUtc != default) entries.TryAdd(e.Id, e);
-            }
-            catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException) { }
-        }
-        return entries.Values.OrderByDescending(e => e.PlayedAtUtc).ToArray();
     }
 
     // 外部Songsリンクはルートとして使えるが、その配下のリンクはたどらない。
