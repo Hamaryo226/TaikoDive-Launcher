@@ -44,6 +44,9 @@ public sealed partial class SongsPage : Page
     private void FolderNavigationButton_Click(object sender, RoutedEventArgs e)
         => Frame.Navigate(typeof(SongsPage), "folder");
 
+    private void DemoSongsNavigationButton_Click(object sender, RoutedEventArgs e)
+        => Frame.Navigate(typeof(DemoSongsPage));
+
     private void BackToSongsButton_Click(object sender, RoutedEventArgs e)
         => Frame.Navigate(typeof(SongsPage));
 
@@ -87,6 +90,7 @@ public sealed partial class SongsPage : Page
         NavigationSecondColumn.Width = narrow ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
         Grid.SetColumn(FolderNavigationButton, narrow ? 0 : 1);
         Grid.SetRow(FolderNavigationButton, narrow ? 1 : 0);
+        Grid.SetRow(DemoSongsNavigationButton, narrow ? 2 : 1);
         PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
 
         Grid.SetColumn(PathCommandBar, narrow ? 0 : 1);

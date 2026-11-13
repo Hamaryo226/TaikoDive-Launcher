@@ -27,6 +27,8 @@ public sealed class IntegrationSettings
 public sealed record LibrarySong(string Title, string ChartPath, string? AudioPath, double DemoStart,
     string Hash, IReadOnlyList<string> Problems)
 {
+    public string Subtitle { get; init; } = "";
+    public string Genre { get; init; } = "";
     public string Label => $"{Title}  ·  {System.IO.Path.GetFileName(ChartPath)}";
     public override string ToString() => Label;
 }
