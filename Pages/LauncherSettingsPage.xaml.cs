@@ -8,7 +8,7 @@ using TaikoDiveLauncher.Services;
 
 namespace TaikoDiveLauncher.Pages;
 
-public sealed partial class LauncherSettingsPage : Page
+public sealed partial class LauncherSettingsPage : Page, IUnsavedChangesAware
 {
     private sealed record BannerStyleOption(string Label, string Value);
 
@@ -20,6 +20,10 @@ public sealed partial class LauncherSettingsPage : Page
     ];
 
     private bool _isLoading;
+    private bool _preferencesBusy;
+    public bool PreferencesBusy => _preferencesBusy || AppInstance.Context.PreferenceTransitions.IsBusy;
+    public bool HasUnsavedChanges => AppInstance.Context.HasUnsavedPreferenceEdits;
+    public string UnsavedChangesName => "ランチャー設定";
 
     private App AppInstance => (App)Application.Current;
 
@@ -33,7 +37,14 @@ public sealed partial class LauncherSettingsPage : Page
     private void LauncherSettingsPage_Loaded(object sender, RoutedEventArgs e)
     {
         _isLoading = true;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged -= MotionSettings_Changed;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged += MotionSettings_Changed;
         CloseAfterLaunchSwitch.IsOn = AppInstance.Context.Preferences.CloseAfterLaunch;
+        BackgroundAnimationSwitch.IsOn = AppInstance.Context.Preferences.BackgroundAnimationEnabled;
+        AppInstance.Context.PreferencesStateChanged -= PreferencesStateChanged;
+        AppInstance.Context.PreferencesStateChanged += PreferencesStateChanged;
+        AppInstance.Context.PreferenceTransitions.BusyChanged -= PreferenceTransitions_BusyChanged;
+        AppInstance.Context.PreferenceTransitions.BusyChanged += PreferenceTransitions_BusyChanged;
         BannerStyleBox.ItemsSource = BannerStyles;
         BannerStyleBox.SelectedValue = AppInstance.Context.Preferences.HomeBannerStyle;
         if (BannerStyleBox.SelectedItem is null)
@@ -52,10 +63,16 @@ public sealed partial class LauncherSettingsPage : Page
         UpdateGameUpdateControls();
         UpdateAssetUpdateControls();
         _isLoading = false;
+        UpdatePreferencesProtection();
     }
 
     private void LauncherSettingsPage_Unloaded(object sender, RoutedEventArgs e)
     {
+        AppInstance.Context.PreferenceTransitions.BusyChanged -= PreferenceTransitions_BusyChanged;
+        AppInstance.Context.PreferencesStateChanged -= PreferencesStateChanged;
+        AppInstance.Context.RevertPreferenceEdits();
+        App.MainWindow.ApplyTheme(AppInstance.Context.Preferences.Theme);
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged -= MotionSettings_Changed;
         AppInstance.Context.Updates.StateChanged -= Updates_StateChanged;
         AppInstance.Context.GameUpdates.StateChanged -= GameUpdates_StateChanged;
         AppInstance.Context.AssetUpdates.StateChanged -= AssetUpdates_StateChanged;
@@ -63,79 +80,31 @@ public sealed partial class LauncherSettingsPage : Page
 
     private async void ThemeToggleButton_Click(object sender, RoutedEventArgs e)
     {
-        string previousTheme = AppInstance.Context.Preferences.Theme;
-        bool isDark = !string.Equals(previousTheme, "Light", StringComparison.OrdinalIgnoreCase);
-        AppInstance.Context.Preferences.Theme = isDark ? "Light" : "Dark";
-        App.MainWindow.ApplyTheme(AppInstance.Context.Preferences.Theme);
-        UpdateThemeButton();
-
-        try
-        {
-            await AppInstance.Context.SavePreferencesAsync();
-            StatusBar.IsOpen = false;
-        }
-        catch (Exception ex)
-        {
-            AppInstance.Context.Preferences.Theme = previousTheme;
-            App.MainWindow.ApplyTheme(previousTheme);
-            UpdateThemeButton();
-            ShowStatus(InfoBarSeverity.Error, $"テーマを保存できませんでした: {ex.Message}");
-        }
+        if (_isLoading || PreferencesBusy || !AppInstance.Context.CanSavePreferences) return;
+        AppInstance.Context.Preferences.Theme = AppInstance.Context.Preferences.Theme == "Light" ? "Dark" : "Light";
+        ApplyPreferenceControls();
+        await SavePreferenceEditsAsync();
     }
 
     private async void CloseAfterLaunchSwitch_Toggled(object sender, RoutedEventArgs e)
     {
-        if (_isLoading)
-        {
-            return;
-        }
-
-        bool previousValue = AppInstance.Context.Preferences.CloseAfterLaunch;
+        if (_isLoading || PreferencesBusy || !AppInstance.Context.CanSavePreferences) return;
         AppInstance.Context.Preferences.CloseAfterLaunch = CloseAfterLaunchSwitch.IsOn;
-        UpdatePreferencesSummary();
-        try
-        {
-            await AppInstance.Context.SavePreferencesAsync();
-            StatusBar.IsOpen = false;
-        }
-        catch (Exception ex)
-        {
-            AppInstance.Context.Preferences.CloseAfterLaunch = previousValue;
-            _isLoading = true;
-            CloseAfterLaunchSwitch.IsOn = previousValue;
-            _isLoading = false;
-            UpdatePreferencesSummary();
-            ShowStatus(InfoBarSeverity.Error, $"起動動作を保存できませんでした: {ex.Message}");
-        }
+        await SavePreferenceEditsAsync();
     }
 
     private async void BannerStyleBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_isLoading || BannerStyleBox.SelectedValue is not string selected)
-        {
-            return;
-        }
-
-        string previous = AppInstance.Context.Preferences.HomeBannerStyle;
+        if (_isLoading || PreferencesBusy || !AppInstance.Context.CanSavePreferences || BannerStyleBox.SelectedValue is not string selected) return;
         AppInstance.Context.Preferences.HomeBannerStyle = selected;
         UpdateBannerPreview();
-        UpdatePreferencesSummary();
-        try
-        {
-            await AppInstance.Context.SavePreferencesAsync();
-            StatusBar.IsOpen = false;
-        }
-        catch (Exception ex)
-        {
-            AppInstance.Context.Preferences.HomeBannerStyle = previous;
-            _isLoading = true;
-            BannerStyleBox.SelectedValue = previous;
-            _isLoading = false;
-            UpdateBannerPreview();
-            UpdatePreferencesSummary();
-            ShowStatus(InfoBarSeverity.Error, $"ホームバナーを保存できませんでした: {ex.Message}");
-        }
+        await SavePreferenceEditsAsync();
     }
+
+    // Transition ownership changes only on the UI thread; refresh before returning to input.
+    private void PreferenceTransitions_BusyChanged(object? sender, EventArgs e) => UpdatePreferencesProtection();
+
+    private void PreferencesStateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(UpdatePreferencesProtection);
 
     private void UpdateBannerPreview()
     {
@@ -174,7 +143,8 @@ public sealed partial class LauncherSettingsPage : Page
             : "ゲーム中もランチャーを表示";
         string banner = BannerStyles.FirstOrDefault(option => option.Value == AppInstance.Context.Preferences.HomeBannerStyle)?.Label
             ?? BannerStyles[0].Label;
-        LauncherPreferenceSummaryText.Text = $"現在: {theme} · {banner} · {afterLaunch}（変更時に保存）";
+        string state = !AppInstance.Context.CanSavePreferences ? "一時的な表示・保存保護中" : AppInstance.Context.HasUnsavedPreferenceEdits ? "未保存の変更" : "現在の設定";
+        LauncherPreferenceSummaryText.Text = $"{state}: {theme} · {banner} · {afterLaunch}";
     }
 
     private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
@@ -184,28 +154,37 @@ public sealed partial class LauncherSettingsPage : Page
 
     private async void InstallUpdateButton_Click(object sender, RoutedEventArgs e)
     {
-        ContentDialog confirmation = new()
+        if (PreferencesBusy) return;
+        try
         {
-            Title = "ランチャーをアップデートしますか？",
-            Content = "更新を検証して適用した後、TaikoDive Launcherを自動的に再起動します。",
-            PrimaryButtonText = "アップデート",
-            CloseButtonText = "キャンセル",
-            DefaultButton = ContentDialogButton.Primary,
-            XamlRoot = XamlRoot,
-        };
-        if (await confirmation.ShowAsync() != ContentDialogResult.Primary)
-        {
-            return;
+            await AppInstance.Context.PreferenceTransitions.RunUpdateAsync(async () =>
+            {
+                UpdatePreferencesProtection();
+                ContentDialog confirmation = new()
+                {
+                    Title = "ランチャーをアップデートしますか？",
+                    Content = "更新を検証して適用した後、TaikoDive Launcherを自動的に再起動します。" +
+                        (HasUnsavedChanges ? "\n未保存のランチャー設定の変更を破棄します。" : ""),
+                    PrimaryButtonText = HasUnsavedChanges ? "変更を破棄してアップデート" : "アップデート",
+                    CloseButtonText = "キャンセル",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = XamlRoot,
+                };
+                return await confirmation.ShowAsync() == ContentDialogResult.Primary;
+            }, () =>
+            {
+                AppInstance.Context.RevertPreferenceEdits();
+                ApplyPreferenceControls();
+            }, async () =>
+            {
+                OperationResult result = await AppInstance.Context.Updates.DownloadAndStartInstallerAsync();
+                if (!result.Succeeded)
+                    ShowStatus(InfoBarSeverity.Error, $"アップデートできませんでした: {result.Message}");
+                return result.Succeeded;
+            }, App.MainWindow.PrepareCloseAsync, () => AppInstance.Exit());
         }
-
-        OperationResult result = await AppInstance.Context.Updates.DownloadAndStartInstallerAsync();
-        if (result.Succeeded)
-        {
-            AppInstance.Exit();
-            return;
-        }
-
-        ShowStatus(InfoBarSeverity.Error, $"アップデートできませんでした: {result.Message}");
+        catch (Exception ex) { ShowStatus(InfoBarSeverity.Error, $"アップデートできませんでした: {ex.Message}"); }
+        finally { UpdatePreferencesProtection(); }
     }
 
     private void Updates_StateChanged(object? sender, EventArgs e)

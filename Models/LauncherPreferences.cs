@@ -8,6 +8,8 @@ public sealed class LauncherPreferences
 
     public string HomeBannerStyle { get; set; } = "Ocean";
 
+    public bool BackgroundAnimationEnabled { get; set; } = true;
+
     public WindowPlacementPreferences? WindowPlacement { get; set; }
 }
 
