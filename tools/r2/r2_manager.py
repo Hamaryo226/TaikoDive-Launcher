@@ -200,10 +200,11 @@ class Aws:
         return uploads
 
 
-    def upload(self, path, key, *, manifest=False, launcher=False):
-        cache = 'no-cache' if manifest or launcher else 'public, max-age=31536000, immutable'
+    def upload(self, path, key, *, manifest=False, launcher=False, signature=False):
+        cache = 'no-cache' if manifest or launcher or signature else 'public, max-age=31536000, immutable'
         content = 'application/json; charset=utf-8' if manifest else (
-            'application/vnd.microsoft.portable-executable' if launcher else 'application/zip')
+            'application/vnd.microsoft.portable-executable' if launcher else
+            'application/octet-stream' if signature else 'application/zip')
         self.call('s3', 'cp', str(path), f's3://{self.bucket}/{key}', '--cache-control', cache,
                   '--content-type', content, '--only-show-errors')
         result = parse_json(self.call('s3api', 'head-object', '--bucket', self.bucket, '--key', key))
@@ -228,7 +229,8 @@ def read_current(channel, aws, objects, directory):
 
 def stage_local(channel, payload, manifest, directory):
     payload, manifest = Path(payload), Path(manifest)
-    data = parse_json(manifest.read_text(encoding='utf-8-sig'))
+    manifest_bytes = manifest.read_bytes()
+    data = parse_json(manifest_bytes.decode('utf-8-sig'))
     key = manifest_key(channel, data)
     if key != channel + '/' + payload.name or manifest.name != MANIFEST_NAMES[channel]:
         raise PolicyError('Manifest URL/path does not match payload')
@@ -241,7 +243,13 @@ def stage_local(channel, payload, manifest, directory):
     if data['size'] != staged.stat().st_size or data['sha256'].lower() != digest:
         raise PolicyError('Local payload size/hash mismatch')
     staged_manifest = directory / MANIFEST_NAMES[channel]
-    staged_manifest.write_bytes(manifest.read_bytes())
+    staged_manifest.write_bytes(manifest_bytes)
+    if channel == 'launcher':
+        source_signature = Path(str(manifest) + '.sig')
+        signature = source_signature.read_bytes()
+        if not 1 <= len(signature) <= 1024:
+            raise PolicyError('Invalid launcher manifest signature size')
+        (directory / (MANIFEST_NAMES[channel] + '.sig')).write_bytes(signature)
     return staged, staged_manifest, data
 
 
@@ -261,11 +269,15 @@ def manage(channel, aws, *, now=None, payload=None, manifest=None, apply=False):
         if payload is not None:
             if channel != 'launcher' and any(item['Key'] == channel + '/' + payload.name for item in objects):
                 raise PolicyError('Existing immutable payload key; use a new revision/package name')
-            local.pop('_r2PreviousPackageKey', None)
-            if current is not None and channel != 'launcher':
-                local['_r2PreviousPackageKey'] = manifest_key(channel, current)
-            manifest.write_text(json.dumps(local, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+            if channel != 'launcher':
+                local.pop('_r2PreviousPackageKey', None)
+                if current is not None:
+                    local['_r2PreviousPackageKey'] = manifest_key(channel, current)
+                manifest.write_text(json.dumps(local, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
             incoming = payload.stat().st_size + manifest.stat().st_size
+            if channel == 'launcher':
+                signature = directory / (MANIFEST_NAMES[channel] + '.sig')
+                incoming += signature.stat().st_size
         report = plan(channel, objects, current, incoming, now,
                       launcher_repair=channel == 'launcher' and payload is not None)
         report.update(dry_run=not apply, published=False)
@@ -300,6 +312,8 @@ def manage(channel, aws, *, now=None, payload=None, manifest=None, apply=False):
                     or fresh_current != current):
                 raise PolicyError('Origin inventory or manifest changed before publication')
             aws.upload(payload, channel + '/' + payload.name, launcher=channel == 'launcher')
+            if channel == 'launcher':
+                aws.upload(signature, channel + '/' + signature.name, signature=True)
             aws.upload(manifest, channel + '/' + MANIFEST_NAMES[channel], manifest=True)
             readback = directory / 'published-manifest.json'
             aws.get(channel + '/' + MANIFEST_NAMES[channel], readback)

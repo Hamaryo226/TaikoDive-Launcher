@@ -117,6 +117,8 @@ class BoundaryTests(unittest.TestCase):
             data['packageFileName'] = name
         manifest = self.root / self.m.MANIFEST_NAMES[channel]
         manifest.write_text(json.dumps(data))
+        if channel == 'launcher':
+            Path(str(manifest) + '.sig').write_bytes(b'signature')
         return payload, manifest
 
     def seed_history(self):
@@ -262,7 +264,7 @@ class BoundaryTests(unittest.TestCase):
         state = json.loads(self.state.read_text())
         remote = json.loads(next(o['Body'] for o in state['objects'] if o['Key'].endswith('.json')))
         self.assertEqual(remote, json.loads(manifest.read_text()))
-        self.assertEqual([c[1] for c in state['calls']][-5:], ['cp', 'head-object', 'cp', 'head-object', 'get-object'])
+        self.assertEqual([c[1] for c in state['calls']][-7:], ['cp', 'head-object', 'cp', 'head-object', 'cp', 'head-object', 'get-object'])
         self.assertEqual(report['peak_bytes'], report['current_bytes'] + report['incoming_bytes'])
         self.assertFalse(any(c[1] == 'rm' for c in state['calls']))
 
@@ -431,6 +433,30 @@ class BoundaryTests(unittest.TestCase):
         report = self.m.manage('launcher', self.aws(), now=NOW)
         self.assertEqual(report['object_count'], 0)
         self.assertTrue(report['dry_run'])
+
+    def test_launcher_requires_signature_before_any_write(self):
+        payload, manifest = self.local_package('launcher')
+        Path(str(manifest) + '.sig').unlink()
+        with self.assertRaises((self.m.PolicyError, OSError)):
+            self.m.manage('launcher', self.aws(), payload=payload, manifest=manifest, apply=True, now=NOW)
+        self.assertFalse(any(c[1] in ('cp', 'rm', 'abort-multipart-upload')
+                             for c in json.loads(self.state.read_text()).get('calls', [])))
+
+    def test_launcher_preserves_signed_bytes_and_uploads_signature_first(self):
+        payload, manifest = self.local_package('launcher')
+        manifest.write_bytes(manifest.read_bytes() + b'\n')
+        signature = Path(str(manifest) + '.sig')
+        signature.write_bytes(b'signature')
+        original = manifest.read_bytes()
+        report = self.m.manage('launcher', self.aws(), payload=payload, manifest=manifest, apply=True, now=NOW)
+        state = json.loads(self.state.read_text())
+        writes = [c[3] for c in state['calls'] if c[1] == 'cp']
+        self.assertEqual(writes, ['s3://taikodive/launcher/' + payload.name,
+                                  's3://taikodive/launcher/' + signature.name,
+                                  's3://taikodive/launcher/' + manifest.name])
+        published = next(o for o in state['objects'] if o['Key'].endswith('.json'))
+        self.assertEqual(published['Body'].encode(), original)
+        self.assertGreaterEqual(report['incoming_bytes'], payload.stat().st_size + len(original) + signature.stat().st_size)
 
     def test_launcher_uses_fixed_url_and_no_cache(self):
         payload, manifest = self.local_package('launcher')

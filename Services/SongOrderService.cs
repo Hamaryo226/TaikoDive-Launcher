@@ -181,7 +181,7 @@ public static class SongOrderService
         using StreamReader reader = new(path, encoding, detectEncodingFromByteOrderMarks: true);
         for (int lineNumber = 0; lineNumber < 512; lineNumber++)
         {
-            string? line = reader.ReadLine();
+            string? line = ReadHeaderLine(reader);
             if (line is null)
             {
                 break;
@@ -207,6 +207,36 @@ public static class SongOrderService
         }
 
         return title ?? string.Empty;
+    }
+
+    private static string? ReadHeaderLine(StreamReader reader)
+    {
+        // Bound allocation before reading a whole line. Together with the 512-line
+        // limit this also bounds total header work, regardless of file size.
+        const int maxLineLength = 16 * 1024;
+        StringBuilder line = new();
+        while (true)
+        {
+            int character = reader.Read();
+            if (character < 0)
+            {
+                return line.Length == 0 ? null : line.ToString();
+            }
+            if (character is '\r' or '\n')
+            {
+                if (character == '\r' && reader.Peek() == '\n')
+                {
+                    reader.Read();
+                }
+                return line.ToString();
+            }
+            if (line.Length == maxLineLength)
+            {
+                // Stop scanning; never use a truncated title or drain the rest.
+                return null;
+            }
+            line.Append((char)character);
+        }
     }
 
     private static string NormalizeRelativePath(string path) => path.Replace('\\', '/');

@@ -65,6 +65,7 @@
     <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
     <AssemblyMetadata Include="TaikoDiveGamePackageKey" Value="$(GamePackageKey)" />
     <AssemblyMetadata Include="TaikoDiveGamePackageKeyId" Value="$(GamePackageKeyId)" />
+    <AssemblyMetadata Include="LauncherUpdatePublicKey" Value="$(LauncherUpdatePublicKey)" />
   </ItemGroup>
 
   <!--
