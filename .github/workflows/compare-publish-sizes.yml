@@ -3,7 +3,9 @@ name: Compare launcher publish sizes
 on:
   pull_request:
     paths:
-      - ".github/workflows/compare-publish-sizes.yml"
+      - ".github/workflows/**"
+      - "tools/ci/**"
+      - "tools/r2/**"
       - "**/*.cs"
       - "**/*.csproj"
       - "**/*.xaml"
@@ -28,6 +30,18 @@ jobs:
           dotnet-version: 10.0.x
       - name: Run tests
         run: dotnet test Tests\TaikoDiveLauncher.Tests.csproj -c Debug -p:Platform=x64
+      - name: Setup Python for storage policy
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Install CI policy test dependencies
+        run: python -m pip install -r tools/ci/requirements.txt
+      - name: Check CI policy
+        run: python -m unittest discover -s tools/ci -p 'test_*.py' -v
+
+      - name: Test R2 storage management
+        run: python -m unittest discover -s tools/r2 -p 'test_*.py' -v
 
   publish:
     needs: test
@@ -36,16 +50,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - mode: Baseline
-            experimental: false
-            uploadOutput: false
-          - mode: TrimmedSingleFile
-            experimental: false
-            uploadOutput: true
-          - mode: NativeAot
-            experimental: true
-            uploadOutput: true
+        # PRs exercise the production profile; size experiments are opt-in only.
+        include: ${{ github.event_name == 'workflow_dispatch' && fromJSON('[{"mode":"Baseline","experimental":false,"upload_output":false},{"mode":"TrimmedSingleFile","experimental":false,"upload_output":true},{"mode":"NativeAot","experimental":true,"upload_output":true}]') || fromJSON('[{"mode":"TrimmedSingleFile","experimental":false,"upload_output":false}]') }}
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -94,6 +100,12 @@ jobs:
             throw "Publish output is empty."
           }
 
+      - name: Measure publish size
+        if: github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "publish-${{ matrix.mode }}"
+          $files = @(Get-ChildItem $output -File -Recurse)
           $totalBytes = ($files | Measure-Object Length -Sum).Sum
           $archive = Join-Path $env:RUNNER_TEMP "${{ matrix.mode }}.zip"
           Compress-Archive -Path (Join-Path $output "*") -DestinationPath $archive -CompressionLevel Optimal
@@ -148,6 +160,7 @@ jobs:
           retention-days: 7
 
       - name: Upload metrics
+        if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: launcher-size-${{ matrix.mode }}
@@ -155,7 +168,7 @@ jobs:
           retention-days: 14
 
       - name: Upload experimental output
-        if: matrix.uploadOutput
+        if: github.event_name == 'workflow_dispatch' && matrix.upload_output
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: launcher-output-${{ matrix.mode }}
@@ -164,7 +177,7 @@ jobs:
 
   summarize:
     needs: publish
-    if: always()
+    if: always() && github.event_name == 'workflow_dispatch'
     runs-on: windows-latest
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

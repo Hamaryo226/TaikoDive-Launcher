@@ -1,6 +1,6 @@
 # Cloudflare R2の設定手順
 
-ランチャー、TaikoDive本体、Assetの更新は、Cloudflare R2のバケット`taikodive`を`https://dl.hamaryo.dev`で公開して配布します。R2は転送量が無料で、保存容量は10GBまで無料枠に入ります。ランチャーは読み取りだけを行い、書き込み用の鍵はGitHub Actionsだけが持ちます。
+ランチャー、TaikoDive本体、Assetの更新は、Cloudflare R2のバケット`taikodive`を`https://dl.hamaryo.dev`で公開して配布します。R2のStandard無料枠は10 GB-month/月・Class A 100万回/月・Class B 1,000万回/月で、転送量は無料です。保存料金は日ごとのピーク容量の月平均で計算され、無料枠はアカウント内で共有されます。単に古いファイルを消すだけでは操作回数の超過は防げません。ランチャーは読み取りだけを行い、書き込み用の鍵はGitHub Actionsだけが持ちます。
 
 | URL | 中身 | アップロード元 |
 |---|---|---|
@@ -41,11 +41,11 @@
 | `R2_ACCESS_KEY_ID` | アクセス キー ID |
 | `R2_SECRET_ACCESS_KEY` | シークレット アクセス キー |
 
-## 5. 配布中の版をR2へ移す
+## 5. 配布と自動容量管理
 
-`TaikoDive-Launcher`の「Actions」→「Migrate published updates to Cloudflare R2」→「Run workflow」を一度だけ実行する。GitHub Releasesにある最新のゲーム・Assetパッケージを、版を変えずにR2へコピーする。
+初回のR2移行は完了しています。旧移行ワークフローは古いマニフェストで現行配布を上書きするため退役しています。再実行しないでください。[自動容量管理](r2-storage-management.md)の定期ジョブと公開前ガードを使用します。
 
-その後、「Publish main launcher update」を「Run workflow」で実行するか`main`へpushすると、ランチャー本体がR2の`launcher/`へ公開される。
+「Publish main launcher update」を「Run workflow」で実行するか`main`へpushすると、ランチャー本体がR2の`launcher/`へ公開される。
 
 ## 確認
 

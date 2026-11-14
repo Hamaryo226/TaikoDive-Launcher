@@ -1,0 +1,50 @@
+name: Maintain R2 launcher storage
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Apply safe cleanup (false is read-only inventory)'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+# Shared with the publisher: never clean up during an upload.
+concurrency:
+  group: launcher-main-update
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/r2
+      - name: Setup Python for storage policy
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Check maintenance runtime
+        run: |
+          python3 --version
+          aws --version
+      - name: Maintain launcher storage
+        shell: pwsh
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          APPLY: ${{ github.event_name == 'schedule' || inputs.apply }}
+        run: |
+          $arguments = @{}
+          if ($env:APPLY -eq 'true') { $arguments.Apply = $true }
+          & ./tools/r2/Maintain-TaikoDiveR2.ps1 -Channel launcher @arguments

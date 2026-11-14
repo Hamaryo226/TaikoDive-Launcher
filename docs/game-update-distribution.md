@@ -28,11 +28,11 @@ privateのTaikoDiveリポジトリへ次を登録します。
 
 ## privateリポジトリのワークフロー例
 
-`docs/examples/publish-game-update.yml`をprivateのTaikoDiveリポジトリの`.github/workflows/publish-game-update.yml`へコピーします。`main`へのpushを検知すると、Releaseビルド、AESパッケージ生成、公開側の固定Release更新まで自動で行います。手動再実行用に`workflow_dispatch`も残します。
+運用の正本は[TaikoDiveのpublish-game-update.yml](https://github.com/Hamaryo226/TaikoDive/blob/main/.github/workflows/publish-game-update.yml)です。`docs/examples/`の旧サンプルは移行前の参考資料であり、運用環境へコピーしないでください。`main`へのpushを検知すると、Releaseビルド、AESパッケージ生成、R2への公開まで自動で行います。手動再実行用に`workflow_dispatch`も残します。
 
 リポジトリ直下の`RELEASE_NOTES.md`には、利用者へ公開してよい今回の更新内容だけを記載します。この内容は公開マニフェストに含まれ、ランチャーのTaikoDive更新カードへそのまま表示されます。空欄または4,000文字を超える場合は配布を停止します。privateリポジトリ内のコミット件名は自動公開しません。
 
-TaikoDive本体に明示的なバージョンがないため、更新用バージョンは`0.<GitHub Actionsのrun_number>.0`で自動生成します。たとえば最初の配布は`0.1.0`、次は`0.2.0`です。同じワークフローのrun numberは単調増加し、実際のソースはマニフェストとパッケージ名に含まれる7桁のコミットIDで追跡できます。連続してpushされた場合は古い実行をキャンセルし、最新のmainを配布します。
+TaikoDive本体に明示的なバージョンがないため、更新用バージョンは`0.<GitHub Actionsのrun_number>.0`で自動生成します。たとえば最初の配布は`0.1.0`、次は`0.2.0`です。同じワークフローのrun numberは単調増加し、実際のソースはマニフェストとパッケージ名に含まれる7桁のコミットIDで追跡できます。公開途中の中断を避けるため、実行中の配布はキャンセルしません。GitHub Actionsのconcurrencyで同一チャネルの公開と定期整理を直列化します（待機中の古い実行はGitHub側で置き換わる場合があります）。
 
 パッケージ作成スクリプトは、`Setting.json`、`Info/User.ini`、`Songs`、スコア、リプレイ、スクリーンショット、ログ、ランチャー本体を除外します。必ずクリーンなGitHub Actions runnerの`build`から作成し、普段遊んでいるローカルの`build`を入力にしないでください。
 
@@ -44,4 +44,4 @@ TaikoDive本体に明示的なバージョンがないため、更新用バー�
 4. private側のゲーム更新ワークフローを実行する。
 5. 別のゲーム配置で、更新、ユーザーデータ保持、ゲーム起動を確認する。
 
-マニフェストは常に最新1件を指します。R2の無料枠に収めるため、公開スクリプトは最新と直前の版以外のパッケージを削除します。
+マニフェストは最新1件を指します。公開前の容量予算確認と、現行版・直前版・猶予期間内のパッケージを保護する自動整理を行います。保持条件と料金上の限界は[自動容量管理](r2-storage-management.md)を参照してください。

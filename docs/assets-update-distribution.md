@@ -17,7 +17,7 @@
 
 ## privateリポジトリの設定
 
-1. `docs/examples/publish-assets-update.yml`を`TaikoDive-Assets/.github/workflows/publish-assets-update.yml`へコピーする。
+1. 運用の正本は[TaikoDive-Assetsのpublish-assets-update.yml](https://github.com/Hamaryo226/TaikoDive-Assets/blob/main/.github/workflows/publish-assets-update.yml)。`docs/examples/`の旧サンプルは移行前の参考資料であり、運用環境へコピーしない。
 2. `TaikoDive-Assets`へ`GAME_PACKAGE_KEY`、`RELEASE_APP_ID`、`RELEASE_APP_PRIVATE_KEY`、`R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`をSecretとして登録する。
 3. ランチャーを同じ`GAME_PACKAGE_KEY`を埋め込んで先に公開する。
 4. `TaikoDive-Assets`のActionsを手動実行するか、`src/**`を`main`へpushする。
