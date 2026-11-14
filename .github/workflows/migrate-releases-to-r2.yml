@@ -1,58 +1,47 @@
-name: Migrate published updates to Cloudflare R2
-
-# GitHub Releasesで配布中の最新パッケージを、版を上げずにR2へ移す一度きりのワークフロー。
-# 版を上げて作り直すと、利用者全員がAssetを再ダウンロードすることになるため。
+name: Read-only R2 inventory
 on:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
-  migrate:
-    runs-on: windows-latest
-
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-
-      - name: Copy game and Asset updates
-        shell: pwsh
+      - name: Read R2 object and multipart inventory
         env:
-          GH_TOKEN: ${{ github.token }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
         run: |
-          $channels = @(
-            @{ Channel = 'game'; Tag = 'game-stable'; Manifest = 'game-update-manifest.json' },
-            @{ Channel = 'assets'; Tag = 'assets-stable'; Manifest = 'assets-update-manifest.json' }
-          )
-          foreach ($item in $channels) {
-            $directory = Join-Path $env:RUNNER_TEMP $item.Channel
-            New-Item -ItemType Directory -Path $directory -Force | Out-Null
-            gh release download $item.Tag --repo $env:GITHUB_REPOSITORY --pattern $item.Manifest --dir $directory
-            if ($LASTEXITCODE -ne 0) { throw "Failed to download $($item.Manifest)." }
-
-            $manifestPath = Join-Path $directory $item.Manifest
-            $manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
-            gh release download $item.Tag --repo $env:GITHUB_REPOSITORY --pattern $manifest.packageFileName --dir $directory
-            if ($LASTEXITCODE -ne 0) { throw "Failed to download $($manifest.packageFileName)." }
-
-            $packagePath = Join-Path $directory $manifest.packageFileName
-            $hash = (Get-FileHash -LiteralPath $packagePath -Algorithm SHA256).Hash
-            if ($hash -ne $manifest.sha256) { throw "SHA-256 mismatch: $($manifest.packageFileName)" }
-
-            # 他の項目の書式を変えないよう、URLだけを文字列として置き換える。
-            $oldUrl = $manifest.packageUrl
-            $newUrl = "https://dl.hamaryo.dev/$($item.Channel)/$($manifest.packageFileName)"
-            $raw = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8
-            $updated = $raw.Replace($oldUrl, $newUrl)
-            if ($updated -eq $raw -and $oldUrl -ne $newUrl) { throw "packageUrl was not replaced in $($item.Manifest)." }
-            [System.IO.File]::WriteAllText($manifestPath, $updated, [System.Text.UTF8Encoding]::new($false))
-
-            & .\tools\r2\Publish-TaikoDiveR2.ps1 -Channel $item.Channel -PayloadPath $packagePath -ManifestPath $manifestPath
-            "$($item.Channel): v$($manifest.version) -> $newUrl" | Add-Content $env:GITHUB_STEP_SUMMARY
-          }
+          set -euo pipefail
+          mkdir inventory
+          endpoint="https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          aws s3api list-objects-v2 --bucket taikodive --endpoint-url "$endpoint" --output json > inventory/objects.json
+          aws s3api list-multipart-uploads --bucket taikodive --endpoint-url "$endpoint" --output json > inventory/multipart.json
+          aws s3api get-bucket-lifecycle-configuration --bucket taikodive --endpoint-url "$endpoint" --output json > inventory/lifecycle.json 2> inventory/lifecycle-error.txt || true
+          aws s3api list-buckets --endpoint-url "$endpoint" --output json > inventory/buckets.json 2> inventory/buckets-error.txt || true
+          python - <<'PY'
+          import json, os
+          from collections import defaultdict
+          with open('inventory/objects.json') as f:
+              objects = json.load(f).get('Contents', [])
+          totals = defaultdict(int)
+          for obj in objects:
+              totals[obj['Key'].split('/')[0]] += obj['Size']
+          report = {'object_count': len(objects), 'bytes': sum(totals.values()), 'prefix_bytes': dict(totals)}
+          with open('inventory/summary.json', 'w') as f:
+              json.dump(report, f, indent=2)
+          print(json.dumps(report, indent=2))
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+              f.write('Read-only inventory (no uploads/deletions):\n```json\n' + json.dumps(report, indent=2) + '\n```\n')
+          PY
+      - name: Save read-only audit evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r2-readonly-inventory
+          path: inventory/
+          retention-days: 3
