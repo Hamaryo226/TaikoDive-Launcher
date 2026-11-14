@@ -7,7 +7,29 @@ public sealed class LauncherContext
     private readonly LauncherPreferencesStore _preferencesStore = new();
     private readonly SemaphoreSlim _preferencesSaveLock = new(1, 1);
 
+    public PreferencesTransitionCoordinator PreferenceTransitions { get; } = new();
+
+    public event EventHandler? PreferencesStateChanged;
     public LauncherPreferences Preferences { get; private set; } = new();
+    private LauncherPreferences _confirmedPreferences = new();
+    public bool CanSavePreferences => _preferencesStore.CanSave;
+    public string? PreferencesProtectionReason => _preferencesStore.ProtectionReason;
+    public bool HasUnsavedPreferenceEdits => Preferences.Theme != _confirmedPreferences.Theme
+        || Preferences.HomeBannerStyle != _confirmedPreferences.HomeBannerStyle
+        || Preferences.CloseAfterLaunch != _confirmedPreferences.CloseAfterLaunch
+        || Preferences.BackgroundAnimationEnabled != _confirmedPreferences.BackgroundAnimationEnabled;
+
+    private static LauncherPreferences Copy(LauncherPreferences source) =>
+        System.Text.Json.JsonSerializer.Deserialize(
+            System.Text.Json.JsonSerializer.Serialize(source, LauncherJsonContext.Default.LauncherPreferences),
+            LauncherJsonContext.Default.LauncherPreferences)!;
+
+    public void RevertPreferenceEdits()
+    {
+        var placement = Preferences.WindowPlacement;
+        Preferences = Copy(_confirmedPreferences);
+        Preferences.WindowPlacement = placement;
+    }
 
     public TaikoDiveInstallation? Installation { get; private set; }
 
@@ -26,7 +48,64 @@ public sealed class LauncherContext
     public async Task InitializeAsync()
     {
         Preferences = await _preferencesStore.LoadAsync().ConfigureAwait(false);
+        _confirmedPreferences = Copy(Preferences);
         RefreshInstallation();
+    }
+
+    public int PlacementGeneration { get; private set; }
+    public string? PreferencesBackupPath => _preferencesStore.LastBackupPath;
+
+    // Shared by window close and installer-triggered exit. A failed save must not prevent exit.
+    public async Task PrepareCloseAsync(CancellationTokenSource? delayedSave,
+        WindowPlacementPreferences? pendingPlacement, int generation)
+    {
+        delayedSave?.Cancel();
+        if (pendingPlacement is null) return;
+        try { await SavePlacementAsync(pendingPlacement, generation); }
+        catch { /* Recovery remains available next launch; do not claim the save succeeded. */ }
+    }
+
+    public async Task SavePlacementAsync(WindowPlacementPreferences placement, int generation)
+    {
+        await _preferencesSaveLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (generation != PlacementGeneration || !CanSavePreferences) return;
+            var snapshot = Copy(_confirmedPreferences);
+            snapshot.WindowPlacement = placement;
+            await _preferencesStore.SaveAsync(snapshot).ConfigureAwait(false);
+            _confirmedPreferences = snapshot;
+            Preferences.WindowPlacement = Copy(snapshot).WindowPlacement;
+        }
+        finally { _preferencesSaveLock.Release(); PreferencesStateChanged?.Invoke(this, EventArgs.Empty); }
+    }
+
+    public async Task ResetPreferencesAsync()
+    {
+        await _preferencesSaveLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await _preferencesStore.BackupAndResetAsync().ConfigureAwait(false);
+            PlacementGeneration++;
+            Preferences = await _preferencesStore.LoadAsync().ConfigureAwait(false);
+            _confirmedPreferences = Copy(Preferences);
+        }
+        finally { _preferencesSaveLock.Release(); PreferencesStateChanged?.Invoke(this, EventArgs.Empty); }
+    }
+
+    public async Task<bool> ReloadPreferencesAsync()
+    {
+        await _preferencesSaveLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var loaded = await _preferencesStore.LoadAsync().ConfigureAwait(false);
+            if (!_preferencesStore.CanSave) return false;
+            PlacementGeneration++;
+            Preferences = loaded;
+            _confirmedPreferences = Copy(loaded);
+            return true;
+        }
+        finally { _preferencesSaveLock.Release(); PreferencesStateChanged?.Invoke(this, EventArgs.Empty); }
     }
 
     public void RefreshInstallation() => Installation = TaikoDiveInstallation.FromApplicationDirectory();
@@ -36,11 +115,14 @@ public sealed class LauncherContext
         await _preferencesSaveLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await _preferencesStore.SaveAsync(Preferences).ConfigureAwait(false);
+            var snapshot = Copy(Preferences);
+            await _preferencesStore.SaveAsync(snapshot).ConfigureAwait(false);
+            _confirmedPreferences = snapshot;
         }
         finally
         {
             _preferencesSaveLock.Release();
+            PreferencesStateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

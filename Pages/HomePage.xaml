@@ -87,8 +87,8 @@
                         TextWrapping="Wrap" />
                     <Button
                         x:Name="LaunchButton"
-                        Margin="0,10,0,0"
-                        MinHeight="52"
+                        Margin="0,16,0,0"
+                        MinHeight="56"
                         Padding="28,12"
                         AutomationProperties.Name="ゲームを起動"
                         Click="LaunchButton_Click"

@@ -16,6 +16,7 @@ public sealed partial class MainPage : Page
     private string _currentTag = "home";
 
     public static MainPage? Current { get; private set; }
+    public bool PreferencesOperationBusy => ContentFrame.Content is LauncherSettingsPage { PreferencesBusy: true };
 
     public MainPage()
     {
@@ -27,6 +28,8 @@ public sealed partial class MainPage : Page
     private void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
         Current = this;
+        ((App)Application.Current).Context.PreferencesStateChanged += PreferencesStateChanged;
+        UpdatePreferencesProtection();
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
         ((App)Application.Current).Context.Updates.StateChanged += Updates_StateChanged;
         _suppressSelectionChanged = true;
@@ -47,11 +50,21 @@ public sealed partial class MainPage : Page
 
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)
     {
+        ((App)Application.Current).Context.PreferencesStateChanged -= PreferencesStateChanged;
         ((App)Application.Current).Context.Updates.StateChanged -= Updates_StateChanged;
         if (ReferenceEquals(Current, this))
         {
             Current = null;
         }
+    }
+
+    private void PreferencesStateChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(UpdatePreferencesProtection);
+
+    private void UpdatePreferencesProtection()
+    {
+        var context = ((App)Application.Current).Context;
+        PreferencesProtectionBanner.IsOpen = !context.CanSavePreferences;
+        PreferencesProtectionBanner.Message = context.PreferencesProtectionReason + " 表示は一時的な値です。";
     }
 
     public void NavigateTo(string tag)
@@ -83,9 +96,16 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        var transitions = ((App)Application.Current).Context.PreferenceTransitions;
+        if (transitions.IsBusy || ContentFrame.Content is LauncherSettingsPage { PreferencesBusy: true })
+        {
+            RestoreCurrentSelection();
+            return;
+        }
+        bool moved = await transitions.RunAsync(async () =>
+        {
         if (ContentFrame.Content is IUnsavedChangesAware { HasUnsavedChanges: true } page)
         {
-            ShellNavigation.IsEnabled = false;
             ContentDialog dialog = new()
             {
                 Title = "変更を保存していません",
@@ -99,6 +119,7 @@ public sealed partial class MainPage : Page
             ContentDialogResult result;
             try
             {
+                ShellNavigation.IsEnabled = false;
                 result = await dialog.ShowAsync();
             }
             finally
@@ -108,13 +129,17 @@ public sealed partial class MainPage : Page
 
             if (result != ContentDialogResult.Primary)
             {
-                RestoreCurrentSelection();
-                return;
+                return false;
             }
         }
-
-        Navigate(tag);
-        _currentNavigationItem = target;
+        return true;
+        }, () =>
+        {
+            Navigate(tag);
+            _currentNavigationItem = target;
+            return Task.CompletedTask;
+        });
+        if (!moved) RestoreCurrentSelection();
     }
 
     private void RestoreCurrentSelection()

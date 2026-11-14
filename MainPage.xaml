@@ -59,6 +59,11 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <StackPanel x:Name="AlertsPanel" Margin="12,8,12,0" Spacing="8">
+                <InfoBar x:Name="PreferencesProtectionBanner" IsClosable="False" Severity="Warning" Title="ランチャー設定を保護しています">
+                    <InfoBar.ActionButton>
+                        <Button Click="OpenUpdateSettingsButton_Click" Content="設定の復旧を開く" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
                 <InfoBar
                     x:Name="InstallationBanner"
                     IsClosable="False"

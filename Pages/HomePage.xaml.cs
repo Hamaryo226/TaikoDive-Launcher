@@ -22,6 +22,9 @@ public sealed partial class HomePage : Page
     private ImageSource[] _crownImages = [];
     private SongScoreDialog? _activeScoreDialog;
     private bool _loadingSongDetails;
+    private readonly UISettings _motionSettings = new();
+    private bool _homeVisible;
+    private bool _animationRunning;
 
     private App AppInstance => (App)Application.Current;
 
@@ -33,7 +36,9 @@ public sealed partial class HomePage : Page
         {
             _previewCancellation?.Cancel();
             _activeScoreDialog?.Hide();
-            HeroGradientAnimation.Stop();
+            _homeVisible = false;
+            if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged -= MotionSettings_Changed;
+            UpdateEffectiveMotion();
             DetachHomeUpdates();
         };
     }
@@ -41,19 +46,30 @@ public sealed partial class HomePage : Page
     private async void HomePage_Loaded(object sender, RoutedEventArgs e)
     {
         ApplyBannerStyle();
-        if (new UISettings().AnimationsEnabled)
-        {
-            HeroGradientAnimation.Begin();
-        }
+        _homeVisible = true;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged -= MotionSettings_Changed;
+        if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged += MotionSettings_Changed;
+        UpdateEffectiveMotion();
         await RefreshAsync();
         LoadHomeCards();
+    }
+
+    private void MotionSettings_Changed(UISettings sender, object args) => DispatcherQueue.TryEnqueue(UpdateEffectiveMotion);
+
+    private void UpdateEffectiveMotion()
+    {
+        bool effective = _homeVisible && AppInstance.Context.Preferences.BackgroundAnimationEnabled && _motionSettings.AnimationsEnabled;
+        if (effective == _animationRunning) return;
+        _animationRunning = effective;
+        if (effective) HeroGradientAnimation.Begin();
+        else HeroGradientAnimation.Stop();
     }
 
     private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         bool narrow = e.NewSize.Width < 820;
         LayoutRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
-        HeroContent.Margin = narrow ? new Thickness(20) : new Thickness(36, 32, 36, 32);
+        HeroContent.Margin = narrow ? new Thickness(16) : new Thickness(32);
         DonPreviewStage.Height = narrow ? 300 : 260;
         HomeNamePlatePreview.MaxWidth = narrow ? 320 : 360;
         HomeNamePlatePreview.HorizontalAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
@@ -300,7 +316,8 @@ public sealed partial class HomePage : Page
 
         if (AppInstance.Context.Preferences.CloseAfterLaunch)
         {
-            AppInstance.Exit();
+            // Launch can complete after navigating to settings; use the same unsaved-edit guard.
+            await App.MainWindow.RequestCloseAsync();
         }
     }
 
