@@ -745,7 +745,7 @@ public sealed class PersistenceTests
     }
 
     [TestMethod]
-    public async Task UpdateCheckerDetectsDifferentMainRevisionWithoutAuthentication()
+    public async Task UpdateCheckerRejectsUnsignedManifest()
     {
         string currentRevision = new('a', 40);
         string latestRevision = new('b', 40);
@@ -768,11 +768,9 @@ public sealed class PersistenceTests
 
         await service.CheckAsync();
 
-        Assert.AreEqual(LauncherUpdateState.Available, service.State);
-        Assert.IsNotNull(service.AvailableUpdate);
-        Assert.AreEqual(latestRevision, service.AvailableUpdate.Revision);
-        Assert.IsNotNull(service.LatestUpdate);
-        Assert.AreEqual("・設定画面で更新内容を表示", service.LatestUpdate.ReleaseNotes);
+        Assert.AreEqual(LauncherUpdateState.Failed, service.State);
+        Assert.IsNull(service.AvailableUpdate);
+        Assert.IsNull(service.LatestUpdate);
     }
 
     [TestMethod]

@@ -20,6 +20,7 @@ public sealed partial class LauncherUpdateService
     private readonly string _currentRevision;
     private readonly Uri _manifestUri;
     private readonly Uri _executableUri;
+    private readonly string _publisherPublicKey;
     private readonly Func<string?> _processPathProvider;
     private readonly Func<bool> _isGameRunning;
     private readonly SemaphoreSlim _operationLock = new(1, 1);
@@ -47,12 +48,16 @@ public sealed partial class LauncherUpdateService
         Uri manifestUri,
         Uri executableUri,
         Func<string?> processPathProvider,
-        Func<bool>? isGameRunning = null)
+        Func<bool>? isGameRunning = null,
+        string? publisherPublicKey = null)
     {
         _httpClient = httpClient;
         _currentRevision = currentRevision;
         _manifestUri = manifestUri;
         _executableUri = executableUri;
+        _publisherPublicKey = publisherPublicKey ?? typeof(LauncherUpdateService).Assembly
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => attribute.Key == "LauncherUpdatePublicKey")?.Value ?? string.Empty;
         _processPathProvider = processPathProvider;
         _isGameRunning = isGameRunning ?? (() => false);
     }
@@ -87,7 +92,7 @@ public sealed partial class LauncherUpdateService
         {
             lock (_stateLock)
             {
-                return _availableUpdate;
+                return CopyManifest(_availableUpdate);
             }
         }
     }
@@ -98,7 +103,7 @@ public sealed partial class LauncherUpdateService
         {
             lock (_stateLock)
             {
-                return _latestUpdate;
+                return CopyManifest(_latestUpdate);
             }
         }
     }
@@ -126,17 +131,26 @@ public sealed partial class LauncherUpdateService
         try
         {
             SetState(LauncherUpdateState.Checking, "アップデートを確認しています…", null);
+            using CancellationTokenSource manifestTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            manifestTimeout.CancelAfter(_httpClient.Timeout);
             using HttpRequestMessage request = new(HttpMethod.Get, AddCacheBuster(_manifestUri));
             request.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
-            using HttpResponseMessage response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+            using HttpResponseMessage response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, manifestTimeout.Token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-            LauncherUpdateManifest? manifest = await JsonSerializer.DeserializeAsync(
-                    stream,
-                    LauncherJsonContext.Default.LauncherUpdateManifest,
-                    cancellationToken)
-                .ConfigureAwait(false);
+            byte[] manifestBytes = await ReadBoundedAsync(response, 64 * 1024, manifestTimeout.Token).ConfigureAwait(false);
+            UriBuilder signatureUri = new(_manifestUri) { Path = _manifestUri.AbsolutePath + ".sig" };
+            using CancellationTokenSource signatureTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            signatureTimeout.CancelAfter(_httpClient.Timeout);
+            using HttpRequestMessage signatureRequest = new(HttpMethod.Get, AddCacheBuster(signatureUri.Uri));
+            signatureRequest.Headers.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+            using HttpResponseMessage signatureResponse = await _httpClient.SendAsync(
+                signatureRequest, HttpCompletionOption.ResponseHeadersRead, signatureTimeout.Token).ConfigureAwait(false);
+            signatureResponse.EnsureSuccessStatusCode();
+            byte[] signature = await ReadBoundedAsync(signatureResponse, 1024, signatureTimeout.Token).ConfigureAwait(false);
+            VerifyManifestSignature(manifestBytes, signature, _publisherPublicKey);
+            LauncherUpdateManifest? manifest = JsonSerializer.Deserialize(
+                manifestBytes, LauncherJsonContext.Default.LauncherUpdateManifest);
             ValidateManifest(manifest);
             SetLatestUpdate(manifest!);
 
@@ -396,6 +410,46 @@ public sealed partial class LauncherUpdateService
         manifest.ReleaseNotes = manifest.ReleaseNotes.Trim();
         manifest.Sha256 = manifest.Sha256.ToUpperInvariant();
     }
+
+    internal static void VerifyManifestSignature(byte[] manifest, byte[] signature, string publicKey)
+    {
+        // This key is pinned at build time, never read from the distribution server.
+        if (string.IsNullOrWhiteSpace(publicKey))
+            throw new InvalidDataException("更新の発行者公開鍵が設定されていません。");
+        try
+        {
+            using RSA rsa = RSA.Create();
+            byte[] key = Convert.FromBase64String(publicKey);
+            rsa.ImportSubjectPublicKeyInfo(key, out int bytesRead);
+            if (bytesRead != key.Length || rsa.KeySize < 3072
+                || !rsa.VerifyData(manifest, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pss))
+                throw new InvalidDataException("更新マニフェストの発行者署名が不正です。");
+        }
+        catch (Exception ex) when (ex is CryptographicException or FormatException)
+        {
+            throw new InvalidDataException("更新マニフェストの発行者署名が不正です。", ex);
+        }
+    }
+
+    private static async Task<byte[]> ReadBoundedAsync(HttpResponseMessage response, int maximumBytes, CancellationToken token)
+    {
+        await using Stream stream = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
+        byte[] buffer = new byte[maximumBytes + 1];
+        int count = await stream.ReadAtLeastAsync(buffer, buffer.Length, throwOnEndOfStream: false, cancellationToken: token).ConfigureAwait(false);
+        if (count > maximumBytes)
+            throw new InvalidDataException("更新メタデータが大きすぎます。");
+        return buffer[..count];
+    }
+
+    // Do not let UI consumers change the authenticated revision, hash or size.
+    private static LauncherUpdateManifest? CopyManifest(LauncherUpdateManifest? manifest) => manifest is null ? null : new()
+    {
+        Revision = manifest.Revision,
+        ReleaseNotes = manifest.ReleaseNotes,
+        Sha256 = manifest.Sha256,
+        Size = manifest.Size,
+        PublishedAt = manifest.PublishedAt,
+    };
 
     private void SetLatestUpdate(LauncherUpdateManifest latestUpdate)
     {

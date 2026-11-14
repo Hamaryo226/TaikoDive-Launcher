@@ -20,6 +20,8 @@ concurrency:
 jobs:
   publish:
     runs-on: windows-latest
+    env:
+      LauncherUpdatePublicKey: ${{ vars.LAUNCHER_UPDATE_PUBLIC_KEY }}
 
     steps:
       - name: Checkout main
@@ -63,7 +65,10 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($env:R2_ACCOUNT_ID)) {
             throw 'R2_ACCOUNT_ID secret is required.'
           }
-          dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64 "-p:GamePackageKey=$env:GAME_PACKAGE_KEY"
+          if ([string]::IsNullOrWhiteSpace($env:LauncherUpdatePublicKey)) {
+            throw 'LAUNCHER_UPDATE_PUBLIC_KEY repository variable is required.'
+          }
+          dotnet build TaikoDiveLauncher.csproj -c Release -p:Platform=x64 "-p:GamePackageKey=$env:GAME_PACKAGE_KEY" "-p:LauncherUpdatePublicKey=$env:LauncherUpdatePublicKey"
 
       - name: Create update manifest
         shell: pwsh
@@ -104,6 +109,16 @@ jobs:
             $manifestPath,
             $json + [Environment]::NewLine,
             [System.Text.UTF8Encoding]::new($false))
+
+      - name: Sign launcher update manifest
+        shell: pwsh
+        env:
+          LAUNCHER_UPDATE_PRIVATE_KEY: ${{ secrets.LAUNCHER_UPDATE_PRIVATE_KEY }}
+        run: |
+          $publishDirectory = Join-Path $env:GITHUB_WORKSPACE 'bin\x64\Release\net10.0-windows10.0.26100.0\win-x64'
+          & .\tools\r2\Sign-LauncherManifest.ps1 `
+            -ManifestPath (Join-Path $publishDirectory 'update-manifest.json') `
+            -PublicKey $env:LauncherUpdatePublicKey
 
       # 配布はCloudflare R2（https://dl.hamaryo.dev）から行う。
       - name: Publish main update channel to Cloudflare R2
@@ -147,4 +162,5 @@ jobs:
           }
 
           gh release upload $tag $executable --clobber --repo $env:GITHUB_REPOSITORY
+          gh release upload $tag "$manifest.sig" --clobber --repo $env:GITHUB_REPOSITORY
           gh release upload $tag $manifest --clobber --repo $env:GITHUB_REPOSITORY
