@@ -39,7 +39,6 @@ public sealed partial class HomePage : Page
             _homeVisible = false;
             if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged -= MotionSettings_Changed;
             UpdateEffectiveMotion();
-            DetachHomeUpdates();
         };
     }
 
@@ -51,7 +50,6 @@ public sealed partial class HomePage : Page
         if (OperatingSystem.IsWindowsVersionAtLeast(10, 0, 19041)) _motionSettings.AnimationsEnabledChanged += MotionSettings_Changed;
         UpdateEffectiveMotion();
         await RefreshAsync();
-        LoadHomeCards();
     }
 
     private void MotionSettings_Changed(UISettings sender, object args) => DispatcherQueue.TryEnqueue(UpdateEffectiveMotion);
@@ -73,7 +71,6 @@ public sealed partial class HomePage : Page
         DonPreviewStage.Height = narrow ? 300 : 260;
         HomeNamePlatePreview.MaxWidth = narrow ? 320 : 360;
         HomeNamePlatePreview.HorizontalAlignment = narrow ? HorizontalAlignment.Center : HorizontalAlignment.Stretch;
-        ApplyHomeCards();
     }
 
     private void ApplyBannerStyle()
@@ -110,14 +107,10 @@ public sealed partial class HomePage : Page
             DonPreviewImage.Source = null;
             AppInstance.HomeDonPreview = null;
             _characterPreview.ClearStaticCache();
-            HeroStatusBadge.Visibility = Visibility.Collapsed;
             StatusBar.IsOpen = false;
             return;
         }
 
-        HeroStatusBadge.Visibility = Visibility.Visible;
-        HeroStatusText.Text = "準備完了";
-        HeroStatusIcon.Glyph = "\uE73E";
         _ = LoadDonPreviewAsync(installation, token);
 
         try

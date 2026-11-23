@@ -5,27 +5,25 @@
     xmlns:controls="using:TaikoDiveLauncher.Controls">
     <Grid x:Name="PageRoot" Style="{StaticResource PageLayoutStyle}" SizeChanged="PageRoot_SizeChanged">
         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-        <Grid ColumnSpacing="16" RowSpacing="8">
+        <Grid ColumnSpacing="16">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-            <StackPanel Spacing="6">
-                <TextBlock Text="入力設定" Style="{StaticResource PageTitleStyle}" />
-                <TextBlock Text="図のキーやボタンを選んで、ドン・カッを割り当てます。" Style="{StaticResource PageSubtitleStyle}" />
-                <TextBlock x:Name="BindingSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
-            </StackPanel>
-            <CommandBar x:Name="InputCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
+
+            <TextBlock Text="入力設定" Style="{StaticResource PageTitleStyle}" />
+            <CommandBar Grid.Column="1" HorizontalAlignment="Right" Style="{StaticResource PageCommandBarStyle}">
                 <AppBarButton x:Name="SaveButton" Icon="Save" Label="保存" Click="SaveButton_Click" Style="{StaticResource VisibleAppBarButtonStyle}" />
                 <CommandBar.SecondaryCommands><AppBarButton x:Name="ReloadButton" Label="保存済みに戻す" Click="ReloadButton_Click" /></CommandBar.SecondaryCommands>
             </CommandBar>
         </Grid>
         <InfoBar x:Name="StatusBar" Grid.Row="1" IsOpen="False" IsClosable="True" />
         <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="20">
+            <StackPanel Spacing="16" Margin="0,0,14,0">
                 <Grid ColumnSpacing="16">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                    <ComboBox x:Name="PlayerBox" Header="プレイヤー" SelectedIndex="0" SelectionChanged="EditorSelection_Changed" MinWidth="92">
-                        <ComboBoxItem Content="1P" /><ComboBoxItem Content="2P" />
-                    </ComboBox>
+                    <RadioButtons x:Name="PlayerPicker" Header="プレイヤー" MaxColumns="2" SelectedIndex="0"
+                                  SelectionChanged="EditorSelection_Changed">
+                        <RadioButton Content="1P" MinWidth="64" />
+                        <RadioButton Content="2P" MinWidth="64" />
+                    </RadioButtons>
                     <ComboBox x:Name="DeviceTypeBox" Grid.Column="1" Header="操作タイプ" SelectedIndex="0" SelectionChanged="EditorSelection_Changed" HorizontalAlignment="Left" MinWidth="200">
                         <ComboBoxItem Content="キーボード" /><ComboBoxItem Content="ゲームパッド" /><ComboBoxItem Content="太鼓型コントローラー" />
                     </ComboBox>
@@ -35,16 +33,7 @@
                     <ComboBox x:Name="ControllerBox" Header="コントローラー" DisplayMemberPath="Label" HorizontalAlignment="Stretch" SelectionChanged="ControllerBox_SelectionChanged" />
                     <Button Grid.Column="1" Content="更新" VerticalAlignment="Bottom" Click="RefreshControllersButton_Click" />
                 </Grid>
-                <StackPanel Spacing="12">
-                    <TextBlock x:Name="DiagramInstructionText" TextWrapping="Wrap" />
-                    <controls:InputDeviceDiagram x:Name="DeviceDiagram" />
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="現在の割り当て" FontWeight="SemiBold" />
-                        <TextBlock x:Name="AssignmentSummaryText" TextWrapping="Wrap" />
-                    </StackPanel>
-                    <TextBlock x:Name="DeviceNoteText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
-                </StackPanel>
-                <TextBlock Text="赤＝ドン ／ 青＝カッ。変更は保存後、次回のTaikoDive起動から反映されます。" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
+                <controls:InputDeviceDiagram x:Name="DeviceDiagram" />
             </StackPanel>
         </ScrollViewer>
         <ProgressRing x:Name="BusyRing" Grid.Row="2" Width="32" Height="32" IsActive="False" Visibility="Collapsed" />

@@ -31,7 +31,7 @@
                 <TextBlock x:Name="LiveSettingsSummaryText" Style="{StaticResource PageSubtitleStyle}" TextWrapping="Wrap" />
             </StackPanel>
             <CommandBar x:Name="SaveCommandBar" Grid.Column="1" Style="{StaticResource PageCommandBarStyle}">
-                <AppBarButton Click="SaveButton_Click" Label="保存" Style="{StaticResource VisibleAppBarButtonStyle}">
+                <AppBarButton x:Name="SaveButton" Click="SaveButton_Click" Label="保存" IsEnabled="False" Style="{StaticResource VisibleAppBarButtonStyle}">
                     <AppBarButton.Icon>
                         <SymbolIcon Symbol="Save" />
                     </AppBarButton.Icon>
@@ -48,7 +48,8 @@
             IsClosable="True"
             IsOpen="False" />
 
-        <ScrollViewer Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+        <ScrollViewer
+            x:Name="SettingsScrollViewer" Grid.Row="2" HorizontalContentAlignment="Stretch" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
             <Grid x:Name="SettingsGrid" ColumnSpacing="16" RowSpacing="16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition x:Name="SettingsPrimaryColumn" Width="*" />
@@ -200,37 +201,16 @@
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="FontSurface" Grid.Row="2" Style="{StaticResource QuietSurfaceStyle}">
+                <Border x:Name="FontSurface" Grid.Row="2" Grid.ColumnSpan="2" Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="16">
                         <TextBlock Text="フォント" Style="{StaticResource SectionTitleStyle}" />
-                        <TextBox x:Name="FontOedoBox" Header="大江戸勘亭流" />
-                        <TextBox x:Name="FontDFGothicBox" Header="太丸ゴシック" />
-                        <TextBox x:Name="FontSeuratBox" Header="スーラ" />
-                        <TextBox x:Name="FontDomCasualBox" Header="Dom Casual" />
-                        <TextBox x:Name="FontFallbackBox" Header="フォールバック" />
-                        <TextBlock
-                            Text="ゲームで使用するフォントファミリー名を指定します。変更は次回起動から反映されます。"
-                            Style="{StaticResource PageSubtitleStyle}" />
-                    </StackPanel>
-                </Border>
-
-                <Border x:Name="OnlineSurface" Grid.Row="2" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="オンライン" Style="{StaticResource SectionTitleStyle}" />
-                        <NumberBox
-                            x:Name="OnlinePortBox"
-                            Header="接続ポート"
-                            Minimum="1"
-                            Maximum="65535"
-                            SmallChange="1"
-                            SpinButtonPlacementMode="Compact" />
-                        <TextBox
-                            x:Name="LastJoinAddressBox"
-                            Header="最後に接続したアドレス"
-                            PlaceholderText="例: 192.0.2.1:22047" />
-                        <TextBlock
-                            Text="アドレスはオンラインロビーで接続先の初期値として使われます。"
-                            Style="{StaticResource PageSubtitleStyle}" />
+                        <StackPanel MaxWidth="560" Spacing="12">
+                            <ComboBox x:Name="FontOedoBox" Header="大江戸勘亭流" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="FontDFGothicBox" Header="太丸ゴシック" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="FontSeuratBox" Header="スーラ" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="FontDomCasualBox" Header="Dom Casual" HorizontalAlignment="Stretch" />
+                            <ComboBox x:Name="FontFallbackBox" Header="フォールバック" HorizontalAlignment="Stretch" />
+                        </StackPanel>
                     </StackPanel>
                 </Border>
             </Grid>

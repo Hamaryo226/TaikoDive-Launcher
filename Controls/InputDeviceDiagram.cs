@@ -6,22 +6,23 @@ using Windows.System;
 using Microsoft.UI.Xaml.Media;
 using TaikoDiveLauncher.Models;
 using TaikoDiveLauncher.Services;
-using Windows.Foundation;
+
 
 namespace TaikoDiveLauncher.Controls;
 
-// キーと入力領域は標準 Button。機器画像は操作タイプを表示するときだけ読み込む。
+// どの操作タイプも、模式図のキーキャップを標準 Button で編集できる。
 public sealed partial class InputDeviceDiagram : UserControl
 {
-    private static readonly string[] Labels = ["カッ（左）", "ドン（左）", "ドン（右）", "カッ（右）"];
+    private const double KeyboardHeight = 350;
+    private const double ControllerWidth = 720;
+    private const double ControllerHeight = 282;
     private readonly Canvas _stage = new() { Width = 1000, Height = 350 };
-    private InputBindings _bindings = new();
-    private int _player = 1;
+    private PlayerInputBindings _bindings = new();
     private int _deviceType = -1;
-    private int _selectedSlot = 1;
     private readonly Dictionary<int, Button> _keys = [];
+    private readonly HashSet<int> _extraKeys = [];
     private IReadOnlyList<ControllerDiagramInput> _controllerInputs = [];
-    private readonly List<(ControllerDiagramInput Input, Button Button)> _controllerButtons = [];
+    private readonly List<(ControllerDiagramInput Input, Button Button, bool Region, bool ShowAssignment)> _controllerButtons = [];
 
     public event Action<int, Button>? KeyInvoked;
     public event Action<ControllerInputBinding, Button>? ControllerInvoked;
@@ -32,20 +33,19 @@ public sealed partial class InputDeviceDiagram : UserControl
         Content = new Viewbox { Child = _stage, Stretch = Stretch.Uniform, MaxWidth = 1100, HorizontalAlignment = HorizontalAlignment.Left };
     }
 
-    internal void Update(InputBindings bindings, int player, int deviceType, int selectedSlot, IReadOnlyList<ControllerDiagramInput>? controllerInputs = null)
+    internal void Update(PlayerInputBindings bindings, int deviceType, IReadOnlyList<ControllerDiagramInput> controllerInputs)
     {
         _bindings = bindings;
-        _player = player;
-        _selectedSlot = selectedSlot;
-        ((Viewbox)Content).MaxWidth = deviceType == 0 ? 1100 : 800;
+        ((Viewbox)Content).MaxWidth = deviceType == 0 ? 1100 : 605;
         ((Viewbox)Content).HorizontalAlignment = deviceType == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center;
         bool inputsChanged = !ReferenceEquals(_controllerInputs, controllerInputs);
-        _controllerInputs = controllerInputs ?? [];
+        _controllerInputs = controllerInputs;
         if (_deviceType != deviceType || (deviceType != 0 && inputsChanged))
         {
             _deviceType = deviceType;
             BuildDiagram();
         }
+        if (deviceType == 0) UpdateExtraKeyboardKeys();
         RefreshAppearance();
     }
 
@@ -53,9 +53,10 @@ public sealed partial class InputDeviceDiagram : UserControl
     {
         _stage.Children.Clear();
         _keys.Clear();
+        _extraKeys.Clear();
         _controllerButtons.Clear();
-        _stage.Width = _deviceType == 0 ? 1056 : 720;
-        _stage.Height = _deviceType == 0 ? 350 : 300;
+        _stage.Width = _deviceType == 0 ? 1056 : ControllerWidth;
+        _stage.Height = _deviceType == 0 ? KeyboardHeight : ControllerHeight;
         if (_deviceType == 0) BuildKeyboard();
         else if (_deviceType == 1) BuildGamepad();
         else BuildDrum();
@@ -63,7 +64,7 @@ public sealed partial class InputDeviceDiagram : UserControl
 
     private void BuildKeyboard()
     {
-        AddBody(0, 0, 1056, 350, 14);
+        AddBody(0, 0, 1056, KeyboardHeight, 14);
         // JIS 配列。数値は Setting.json と同じ DXLib のキーコード。
         AddKeyRow(12, 12, [1, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 87, 88]);
         AddKeyRow(718, 12, [183, 70, 197]);
@@ -82,6 +83,36 @@ public sealed partial class InputDeviceDiagram : UserControl
         AddKeyRow(862, 236, [79, 80, 81, 156]);
         AddKey(82, 862, 292, 88);
         AddKey(83, 954, 292, 42);
+    }
+
+    private void UpdateExtraKeyboardKeys()
+    {
+        // 保存済みのキーが JIS 配列の図にない場合も、同じキーキャップで編集できる。
+        int[] assigned = Enumerable.Range(0, 4).SelectMany(_bindings.GetKeys)
+            .Where(code => !_keys.ContainsKey(code) || _extraKeys.Contains(code)).Distinct().Order().ToArray();
+        foreach (int code in _extraKeys.Except(assigned).ToArray())
+        {
+            _stage.Children.Remove(_keys[code]);
+            _keys.Remove(code);
+            _extraKeys.Remove(code);
+        }
+
+        const int columns = 12;
+        for (int i = 0; i < assigned.Length; i++)
+        {
+            int code = assigned[i];
+            double x = 12 + i % columns * 86;
+            double y = KeyboardHeight + 10 + i / columns * 52;
+            if (_extraKeys.Add(code)) AddKey(code, x, y, 78);
+            else
+            {
+                Canvas.SetLeft(_keys[code], x);
+                Canvas.SetTop(_keys[code], y);
+            }
+        }
+
+        _stage.Height = assigned.Length == 0 ? KeyboardHeight : KeyboardHeight + 10 + Math.Ceiling(assigned.Length / (double)columns) * 52;
+        if (!_keys.Values.Any(key => key.IsTabStop)) _keys.Values.First().IsTabStop = true;
     }
 
     private void AddKeyRow(double x, double y, int[] codes)
@@ -128,126 +159,38 @@ public sealed partial class InputDeviceDiagram : UserControl
         e.Handled = true;
     }
 
-    private void BuildGamepad()
+    private void AddControllerSchematic(string resource)
     {
-        AddDeviceImage("Gamepad.png");
-        var positions = new (string Name, double X, double Y, double W, double H)[]
-        {
-            ("A", 653, 234, 62, 62), ("B", 702, 176, 62, 62),
-            ("X", 597, 176, 62, 62), ("Y", 653, 116, 62, 62),
-            ("LB", 138, 68, 148, 33), ("RB", 613, 68, 148, 33),
-            ("LT", 173, 21, 76, 33), ("RT", 652, 21, 76, 33),
-            ("L3", 288, 290, 84, 84), ("R3", 528, 290, 84, 84),
-            ("View", 360, 179, 53, 30), ("Menu", 487, 179, 53, 30),
-            ("↑", 201, 146, 42, 42), ("↓", 201, 232, 42, 42),
-            ("←", 158, 189, 42, 42), ("→", 244, 189, 42, 42),
-        };
-        List<ControllerDiagramInput> remaining = [.. _controllerInputs];
-        foreach (var position in positions)
-        {
-            ControllerDiagramInput? input = remaining.FirstOrDefault(item => item.Position == position.Name);
-            // Unlabelled devices keep their actual input numbers on the generic layout.
-            input ??= remaining.FirstOrDefault(item => item.Position.Length == 0 && item.Binding?.InputType == ControllerInputType.Button);
-            input ??= new ControllerDiagramInput(position.Name, position.Name, null);
-            remaining.Remove(input);
-            AddControllerButton(input, position.X, position.Y, position.W, position.H);
-        }
-        AddExtraInputs(remaining);
-    }
-
-    private void BuildDrum()
-    {
-        AddDeviceImage("TaikoController.png");
-        var buttons = _controllerInputs.Where(input => input.Binding?.InputType == ControllerInputType.Button)
-            .OrderBy(input => input.Binding!.InputIndex).Take(4).ToArray();
-        ControllerDiagramInput Input(int index) => index < buttons.Length ? buttons[index] : new ControllerDiagramInput($"B{index + 1}", "", null);
-        AddShapedInput(Input(0), 196, 9, 254, 458,
-            DrumGeometry(left: true, rim: true), 4, 190, 52);
-        AddShapedInput(Input(3), 450, 9, 254, 458,
-            DrumGeometry(left: false, rim: true), 198, 190, 52);
-        AddShapedInput(Input(1), 224, 37, 224, 402,
-            DrumGeometry(left: true, rim: false), 100, 160, 110);
-        AddShapedInput(Input(2), 452, 37, 224, 402,
-            DrumGeometry(left: false, rim: false), 14, 160, 110);
-        AddExtraInputs(_controllerInputs.Except(buttons).ToArray());
-    }
-
-    private void AddDeviceImage(string file)
-    {
-        _stage.Width = 900;
-        _stage.Height = 600;
-        Image image = new()
-        {
-            Width = 900, Height = 600, Stretch = Stretch.Uniform,
-            Source = new Microsoft.UI.Xaml.Media.Imaging.BitmapImage(new Uri("ms-appx:///Assets/InputDevices/" + file)) { DecodePixelWidth = 1000 },
-            IsHitTestVisible = false,
-        };
-        Place(image, 0, 0);
+        FrameworkElement schematic = (FrameworkElement)((DataTemplate)Resources[resource]).LoadContent();
+        Place(schematic, 0, 0);
     }
 
     private void AddExtraInputs(IReadOnlyList<ControllerDiagramInput> inputs)
     {
-        const int columns = 10;
+        const int columns = 9;
+        const double rowHeight = 48;
         for (int index = 0; index < inputs.Count; index++)
-            AddControllerButton(inputs[index], 10 + index % columns * 89, 616 + index / columns * 62, 82, 54);
-        if (inputs.Count > 0) _stage.Height = 616 + Math.Ceiling(inputs.Count / (double)columns) * 62;
+            AddControllerButton(inputs[index], 8 + index % columns * 79, ControllerHeight + 8 + index / columns * rowHeight, 72, 42);
+        if (inputs.Count > 0) _stage.Height = ControllerHeight + 8 + Math.Ceiling(inputs.Count / (double)columns) * rowHeight;
     }
 
-    private Button AddControllerButton(ControllerDiagramInput input, double x, double y, double width, double height)
+    private Button AddControllerButton(ControllerDiagramInput input, double x, double y, double width, double height,
+        bool region = false, bool showAssignment = true)
     {
         Button button = new()
         {
-            Width = width, Height = height, Padding = new Thickness(2), CornerRadius = new CornerRadius(Math.Min(width, height) / 2),
+            Width = width, Height = height, Padding = new Thickness(1), CornerRadius = new CornerRadius(6),
             HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
         };
         button.Click += (_, _) =>
         {
             if (input.Binding is { } binding) ControllerInvoked?.Invoke(binding, button);
         };
-        _controllerButtons.Add((input, button));
+        _controllerButtons.Add((input, button, region, showAssignment));
         Place(button, x, y);
         return button;
     }
 
-    private void AddShapedInput(ControllerDiagramInput input, double x, double y, double width, double height,
-        Geometry geometry, double labelX, double labelY, double labelWidth)
-    {
-        Button target = AddControllerButton(input, x, y, width, height);
-        target.Tag = geometry;
-        target.Template = (ControlTemplate)Resources["DrumSectorTemplate"];
-        Canvas labelCanvas = new();
-        Border label = new() { Width = labelWidth, Style = (Style)Resources["DiagramCaptionStyle"] };
-        Canvas.SetLeft(label, labelX);
-        Canvas.SetTop(label, labelY);
-        labelCanvas.Children.Add(label);
-        target.Content = labelCanvas;
-        target.UseSystemFocusVisuals = false;
-    }
-
-    private static PathGeometry DrumGeometry(bool left, bool rim)
-    {
-        double x = left ? (rim ? 254 : 224) : 0;
-        double radiusX = rim ? 254 : 224;
-        double radiusY = rim ? 229 : 201;
-        PathFigure figure = new() { StartPoint = new Point(x, 0), IsClosed = true };
-        figure.Segments.Add(new ArcSegment
-        {
-            Point = new Point(x, radiusY * 2), Size = new Size(radiusX, radiusY),
-            SweepDirection = left ? SweepDirection.Counterclockwise : SweepDirection.Clockwise,
-        });
-        if (rim)
-        {
-            figure.Segments.Add(new LineSegment { Point = new Point(x, 430) });
-            figure.Segments.Add(new ArcSegment
-            {
-                Point = new Point(x, 28), Size = new Size(226, 201),
-                SweepDirection = left ? SweepDirection.Clockwise : SweepDirection.Counterclockwise,
-            });
-        }
-        PathGeometry geometry = new();
-        geometry.Figures.Add(figure);
-        return geometry;
-    }
     private void AddBody(double x, double y, double width, double height, double radius)
     {
         Border body = new()
@@ -259,8 +202,6 @@ public sealed partial class InputDeviceDiagram : UserControl
         Place(body, x, y);
     }
 
-    private void AddDecoration(string text, double x, double y, double size) =>
-        Place(new TextBlock { Text = text, FontSize = size, IsHitTestVisible = false }, x, y);
 
     private void Place(FrameworkElement element, double x, double y)
     {
@@ -271,49 +212,36 @@ public sealed partial class InputDeviceDiagram : UserControl
 
     private void RefreshAppearance()
     {
-        PlayerInputBindings player = _player == 1 ? _bindings.Player1 : _bindings.Player2;
-        PlayerInputBindings other = _player == 1 ? _bindings.Player2 : _bindings.Player1;
         foreach ((int code, Button key) in _keys)
         {
-            int slot = Enumerable.Range(0, 4).FirstOrDefault(s => player.GetKeys(s).Contains(code), -1);
-            bool otherPlayer = slot < 0;
-            if (otherPlayer) slot = Enumerable.Range(0, 4).FirstOrDefault(s => other.GetKeys(s).Contains(code), -1);
+            int slot = Enumerable.Range(0, 4).FirstOrDefault(s => _bindings.GetKeys(s).Contains(code), -1);
             string label = ShortKeyLabel(code);
-            string action = slot < 0 ? "" : $"{(otherPlayer ? 3 - _player : _player)}P {(slot is 1 or 2 ? "ドン" : "カッ")}{(slot is 0 or 1 ? "左" : "右")}";
-            key.Content = new TextBlock { Text = label + (action.Length > 0 ? "\n" + action : ""), FontSize = 10, TextAlignment = TextAlignment.Center };
-            ApplyColor(key, slot, !otherPlayer && slot == _selectedSlot);
-            // 他プレイヤーのキーも番号で区別し、上書きは既存の重複検査で防ぐ。
+            string action = InputLabelService.HitLabel(slot);
+            key.Content = new TextBlock { Text = label + (slot < 0 ? "" : "\n" + action), FontSize = 11, TextAlignment = TextAlignment.Center };
+            ApplyColor(key, slot);
             string description = $"{InputLabelService.KeyLabel(code)} {(slot < 0 ? "未設定" : action)}。割り当てを変更";
             AutomationProperties.SetName(key, description);
             ToolTipService.SetToolTip(key, description);
         }
-        foreach ((ControllerDiagramInput input, Button button) in _controllerButtons)
+        foreach ((ControllerDiagramInput input, Button button, bool region, bool showAssignment) in _controllerButtons)
         {
             int slot = input.Binding is null ? -1 : Enumerable.Range(0, 4).FirstOrDefault(index =>
-                player.GetControllers(index).Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input.Binding)), -1);
-            bool otherPlayer = false;
-            if (slot < 0 && input.Binding is not null)
+                _bindings.GetControllers(index).Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input.Binding)), -1);
+            string assignment = InputLabelService.HitLabel(slot);
+            button.Content = new TextBlock
             {
-                slot = Enumerable.Range(0, 4).FirstOrDefault(index =>
-                    other.GetControllers(index).Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input.Binding)), -1);
-                otherPlayer = slot >= 0;
-            }
-            string assignment = slot < 0 ? "" : $"{(otherPlayer ? 3 - _player : _player)}P {(slot is 1 or 2 ? "ドン" : "カッ")}{(slot is 0 or 1 ? "左" : "右")}";
-            string displayAssignment = _deviceType == 2 && slot >= 0
-                ? $"{(slot is 1 or 2 ? "ドン" : "カッ")}{(slot is 0 or 1 ? "左" : "右")}\n{(otherPlayer ? 3 - _player : _player)}P"
-                : assignment;
-            TextBlock content = new() { Text = input.Label + (assignment.Length > 0 ? "\n" + displayAssignment : ""),
-                FontSize = _deviceType == 2 ? (button.Width > 230 ? 14 : 16) : 12, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            if (button.Content is Canvas labelCanvas && labelCanvas.Children[0] is Border label) label.Child = content;
-            else button.Content = content;
-            button.Style = (Style)Resources[slot < 0 ? "DiagramControlStyle" : slot is 1 or 2 ? "DonKeyStyle" : "KaKeyStyle"];
+                Text = input.Binding is null ? "" : input.Label + (slot >= 0 && showAssignment ? "\n" + assignment : ""),
+                FontSize = region && !showAssignment ? 10 : 12,
+                TextAlignment = TextAlignment.Center,
+            };
+            if (!region) ApplyColor(button, slot);
             button.IsEnabled = input.Binding is not null;
             string description = input.Label + "：" + (assignment.Length > 0 ? assignment : "未設定") + "。割り当てを変更";
             AutomationProperties.SetName(button, description);
             ToolTipService.SetToolTip(button, input.Binding is null ? "コントローラーを接続してください" : description);
         }
     }
-    private void ApplyColor(Button button, int slot, bool selected)
+    private void ApplyColor(Button button, int slot)
     {
         if (slot < 0)
         {
@@ -321,7 +249,7 @@ public sealed partial class InputDeviceDiagram : UserControl
         }
         else
         {
-            string style = (selected ? "Selected" : "") + (slot is 1 or 2 ? "DonKeyStyle" : "KaKeyStyle");
+            string style = slot is 1 or 2 ? "DonKeyStyle" : "KaKeyStyle";
             button.Style = (Style)Resources[style];
         }
     }

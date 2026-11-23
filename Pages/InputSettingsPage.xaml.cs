@@ -7,7 +7,6 @@ namespace TaikoDiveLauncher.Pages;
 
 public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
 {
-    private static readonly string[] ActionLabels = ["カッ（左）", "ドン（左）", "ドン（右）", "カッ（右）"];
     private readonly InputBindingsStore _store = new();
     private readonly ControllerInputMonitor _controllerMonitor = new();
     private InputBindings _bindings = new();
@@ -15,11 +14,10 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     private bool _canEdit;
     private bool _isBusy;
     private MenuFlyout? _assignmentMenu;
-    private IReadOnlyList<ControllerDeviceOption> _devices = [];
 
     public bool HasUnsavedChanges { get; private set; }
     public string UnsavedChangesName => "入力設定";
-    private int SelectedPlayer => PlayerBox.SelectedIndex == 1 ? 2 : 1;
+    private int SelectedPlayer => PlayerPicker.SelectedIndex == 1 ? 2 : 1;
     private bool IsKeyboard => DeviceTypeBox.SelectedIndex == 0;
     private App AppInstance => (App)Application.Current;
 
@@ -39,9 +37,6 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     {
         bool narrow = e.NewSize.Width < 900;
         PageRoot.Padding = (Thickness)Application.Current.Resources[narrow ? "PageNarrowPadding" : "PageWidePadding"];
-        Grid.SetColumn(InputCommandBar, narrow ? 0 : 1);
-        Grid.SetRow(InputCommandBar, narrow ? 1 : 0);
-        InputCommandBar.HorizontalAlignment = narrow ? HorizontalAlignment.Left : HorizontalAlignment.Right;
     }
 
     private async Task ReloadAsync()
@@ -69,7 +64,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
             await _store.SaveAsync(installation, _bindings);
             HasUnsavedChanges = false;
             RefreshEditor();
-            ShowStatus(InfoBarSeverity.Success, "入力設定を保存しました。次回のTaikoDive起動から反映されます。");
+            ShowStatus(InfoBarSeverity.Success, "入力設定を保存しました。");
         }
         catch (Exception ex) { ShowStatus(InfoBarSeverity.Error, ex.Message); }
         finally { SetBusy(false); }
@@ -104,7 +99,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
                 .Select(input => new ControllerDiagramInput(ShortInputLabel(input), string.Empty, input)).ToArray();
             devices.Add(new ControllerDeviceOption(device.Key, identity.DeviceName + "（未接続）", inputs));
         }
-        _devices = devices;
+
         ControllerBox.ItemsSource = devices;
         ControllerBox.SelectedItem = devices.FirstOrDefault(item => item.Id == selectedId) ?? devices.FirstOrDefault();
         ControllerBox.PlaceholderText = "コントローラーを接続してください";
@@ -114,30 +109,10 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     private void RefreshEditor()
     {
         if (!_editorReady) return;
-        PlayerInputBindings player = GetPlayer(SelectedPlayer);
         ControllerDeviceOption? device = ControllerBox.SelectedItem as ControllerDeviceOption;
         ControllerSurface.Visibility = IsKeyboard ? Visibility.Collapsed : Visibility.Visible;
-        DiagramInstructionText.Text = IsKeyboard
-            ? $"{SelectedPlayer}P のキーをクリックして、ドン・カッ／解除を選んでください。"
-            : device is null ? "コントローラーを接続すると、図のボタンから割り当てを変更できます。"
-            : $"{SelectedPlayer}P のボタンをクリックして、ドン・カッ／解除を選んでください。";
-        AssignmentSummaryText.Text = string.Join("   ／   ", Enumerable.Range(0, 4).Select(slot =>
-        {
-            IEnumerable<string> labels = IsKeyboard ? player.GetKeys(slot).Select(InputLabelService.KeyLabel)
-                : player.GetControllers(slot).Select(input => ShortInputLabel(input) +
-                    (_devices.Count > 1 ? $"（{input.DeviceName}）" : ""));
-            string value = string.Join("・", labels);
-            return $"{ActionLabels[slot]}：{(value.Length == 0 ? "未設定" : value)}";
-        }));
-        DeviceNoteText.Text = IsKeyboard
-            ? "Tabで図に移動、矢印でキーを選択、Enterで編集。メニューはEscで閉じられます。"
-            : device is null ? "保存済みのコントローラーは、接続していなくても機器を選んで編集できます。"
-            : DeviceTypeBox.SelectedIndex == 2
-                ? "図のB番号はコントローラーの入力番号です。打面との対応は機種によって異なります。"
-                : "ボタン名が取得できる機種は図の対応位置に表示します。B番号の位置は模式的な表示です。";
-        DeviceDiagram.Update(_bindings, SelectedPlayer, Math.Max(0, DeviceTypeBox.SelectedIndex), -1, device?.Inputs ?? []);
-        static int Count(PlayerInputBindings p) => Enumerable.Range(0, 4).Sum(slot => p.GetKeys(slot).Length + p.GetControllers(slot).Length);
-        BindingSummaryText.Text = $"1P：{Count(_bindings.Player1)}件 ／ 2P：{Count(_bindings.Player2)}件 · {(HasUnsavedChanges ? "未保存" : "保存済み")}";
+        DeviceDiagram.Update(GetPlayer(SelectedPlayer), Math.Max(0, DeviceTypeBox.SelectedIndex), device?.Inputs ?? []);
+        RefreshEnabledState();
     }
 
     private void ShowKeyboardAssignmentMenu(int keyCode, Button anchor)
@@ -146,7 +121,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         int player = SelectedPlayer;
         PlayerInputBindings selected = GetPlayer(player);
         bool conflict = Enumerable.Range(0, 4).Any(slot => GetPlayer(3 - player).GetKeys(slot).Contains(keyCode));
-        ShowAssignmentMenu(anchor, $"{InputLabelService.KeyLabel(keyCode)} → {player}P", conflict,
+        ShowAssignmentMenu(anchor, InputLabelService.KeyLabel(keyCode), conflict,
             slot => selected.GetKeys(slot).Contains(keyCode),
             slot =>
             {
@@ -162,7 +137,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         int player = SelectedPlayer;
         bool Has(PlayerInputBindings p, int slot) => p.GetControllers(slot).Any(existing => InputBindingsEditor.ControllerBindingsEqual(existing, input));
         bool conflict = Enumerable.Range(0, 4).Any(slot => Has(GetPlayer(3 - player), slot));
-        ShowAssignmentMenu(anchor, $"{ShortInputLabel(input)} → {player}P", conflict,
+        ShowAssignmentMenu(anchor, ShortInputLabel(input), conflict,
             slot => Has(GetPlayer(player), slot),
             slot =>
             {
@@ -181,7 +156,7 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
         for (int slot = 0; slot < 4; slot++)
         {
             int target = slot;
-            MenuFlyoutItem item = new() { Text = (isAssigned(slot) ? "✓ " : "") + ActionLabels[slot], IsEnabled = !conflict };
+            MenuFlyoutItem item = new() { Text = (isAssigned(slot) ? "✓ " : "") + InputLabelService.HitLabel(slot), IsEnabled = !conflict };
             item.Click += (_, _) => { if (_canEdit && !_isBusy) apply(target); };
             menu.Items.Add(item);
         }
@@ -212,10 +187,10 @@ public sealed partial class InputSettingsPage : Page, IUnsavedChangesAware
     {
         bool enabled = _canEdit && !_isBusy;
         DeviceDiagram.IsEnabled = enabled;
-        PlayerBox.IsEnabled = enabled;
+        PlayerPicker.IsEnabled = enabled;
         DeviceTypeBox.IsEnabled = enabled;
         ControllerBox.IsEnabled = enabled;
-        SaveButton.IsEnabled = enabled;
+        SaveButton.IsEnabled = enabled && HasUnsavedChanges;
         ReloadButton.IsEnabled = !_isBusy;
     }
 

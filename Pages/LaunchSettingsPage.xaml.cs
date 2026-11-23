@@ -26,6 +26,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     ];
 
     private readonly GameSettingsStore _settingsStore = new();
+    private string[]? _installedFontNames;
     private GameSettings? _loadedSettings;
     private bool _updatingControls;
 
@@ -56,8 +57,6 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         Grid.SetRow(AudioSurface, narrow ? 1 : 0);
         Grid.SetRow(PerformanceSurface, narrow ? 2 : 1);
         Grid.SetRow(FontSurface, narrow ? 3 : 2);
-        Grid.SetColumn(OnlineSurface, narrow ? 0 : 1);
-        Grid.SetRow(OnlineSurface, narrow ? 4 : 2);
     }
 
     private void RegisterLiveFeedbackHandlers()
@@ -72,7 +71,8 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             toggle.Toggled += (_, _) => UpdateLiveSettingsSummary();
         }
 
-        foreach (ComboBox combo in new[] { ResolutionBox, BackgroundMovieLayoutBox, SoundTypeBox })
+        foreach (ComboBox combo in new[] { ResolutionBox, BackgroundMovieLayoutBox, SoundTypeBox,
+            FontOedoBox, FontDFGothicBox, FontSeuratBox, FontDomCasualBox, FontFallbackBox })
         {
             combo.SelectionChanged += (_, _) => UpdateLiveSettingsSummary();
         }
@@ -82,19 +82,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             slider.ValueChanged += (_, _) => UpdateLiveSettingsSummary();
         }
 
-        foreach (NumberBox number in new[] { SoundBufferBox, OnlinePortBox })
-        {
-            number.ValueChanged += (_, _) => UpdateLiveSettingsSummary();
-        }
-
-        foreach (TextBox box in new[]
-        {
-            FontOedoBox, FontDFGothicBox, FontSeuratBox, FontDomCasualBox,
-            FontFallbackBox, LastJoinAddressBox,
-        })
-        {
-            box.TextChanged += (_, _) => UpdateLiveSettingsSummary();
-        }
+        SoundBufferBox.ValueChanged += (_, _) => UpdateLiveSettingsSummary();
     }
 
     private void UpdateLiveSettingsSummary()
@@ -128,10 +116,12 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
 
     private async Task ReloadAsync()
     {
+        if (BusyRing.IsActive) return;
         TaikoDiveInstallation? installation = AppInstance.Context.Installation;
         if (installation is null)
         {
             _loadedSettings = null;
+            SaveButton.IsEnabled = false;
             SetSettingsEnabled(false);
             UpdateLiveSettingsSummary();
             StatusBar.IsOpen = false;
@@ -143,6 +133,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         try
         {
             GameSettings settings = await _settingsStore.LoadAsync(installation);
+            _installedFontNames ??= await Task.Run(GetInstalledFontNames);
             _loadedSettings = settings;
             List<ResolutionOption> resolutions = StandardResolutions.ToList();
             if (resolutions.All(item => item.Width != settings.ScreenWidth))
@@ -168,16 +159,15 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             SoundEffectVolumeSlider.Value = settings.SoundEffectVolume;
             SoundTypeBox.SelectedItem = settings.SoundType;
             SoundBufferBox.Value = settings.SoundBufferSamples;
-            FontOedoBox.Text = settings.FontOedo;
-            FontDFGothicBox.Text = settings.FontDFGothic;
-            FontSeuratBox.Text = settings.FontSeurat;
-            FontDomCasualBox.Text = settings.FontDomCasual;
-            FontFallbackBox.Text = settings.FontFallback;
+            SelectFont(FontOedoBox, settings.FontOedo);
+            SelectFont(FontDFGothicBox, settings.FontDFGothic);
+            SelectFont(FontSeuratBox, settings.FontSeurat);
+            SelectFont(FontDomCasualBox, settings.FontDomCasual);
+            SelectFont(FontFallbackBox, settings.FontFallback);
             CompressedSoundSwitch.IsOn = settings.UseCompressedSongSound;
             Texture16BitSwitch.IsOn = settings.ReduceTextureColorTo16bit;
             BgTexture16BitSwitch.IsOn = settings.ReduceBgTextureColorTo16bit;
-            OnlinePortBox.Value = settings.OnlinePort;
-            LastJoinAddressBox.Text = settings.LastJoinAddress;
+
             SetSettingsEnabled(true);
             StatusBar.IsOpen = false;
         }
@@ -195,9 +185,41 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
         }
     }
 
+    private static string[] GetInstalledFontNames()
+    {
+        try
+        {
+            using var installed = new System.Drawing.Text.InstalledFontCollection();
+            var families = installed.Families;
+            try
+            {
+                return families.Select(family => family.Name)
+                    .Where(name => !string.IsNullOrWhiteSpace(name) && name[0] != '@')
+                    .Distinct(StringComparer.CurrentCultureIgnoreCase)
+                    .Order(StringComparer.CurrentCultureIgnoreCase).ToArray();
+            }
+            finally
+            {
+                foreach (var family in families) family.Dispose();
+            }
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            return [];
+        }
+    }
+
+    private void SelectFont(ComboBox box, string savedName)
+    {
+        string[] names = _installedFontNames ?? [];
+        // 現在の設定値がこのPCにない場合も、他の項目を保存しただけでは変更しない。
+        box.ItemsSource = names.Contains(savedName, StringComparer.Ordinal) ? names : new[] { savedName }.Concat(names).ToArray();
+        box.SelectedItem = savedName;
+    }
+
     private async void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        if (AppInstance.Context.Installation is not { } installation)
+        if (_loadedSettings is null || BusyRing.IsActive || AppInstance.Context.Installation is not { } installation)
         {
             return;
         }
@@ -231,6 +253,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
     {
         BusyRing.IsActive = isBusy;
         BusyRing.Visibility = isBusy ? Visibility.Visible : Visibility.Collapsed;
+        SaveButton.IsEnabled = !isBusy && _loadedSettings is not null;
     }
 
     private void SetSettingsEnabled(bool isEnabled)
@@ -266,16 +289,15 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             SoundEffectVolume = (int)Math.Round(SoundEffectVolumeSlider.Value),
             SoundType = SoundTypeBox.SelectedItem as string ?? "DirectSound",
             SoundBufferSamples = double.IsNaN(SoundBufferBox.Value) ? 0 : (int)Math.Round(SoundBufferBox.Value),
-            FontOedo = FontOedoBox.Text,
-            FontDFGothic = FontDFGothicBox.Text,
-            FontSeurat = FontSeuratBox.Text,
-            FontDomCasual = FontDomCasualBox.Text,
-            FontFallback = FontFallbackBox.Text,
+            FontOedo = FontOedoBox.SelectedItem as string ?? _loadedSettings?.FontOedo ?? string.Empty,
+            FontDFGothic = FontDFGothicBox.SelectedItem as string ?? _loadedSettings?.FontDFGothic ?? string.Empty,
+            FontSeurat = FontSeuratBox.SelectedItem as string ?? _loadedSettings?.FontSeurat ?? string.Empty,
+            FontDomCasual = FontDomCasualBox.SelectedItem as string ?? _loadedSettings?.FontDomCasual ?? string.Empty,
+            FontFallback = FontFallbackBox.SelectedItem as string ?? _loadedSettings?.FontFallback ?? string.Empty,
             UseCompressedSongSound = CompressedSoundSwitch.IsOn,
             ReduceTextureColorTo16bit = Texture16BitSwitch.IsOn,
             ReduceBgTextureColorTo16bit = BgTexture16BitSwitch.IsOn,
-            OnlinePort = double.IsNaN(OnlinePortBox.Value) ? 22047 : (int)Math.Round(OnlinePortBox.Value),
-            LastJoinAddress = LastJoinAddressBox.Text,
+
         };
     }
 
@@ -304,9 +326,7 @@ public sealed partial class LaunchSettingsPage : Page, IUnsavedChangesAware
             && left.FontFallback == right.FontFallback
             && left.UseCompressedSongSound == right.UseCompressedSongSound
             && left.ReduceTextureColorTo16bit == right.ReduceTextureColorTo16bit
-            && left.ReduceBgTextureColorTo16bit == right.ReduceBgTextureColorTo16bit
-            && left.OnlinePort == right.OnlinePort
-            && left.LastJoinAddress == right.LastJoinAddress;
+            && left.ReduceBgTextureColorTo16bit == right.ReduceBgTextureColorTo16bit;
     }
 
     private sealed record BackgroundMovieLayoutOption(string Value, string Label);

@@ -9,7 +9,7 @@ namespace TaikoDiveLauncher;
 public sealed partial class MainPage : Page
 {
     private static readonly string[] NavigationOrder =
-        ["home", "profiles", "songs", "input-settings", "settings", "launcher-settings"];
+        ["home", "profiles", "songs", "play-activity", "input-settings", "settings", "launcher-settings"];
 
     private NavigationViewItem? _currentNavigationItem;
     private bool _suppressSelectionChanged;
@@ -155,6 +155,7 @@ public sealed partial class MainPage : Page
         {
             "profiles" => typeof(ProfilesPage),
             "songs" => typeof(SongsPage),
+            "play-activity" => typeof(PlayActivityPage),
             "input-settings" => typeof(InputSettingsPage),
             "settings" => typeof(LaunchSettingsPage),
             "launcher-settings" => typeof(LauncherSettingsPage),

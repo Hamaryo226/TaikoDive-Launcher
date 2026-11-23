@@ -58,6 +58,11 @@ internal static class InputLabelService
 
     public static string KeyLabel(int keyCode) => KeyLabels.TryGetValue(keyCode, out string? label) ? label : $"Key({keyCode})";
 
+    public static string HitLabel(int slot) => slot switch
+    {
+        0 => "縁(左)", 1 => "面(左)", 2 => "面(右)", 3 => "縁(右)", _ => string.Empty,
+    };
+
     public static string ControllerLabel(ControllerInputBinding input)
     {
         string device = string.IsNullOrWhiteSpace(input.DeviceName) ? "Controller" : input.DeviceName;

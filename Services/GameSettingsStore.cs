@@ -53,8 +53,7 @@ public sealed class GameSettingsStore
             ReduceTextureColorTo16bit = GetBoolean(root, "reduceTextureColorTo16bit", false),
             ReduceBgTextureColorTo16bit = GetBoolean(root, "reduceBgTextureColorTo16bit", false),
             UseCompressedSongSound = GetBoolean(root, "useCompressedSongSound", true),
-            OnlinePort = Math.Clamp(GetInteger(root, "onlinePort", 22047), 1, 65535),
-            LastJoinAddress = GetString(root, "lastJoinAddress", string.Empty),
+
         };
     }
 
@@ -95,8 +94,7 @@ public sealed class GameSettingsStore
             root.Remove(key);
         Set(root, "reduceBgTextureColorTo16bit", settings.ReduceBgTextureColorTo16bit);
         Set(root, "useCompressedSongSound", settings.UseCompressedSongSound);
-        Set(root, "onlinePort", Math.Clamp(settings.OnlinePort, 1, 65535));
-        Set(root, "lastJoinAddress", settings.LastJoinAddress);
+
 
         string json = root.ToJsonString(SerializerOptions) + Environment.NewLine;
         await FilePersistence.WriteTextAtomicAsync(
