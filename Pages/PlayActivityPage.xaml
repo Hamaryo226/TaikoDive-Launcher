@@ -1,0 +1,69 @@
+<Page x:Class="TaikoDiveLauncher.Pages.PlayActivityPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Page.Resources>
+        <ControlTemplate x:Key="ActivityCellTemplate" TargetType="Button">
+            <Border x:Name="Cell" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup x:Name="CommonStates">
+                        <VisualState x:Name="Normal" />
+                        <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Cell.Opacity" Value="0.68" /></VisualState.Setters></VisualState>
+                        <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Cell.Opacity" Value="0.46" /></VisualState.Setters></VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+                <ContentPresenter Content="{TemplateBinding Content}" IsHitTestVisible="False"
+                                  HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            </Border>
+        </ControlTemplate>
+    </Page.Resources>
+    <Grid x:Name="PageRoot" Style="{StaticResource PageLayoutStyle}" SizeChanged="PageRoot_SizeChanged">
+        <ScrollViewer HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="18" Margin="0,0,12,0">
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                    <TextBlock Text="プレイ記録" Style="{StaticResource PageTitleStyle}" />
+                    <ComboBox x:Name="PlayerPicker" Grid.Column="1" MinWidth="128" MaxWidth="210" IsEnabled="False"
+                              AutomationProperties.Name="プレイヤー" SelectionChanged="Filter_Changed" />
+                </Grid>
+                <Border Style="{StaticResource QuietSurfaceStyle}" Padding="18,14,18,14">
+                    <StackPanel Spacing="12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="プレイ回数" Style="{StaticResource SectionTitleStyle}" VerticalAlignment="Center" />
+                            <RadioButtons x:Name="ModePicker" Grid.Column="1" MaxColumns="3" SelectedIndex="0"
+                                          AutomationProperties.Name="集計方法" SelectionChanged="Filter_Changed">
+                                <RadioButton Content="日別" MinWidth="63" />
+                                <RadioButton Content="週別" MinWidth="63" />
+                                <RadioButton Content="累計" MinWidth="63" />
+                            </RadioButtons>
+                        </Grid>
+                        <ScrollViewer x:Name="PlotScroll" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled" ZoomMode="Disabled"
+                                      SizeChanged="PlotScroll_SizeChanged">
+                            <Canvas x:Name="Plot" Height="160" />
+                        </ScrollViewer>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <TextBlock x:Name="RangeText" Style="{StaticResource PageSubtitleStyle}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" AutomationProperties.AccessibilityView="Raw">
+                                <TextBlock Text="少" Style="{StaticResource PageSubtitleStyle}" />
+                                <StackPanel x:Name="Legend" Orientation="Horizontal" Spacing="3" VerticalAlignment="Center" />
+                                <TextBlock Text="多" Style="{StaticResource PageSubtitleStyle}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+                <InfoBar x:Name="LoadError" Severity="Error" IsClosable="False" Visibility="Collapsed" />
+                <Border Style="{StaticResource QuietSurfaceStyle}" Padding="18,14,18,12">
+                    <StackPanel Spacing="6">
+                        <TextBlock x:Name="PeriodText" Style="{StaticResource SectionTitleStyle}" />
+                        <TextBlock x:Name="PeriodCountText" Style="{StaticResource PageSubtitleStyle}" />
+                        <TextBlock x:Name="EmptyText" Style="{StaticResource PageSubtitleStyle}" Visibility="Collapsed" />
+                        <ListView x:Name="PlayList" SelectionMode="None" MaxHeight="320" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

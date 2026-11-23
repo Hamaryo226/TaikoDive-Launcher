@@ -52,7 +52,5 @@ public sealed class GameSettings
 
     public bool UseCompressedSongSound { get; set; } = true;
 
-    public int OnlinePort { get; set; } = 22047;
 
-    public string LastJoinAddress { get; set; } = string.Empty;
 }

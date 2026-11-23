@@ -28,8 +28,7 @@
                 <StackPanel Spacing="8">
                     <InfoBar x:Name="PreferencesProtectionBar" IsClosable="False" Severity="Warning" />
                     <TextBlock x:Name="PreferencesHelpText" Style="{StaticResource PageSubtitleStyle}" />
-                    <Button x:Name="ReloadPreferencesButton" Content="設定を読み直す" Click="ReloadPreferencesButton_Click" />
-                    <Button x:Name="ResetPreferencesButton" Content="設定を退避して初期化" Click="ResetPreferencesButton_Click" />
+
                     <Button x:Name="RetryPreferencesButton" Content="保存を再試行" Click="RetryPreferencesButton_Click" Visibility="Collapsed" />
                     <Button x:Name="RevertPreferencesButton" Content="変更を戻す" Click="RevertPreferencesButton_Click" Visibility="Collapsed" />
                 </StackPanel>

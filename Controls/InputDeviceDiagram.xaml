@@ -9,50 +9,26 @@
                     <SolidColorBrush x:Key="DonFillBrush" Color="#B73027" />
                     <SolidColorBrush x:Key="KaFillBrush" Color="#006B83" />
                     <SolidColorBrush x:Key="HitForegroundBrush" Color="White" />
-                    <SolidColorBrush x:Key="DiagramControlBackgroundBrush" Color="#B0282828" />
-                    <SolidColorBrush x:Key="DiagramControlForegroundBrush" Color="White" />
-                    <SolidColorBrush x:Key="DiagramLabelBackgroundBrush" Color="#DA282828" />
+                    <SolidColorBrush x:Key="RegionFaceBrush" Color="#FF5239" />
+                    <SolidColorBrush x:Key="RegionRimBrush" Color="#6CC4C8" />
+                    <SolidColorBrush x:Key="RegionInkBrush" Color="#171717" />
+                    <SolidColorBrush x:Key="DeviceShellBrush" Color="#FCFCFC" />
+                    <SolidColorBrush x:Key="DrumStandBrush" Color="#9CB0B9" />
+                    <SolidColorBrush x:Key="DrumTrimBrush" Color="#E9EDEE" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
                     <SolidColorBrush x:Key="DonFillBrush" Color="{ThemeResource SystemColorHighlightColor}" />
                     <SolidColorBrush x:Key="KaFillBrush" Color="{ThemeResource SystemColorHighlightColor}" />
                     <SolidColorBrush x:Key="HitForegroundBrush" Color="{ThemeResource SystemColorHighlightTextColor}" />
-                    <SolidColorBrush x:Key="DiagramControlBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
-                    <SolidColorBrush x:Key="DiagramControlForegroundBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
-                    <SolidColorBrush x:Key="DiagramLabelBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="RegionFaceBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="RegionRimBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+                    <SolidColorBrush x:Key="RegionInkBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+                    <SolidColorBrush x:Key="DeviceShellBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="DrumStandBrush" Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="DrumTrimBrush" Color="{ThemeResource SystemColorWindowColor}" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-            <ControlTemplate x:Key="DrumSectorTemplate" TargetType="Button">
-                <Grid>
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroup x:Name="CommonStates">
-                            <VisualState x:Name="Normal" />
-                            <VisualState x:Name="PointerOver"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.75" /></VisualState.Setters></VisualState>
-                            <VisualState x:Name="Pressed"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.9" /></VisualState.Setters></VisualState>
-                            <VisualState x:Name="Disabled"><VisualState.Setters><Setter Target="Surface.Opacity" Value="0.1" /></VisualState.Setters></VisualState>
-                        </VisualStateGroup>
-                        <VisualStateGroup x:Name="FocusStates">
-                            <!-- Keep each Geometry on one Path; highlight the same surface for focus. -->
-                            <VisualState x:Name="Unfocused" />
-                            <VisualState x:Name="PointerFocused" />
-                            <VisualState x:Name="Focused"><VisualState.Setters><Setter Target="Surface.StrokeThickness" Value="5" /><Setter Target="Surface.Opacity" Value="0.8" /></VisualState.Setters></VisualState>
-                        </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
-                    <Path x:Name="Surface" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
-                          Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="2" Opacity="0.45" />
-                    <ContentPresenter Content="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" IsHitTestVisible="False" />
-                </Grid>
-            </ControlTemplate>
-            <Style x:Key="DiagramCaptionStyle" TargetType="Border">
-                <Setter Property="Background" Value="{ThemeResource DiagramLabelBackgroundBrush}" />
-                <Setter Property="Padding" Value="4" />
-                <Setter Property="CornerRadius" Value="8" />
-            </Style>
-            <Style x:Key="DiagramControlStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
-                <Setter Property="Background" Value="{ThemeResource DiagramControlBackgroundBrush}" />
-                <Setter Property="Foreground" Value="{ThemeResource DiagramControlForegroundBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource DiagramControlForegroundBrush}" />
-            </Style>
+
             <Style x:Key="DonKeyStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
                 <Setter Property="Background" Value="{ThemeResource DonFillBrush}" />
                 <Setter Property="Foreground" Value="{ThemeResource HitForegroundBrush}" />
@@ -61,40 +37,86 @@
                 <Setter Property="Background" Value="{ThemeResource KaFillBrush}" />
                 <Setter Property="Foreground" Value="{ThemeResource HitForegroundBrush}" />
             </Style>
-            <Style x:Key="SelectedDonKeyStyle" TargetType="Button" BasedOn="{StaticResource DonKeyStyle}">
-                <Setter Property="BorderBrush" Value="{ThemeResource TextFillColorPrimaryBrush}" />
-                <Setter Property="BorderThickness" Value="3" />
-            </Style>
-            <Style x:Key="SelectedKaKeyStyle" TargetType="Button" BasedOn="{StaticResource KaKeyStyle}">
-                <Setter Property="BorderBrush" Value="{ThemeResource TextFillColorPrimaryBrush}" />
-                <Setter Property="BorderThickness" Value="3" />
-            </Style>
-            <Style x:Key="DiagramShellPathStyle" TargetType="Shape">
-                <Setter Property="Fill" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                <Setter Property="Stroke" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
-                <Setter Property="StrokeThickness" Value="2" />
-            </Style>
-            <Style x:Key="DiagramInsetPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
-                <Setter Property="Fill" Value="{ThemeResource ControlAltFillColorQuarternaryBrush}" />
-            </Style>
-            <Style x:Key="DiagramDetailPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
-                <Setter Property="Fill" Value="{ThemeResource ControlFillColorDefaultBrush}" />
-            </Style>
-            <Style x:Key="DiagramBarrelPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
-                <Setter Property="Fill" Value="{ThemeResource ControlAltFillColorSecondaryBrush}" />
-            </Style>
-            <Style x:Key="DiagramStudPathStyle" TargetType="Shape" BasedOn="{StaticResource DiagramShellPathStyle}">
-                <Setter Property="Fill" Value="{ThemeResource TextFillColorSecondaryBrush}" />
-                <Setter Property="StrokeThickness" Value="0" />
-            </Style>
-            <Style x:Key="DiagramLinePathStyle" TargetType="Shape">
-                <Setter Property="Stroke" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
-                <Setter Property="StrokeThickness" Value="1.5" />
-            </Style>
+
             <Style x:Key="DiagramBodyStyle" TargetType="Border">
                 <Setter Property="Background" Value="{ThemeResource ControlAltFillColorSecondaryBrush}" />
                 <Setter Property="BorderBrush" Value="{ThemeResource ControlStrongStrokeColorDefaultBrush}" />
             </Style>
+            <ControlTemplate x:Key="ControllerRegionTemplate" TargetType="Button">
+                <Grid>
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal" />
+                            <VisualState x:Name="PointerOver">
+                                <VisualState.Setters><Setter Target="Surface.Opacity" Value="0.72" /></VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters><Setter Target="Surface.Opacity" Value="0.5" /></VisualState.Setters>
+                            </VisualState>
+                            <VisualState x:Name="Disabled" />
+                        </VisualStateGroup>
+                        <VisualStateGroup x:Name="FocusStates">
+                            <VisualState x:Name="Unfocused" />
+                            <VisualState x:Name="PointerFocused" />
+                            <VisualState x:Name="Focused">
+                                <VisualState.Setters>
+                                    <Setter Target="Surface.StrokeThickness" Value="4" />
+                                    <Setter Target="Surface.Opacity" Value="0.72" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+                    <Path x:Name="Surface" Data="{Binding Tag, RelativeSource={RelativeSource TemplatedParent}}"
+                          Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="2" />
+                    <ContentPresenter Content="{TemplateBinding Content}" IsHitTestVisible="False"
+                                      Foreground="{TemplateBinding Foreground}" Padding="{TemplateBinding Padding}"
+                                      HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+                </Grid>
+            </ControlTemplate>
+            <Style x:Key="ControllerRegionStyle" TargetType="Button">
+                <Setter Property="Template" Value="{StaticResource ControllerRegionTemplate}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource RegionInkBrush}" />
+                <Setter Property="Foreground" Value="{ThemeResource RegionInkBrush}" />
+                <Setter Property="UseSystemFocusVisuals" Value="False" />
+            </Style>
+            <Style x:Key="FaceRegionStyle" TargetType="Button" BasedOn="{StaticResource ControllerRegionStyle}">
+                <Setter Property="Background" Value="{ThemeResource RegionFaceBrush}" />
+            </Style>
+            <Style x:Key="RimRegionStyle" TargetType="Button" BasedOn="{StaticResource ControllerRegionStyle}">
+                <Setter Property="Background" Value="{ThemeResource RegionRimBrush}" />
+            </Style>
+            <Style x:Key="DeviceBodyShape" TargetType="Shape">
+                <Setter Property="Fill" Value="{ThemeResource DeviceShellBrush}" />
+                <Setter Property="Stroke" Value="{ThemeResource RegionInkBrush}" />
+                <Setter Property="StrokeThickness" Value="3" />
+                <Setter Property="StrokeLineJoin" Value="Round" />
+            </Style>
+            <DataTemplate x:Key="GamepadSchematic">
+                <Canvas Width="720" Height="282" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                    <Path Style="{StaticResource DeviceBodyShape}"
+                          Data="M 250,39 C 212,40 191,65 176,119 C 160,174 157,229 183,259 C 204,282 244,263 278,237 L 442,237 C 476,263 516,282 537,259 C 563,229 560,174 544,119 C 529,65 508,40 470,39 Z" />
+                    <Ellipse Canvas.Left="193" Canvas.Top="97" Width="54" Height="54" Style="{StaticResource DeviceBodyShape}" />
+                    <Ellipse Canvas.Left="357" Canvas.Top="172" Width="54" Height="54" Style="{StaticResource DeviceBodyShape}" />
+                    <Ellipse Canvas.Left="315" Canvas.Top="91" Width="17" Height="17" Style="{StaticResource DeviceBodyShape}" />
+                    <Ellipse Canvas.Left="388" Canvas.Top="91" Width="17" Height="17" Style="{StaticResource DeviceBodyShape}" />
+                    <Ellipse Canvas.Left="348" Canvas.Top="119" Width="24" Height="24" Style="{StaticResource DeviceBodyShape}" />
+                    <Path Style="{StaticResource DeviceBodyShape}"
+                          Data="M 280,133 L 304,133 L 304,160 L 331,160 L 331,184 L 304,184 L 304,211 L 280,211 L 280,184 L 253,184 L 253,160 L 280,160 Z" />
+                </Canvas>
+            </DataTemplate>
+            <DataTemplate x:Key="DrumSchematic">
+                <Canvas Width="720" Height="282" IsHitTestVisible="False" AutomationProperties.AccessibilityView="Raw">
+                    <Path Style="{StaticResource DeviceBodyShape}" Fill="{ThemeResource DrumStandBrush}"
+                          Data="M 271,176 Q 244,212 244,261 L 271,261 L 320,230 L 310,264 Q 360,278 410,264 L 400,230 L 449,261 L 476,261 Q 476,212 449,176 Z" />
+                    <Path Style="{StaticResource DeviceBodyShape}" Fill="{ThemeResource DrumTrimBrush}"
+                          Data="M 248,234 L 273,234 L 274,260 L 244,261 Z M 447,234 L 472,234 L 476,261 L 446,260 Z M 315,245 Q 360,257 405,245 L 410,264 Q 360,275 310,264 Z" />
+                    <Path Style="{StaticResource DeviceBodyShape}" Fill="{ThemeResource DrumTrimBrush}"
+                          Data="M 251,161 Q 360,204 469,161 C 462,230 416,250 360,250 C 304,250 258,230 251,161 Z" />
+                    <Path Stroke="{ThemeResource RegionInkBrush}" StrokeThickness="2"
+                          Data="M 266,206 Q 360,270 454,206" />
+                </Canvas>
+            </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 </UserControl>

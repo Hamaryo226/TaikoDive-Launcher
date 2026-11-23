@@ -109,15 +109,15 @@ public sealed class LauncherRecoveryUiTests
     }
 
     [TestMethod]
-    public void SettingsRecoveryActionsAreWiredAndProtectedEditsAreNotRolledBack()
+    public void SettingsDoesNotOfferRereadOrResetAndProtectedEditsAreNotRolledBack()
     {
         var xml = XDocument.Parse(Read("Pages/LauncherSettingsPage.xaml"));
         XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
-        foreach (string name in new[] { "ReloadPreferencesButton", "ResetPreferencesButton", "RetryPreferencesButton", "RevertPreferencesButton", "PreferencesProtectionBar" })
+        Assert.IsFalse(xml.Descendants().Any(e => (string?)e.Attribute(x + "Name") == "ReloadPreferencesButton"));
+        Assert.IsFalse(xml.Descendants().Any(e => (string?)e.Attribute(x + "Name") == "ResetPreferencesButton"));
+        foreach (string name in new[] { "RetryPreferencesButton", "RevertPreferencesButton", "PreferencesProtectionBar" })
             Assert.IsTrue(xml.Descendants().Any(e => (string?)e.Attribute(x + "Name") == name), name);
         string code = Read("Pages/LauncherSettingsPage.xaml.cs") + Read("Pages/LauncherSettingsPage.Recovery.cs");
-        StringAssert.Contains(code, "未保存の変更があります。設定を読み直しますか？");
-        StringAssert.Contains(code, "DefaultButton = ContentDialogButton.Close");
         Assert.DoesNotContain("Preferences.Theme = previousTheme;", code);
         Assert.DoesNotContain("Preferences.CloseAfterLaunch = previousValue;", code);
         Assert.DoesNotContain("Preferences.HomeBannerStyle = previous;", code);

@@ -185,13 +185,11 @@ public sealed class PersistenceTests
         Assert.AreEqual("Dom Test", settings.FontDomCasual);
         Assert.AreEqual("Fallback Test", settings.FontFallback);
         Assert.IsTrue(settings.ReduceBgTextureColorTo16bit);
-        Assert.AreEqual(32123, settings.OnlinePort);
-        Assert.AreEqual("example.test:32123", settings.LastJoinAddress);
+
 
         settings.TitleShow = true;
         settings.BackgroundMovieLayoutMode = "FullScreen";
-        settings.OnlinePort = 22047;
-        settings.LastJoinAddress = string.Empty;
+
         await store.SaveAsync(temporary.Installation, settings);
 
         JsonObject saved = JsonNode.Parse(
@@ -200,8 +198,20 @@ public sealed class PersistenceTests
         Assert.AreEqual("FullScreen", saved["backgroundMovieLayoutMode"]!.GetValue<string>());
         Assert.AreEqual("Oedo Test", saved["fontOedo"]!.GetValue<string>());
         Assert.IsTrue(saved["reduceBgTextureColorTo16bit"]!.GetValue<bool>());
-        Assert.AreEqual(22047, saved["onlinePort"]!.GetValue<int>());
-        Assert.AreEqual(string.Empty, saved["lastJoinAddress"]!.GetValue<string>());
+        Assert.AreEqual(32123, saved["onlinePort"]!.GetValue<int>());
+        Assert.AreEqual("example.test:32123", saved["lastJoinAddress"]!.GetValue<string>());
+    }
+
+    [TestMethod]
+    public async Task GameSettingsSaveDoesNotCreateRetiredOnlineOptions()
+    {
+        using TemporaryInstallation temporary = new();
+        GameSettingsStore store = new(() => false);
+        await store.SaveAsync(temporary.Installation, new GameSettings());
+        JsonObject saved = JsonNode.Parse(
+            await File.ReadAllTextAsync(temporary.Installation.GameSettingsPath))!.AsObject();
+        Assert.IsFalse(saved.ContainsKey("onlinePort"));
+        Assert.IsFalse(saved.ContainsKey("lastJoinAddress"));
     }
 
     [TestMethod]

@@ -55,36 +55,7 @@
                     </Border>
                 </Grid>
                 <StackPanel x:Name="HeroContent" Margin="36,32" VerticalAlignment="Center" Spacing="10">
-                    <Border
-                        x:Name="HeroStatusBadge"
-                        HorizontalAlignment="Left"
-                        Padding="10,4"
-                        Background="{ThemeResource HeroChipBackgroundBrush}"
-                        BorderBrush="{ThemeResource HeroForegroundBrush}"
-                        BorderThickness="1"
-                        CornerRadius="12">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <FontIcon
-                                x:Name="HeroStatusIcon"
-                                FontSize="12"
-                                Foreground="{ThemeResource HeroForegroundBrush}"
-                                Glyph="&#xE7BA;" />
-                            <TextBlock
-                                x:Name="HeroStatusText"
-                                FontSize="12"
-                                FontWeight="SemiBold"
-                                Foreground="{ThemeResource HeroForegroundBrush}"
-                                Text="確認中" />
-                        </StackPanel>
-                    </Border>
                     <TextBlock Text="TaikoDive" Style="{StaticResource HeroTitleStyle}" />
-                    <TextBlock
-                        MaxWidth="520"
-                        HorizontalAlignment="Left"
-                        FontSize="15"
-                        Foreground="{ThemeResource HeroSecondaryForegroundBrush}"
-                        Text="プロフィールと起動構成を整えて、ゲームを始めよう。"
-                        TextWrapping="Wrap" />
                     <Button
                         x:Name="LaunchButton"
                         Margin="0,16,0,0"
@@ -156,17 +127,13 @@
                 IsClosable="False"
                 IsOpen="False" />
 
-            <Grid x:Name="SummaryGrid" Grid.Row="2" ColumnSpacing="16" RowSpacing="16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition x:Name="SummaryPrimaryColumn" Width="380" />
-                    <ColumnDefinition x:Name="SummarySecondaryColumn" Width="*" />
-                </Grid.ColumnDefinitions>
+            <Grid Grid.Row="2" RowSpacing="16">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Border x:Name="CharacterSurface" Padding="16" Style="{StaticResource QuietSurfaceStyle}">
+                <Border Padding="16" Style="{StaticResource QuietSurfaceStyle}">
                     <Grid RowSpacing="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -204,7 +171,7 @@
                     </Grid>
                 </Border>
 
-                <Border x:Name="ActivitySurface" Grid.Column="1" Style="{StaticResource QuietSurfaceStyle}">
+                <Border Grid.Row="1" Style="{StaticResource QuietSurfaceStyle}">
                     <StackPanel Spacing="12">
                         <TextBlock Text="最近のアクティビティ" Style="{StaticResource SectionTitleStyle}" />
                         <TextBlock Text="最近遊んだ楽曲" Style="{StaticResource FieldLabelStyle}" />
